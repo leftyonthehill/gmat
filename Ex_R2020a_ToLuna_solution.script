@@ -1,0 +1,172 @@
+%General Mission Analysis Tool(GMAT) Script
+%Created: 2019-04-26 09:25:18
+
+
+%----------------------------------------
+%---------- Spacecraft
+%----------------------------------------
+
+Create Spacecraft Sat;
+Sat.DateFormat = UTCGregorian;
+Sat.Epoch = '26 Apr 2019 12:00:00.000';
+Sat.CoordinateSystem = EarthFixed;
+Sat.DisplayStateType = Cartesian;
+Sat.X = 639.2234690795915;
+Sat.Y = -3854.671035535996;
+Sat.Z = 5348.791562420617;
+Sat.VX = -0.1652938147345507;
+Sat.VY = 6.129069442591824;
+Sat.VZ = 4.669570395189814;
+Sat.DryMass = 850;
+Sat.Cd = 2.2;
+Sat.Cr = 1.8;
+Sat.DragArea = 15;
+Sat.SRPArea = 1;
+Sat.SPADDragScaleFactor = 1;
+Sat.SPADSRPScaleFactor = 1;
+Sat.AtmosDensityScaleFactor = 1;
+Sat.ExtendedMassPropertiesModel = 'None';
+Sat.NAIFId = -10001001;
+Sat.NAIFIdReferenceFrame = -9001001;
+Sat.OrbitColor = Red;
+Sat.TargetColor = Teal;
+Sat.OrbitErrorCovariance = [ 1e+70 0 0 0 0 0 ; 0 1e+70 0 0 0 0 ; 0 0 1e+70 0 0 0 ; 0 0 0 1e+70 0 0 ; 0 0 0 0 1e+70 0 ; 0 0 0 0 0 1e+70 ];
+Sat.CdSigma = 1e+70;
+Sat.CrSigma = 1e+70;
+Sat.Id = 'SatId';
+Sat.Attitude = CoordinateSystemFixed;
+Sat.SPADSRPInterpolationMethod = Bilinear;
+Sat.SPADSRPScaleFactorSigma = 1e+70;
+Sat.SPADDragInterpolationMethod = Bilinear;
+Sat.SPADDragScaleFactorSigma = 1e+70;
+Sat.AtmosDensityScaleFactorSigma = 1e+70;
+Sat.ModelFile = 'aura.3ds';
+Sat.ModelOffsetX = 0;
+Sat.ModelOffsetY = 0;
+Sat.ModelOffsetZ = 0;
+Sat.ModelRotationX = 0;
+Sat.ModelRotationY = 0;
+Sat.ModelRotationZ = 0;
+Sat.ModelScale = 1;
+Sat.AttitudeDisplayStateType = 'Quaternion';
+Sat.AttitudeRateDisplayStateType = 'AngularVelocity';
+Sat.AttitudeCoordinateSystem = EarthMJ2000Eq;
+Sat.EulerAngleSequence = '321';
+
+
+
+
+%----------------------------------------
+%---------- ForceModels
+%----------------------------------------
+
+Create ForceModel DefaultProp_ForceModel;
+DefaultProp_ForceModel.CentralBody = Earth;
+DefaultProp_ForceModel.PrimaryBodies = {Earth};
+DefaultProp_ForceModel.PointMasses = {Sun, Luna};
+DefaultProp_ForceModel.Drag = None;
+DefaultProp_ForceModel.SRP = On;
+DefaultProp_ForceModel.RelativisticCorrection = Off;
+DefaultProp_ForceModel.ErrorControl = RSSStep;
+DefaultProp_ForceModel.GravityField.Earth.Degree = 4;
+DefaultProp_ForceModel.GravityField.Earth.Order = 4;
+DefaultProp_ForceModel.GravityField.Earth.StmLimit = 100;
+DefaultProp_ForceModel.GravityField.Earth.PotentialFile = '../data/gravity/earth/JGM2.cof';
+DefaultProp_ForceModel.GravityField.Earth.TideModel = 'None';
+DefaultProp_ForceModel.SRP.Flux = 1367;
+DefaultProp_ForceModel.SRP.SRPModel = Spherical;
+DefaultProp_ForceModel.SRP.Nominal_Sun = 149597870.691;
+
+%----------------------------------------
+%---------- Propagators
+%----------------------------------------
+
+Create Propagator DefaultProp;
+DefaultProp.FM = DefaultProp_ForceModel;
+DefaultProp.Type = PrinceDormand78;
+DefaultProp.InitialStepSize = 60;
+DefaultProp.Accuracy = 9.999999999999999e-12;
+DefaultProp.MinStep = 0.001;
+DefaultProp.MaxStep = 2700;
+DefaultProp.MaxStepAttempts = 50;
+DefaultProp.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+%---------- Burns
+%----------------------------------------
+
+Create ImpulsiveBurn TOI;
+TOI.CoordinateSystem = Local;
+TOI.Origin = Earth;
+TOI.Axes = VNB;
+TOI.Element1 = 3.17;
+TOI.Element2 = 0;
+TOI.Element3 = 0;
+TOI.DecrementMass = false;
+TOI.Isp = 300;
+TOI.GravitationalAccel = 9.81;
+
+%----------------------------------------
+%---------- Subscribers
+%----------------------------------------
+
+Create OrbitView DefaultOrbitView;
+DefaultOrbitView.SolverIterations = Current;
+DefaultOrbitView.UpperLeft = [ 0.06818822203437588 0.01508844953173777 ];
+DefaultOrbitView.Size = [ 0.998872921949845 0.9838709677419355 ];
+DefaultOrbitView.RelativeZOrder = 36;
+DefaultOrbitView.Maximized = true;
+DefaultOrbitView.Add = {Sat, Earth, Luna};
+DefaultOrbitView.CoordinateSystem = EarthMJ2000Eq;
+DefaultOrbitView.DrawObject = [ true true true ];
+DefaultOrbitView.DataCollectFrequency = 1;
+DefaultOrbitView.UpdatePlotFrequency = 50;
+DefaultOrbitView.NumPointsToRedraw = 0;
+DefaultOrbitView.ShowPlot = true;
+DefaultOrbitView.MaxPlotPoints = 20000;
+DefaultOrbitView.ShowLabels = true;
+DefaultOrbitView.ViewPointReference = Earth;
+DefaultOrbitView.ViewPointVector = [ 0 0 1500000 ];
+DefaultOrbitView.ViewDirection = Earth;
+DefaultOrbitView.ViewScaleFactor = 1;
+DefaultOrbitView.ViewUpCoordinateSystem = EarthMJ2000Eq;
+DefaultOrbitView.ViewUpAxis = Y;
+DefaultOrbitView.EclipticPlane = Off;
+DefaultOrbitView.XYPlane = On;
+DefaultOrbitView.WireFrame = Off;
+DefaultOrbitView.Axes = On;
+DefaultOrbitView.Grid = Off;
+DefaultOrbitView.SunLine = Off;
+DefaultOrbitView.UseInitialView = On;
+DefaultOrbitView.StarCount = 7000;
+DefaultOrbitView.EnableStars = On;
+DefaultOrbitView.EnableConstellations = On;
+
+%----------------------------------------
+%---------- Arrays, Variables, Strings
+%----------------------------------------
+Create Variable LeoTime MoonDistance StartEpoch;
+LeoTime = 1900;
+StartEpoch = 0.1666666666666667;
+
+
+%----------------------------------------
+%---------- Mission Sequence
+%----------------------------------------
+
+BeginMissionSequence;
+
+StartEpoch = StartEpoch + Sat.A1ModJulian;
+Sat.A1ModJulian = StartEpoch;
+Sat.EarthFixed.X = 639.2234690795908;
+Sat.EarthFixed.Y = -3854.671035535996;
+Sat.EarthFixed.Z = 5348.791562420619;
+Sat.EarthFixed.VX = -0.1652938147345514;
+Sat.EarthFixed.VY = 6.129069442591823;
+Sat.EarthFixed.VZ = 4.669570395189814;
+
+
+Propagate DefaultProp(Sat) {Sat.ElapsedSecs = LeoTime};
+Maneuver TOI(Sat);
+Propagate DefaultProp(Sat) {Sat.Earth.Apoapsis, Sat.Luna.Periapsis, Sat.ElapsedDays = 8};
+MoonDistance = Sat.Luna.RMAG;
