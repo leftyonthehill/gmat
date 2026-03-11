@@ -5,7 +5,7 @@ class createPropagator:
         if propType.lower() != "reference" and propType.lower() != "truth":
             raise ValueError(f"Incorrect propagation type was chosen (Provided: {propType}). The propagator type must only be 'reference' or 'truth'.")
         
-        self.prop = self.createFM(propType)
+        self.prop = self.createProp(propType)
 
         def getProp(self):
             return self.Prop
@@ -21,4 +21,3 @@ class createPropagator:
         
         def assignFM(self, fm):
             self.propagator.SetReference(fm)
-            gp.cons

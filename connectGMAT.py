@@ -1,7 +1,8 @@
 
 from load_gmat import *  # This imports gmatpy and initializes the API
-from createForceModel import createPropagator
+from createForceModel import createForceModel
 from createSatellite import createSatellite
+from createPropagator import createPropagator
 
 import numpy as np
 
@@ -18,15 +19,22 @@ _refSat = createSatellite("Reference")
 _refSat.setOrbitElements(orbitParam)
 refSat = _refSat.getSat()
 
+_refFM = createForceModel("Reference")
+_refFM.assignSats(refSat)
+
+_refPropagator = createPropagator("Reference")
+_refPropagator.assignFM(_refFM)
+refPropagator = _refPropagator.getProp
+
 _truthSat = createSatellite("Truth")
 _truthSat.setOrbitElements(orbitParam)
 truthSat = _truthSat.getSat()
 
-_refPropagator = createPropagator("Reference")
-_refPropagator.assignSats(refSat)
-refPropagator = _refPropagator.getProp()
+_truthFM = createForceModel("Truth")
+_truthFM.assignSats(truthSat)
+
 _truthPropagator = createPropagator("Truth")
-_truthPropagator.assignSats(truthSat)
+_truthPropagator.assignFM(_truthFM)
 truthPropagator = _truthPropagator.getProp()
 
 gmat.Initialize()
