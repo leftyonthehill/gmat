@@ -6,6 +6,7 @@ class createSatellite:
     def __init__(self, satType: str):
         if satType.lower() != "reference" and satType.lower() != "truth":
             raise ValueError(f"Incorrect satellite type was chosen (Provided: {satType}). The satellite type must only be 'reference' or 'truth'.")
+        
         self.sat = None
         self.createSat(satType)
     
