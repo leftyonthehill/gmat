@@ -24,11 +24,18 @@ class createSatellite:
         self.sat.SetField("CoordinateSystem", "EarthMJ2000Eq")
         self.sat.SetField("DisplayStateType", "Keplerian")
 
-        self.sat.SetField("SRPArea", 12)
-        self.sat.SetField("Cr", 1.8)
-        self.sat.SetField("DragArea", 15)
-        self.sat.SetField("Cd", 2.2)
+        
         self.sat.SetField("DryMass", 850)
+        if satType.lower() == "truth":
+            self.sat.SetField("SRPArea", 1)
+            self.sat.SetField("Cr", 1.8)
+            self.sat.SetField("DragArea", 15)
+            self.sat.SetField("Cd", 2.2)
+        else:
+            self.sat.SetField("SRPArea", 0)
+            self.sat.SetField("Cr", 0)
+            self.sat.SetField("DragArea", 0)
+            self.sat.SetField("Cd", 0)
     
     def setOrbitElements(self, coes: list):
         if len(coes) != 6:

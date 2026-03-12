@@ -1,6 +1,5 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
     "python.envFile": "${workspaceFolder}/.gmat_venv/Scripts/python.exe",
-    "python-envs.pythonProjects": [],
     "python.analysis.extraPaths": ["C:/gmat-win-R2025a/GMAT_R2025a/bin"]
 }
