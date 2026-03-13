@@ -10,7 +10,7 @@ class createThruster:
     def assignTank(self, tank):
         self.thruster.SetField("Tank", tank)
 
-    def assignForce(self, f=0.1):
+    def assignForce(self, f=0.001):
         self.thruster.SetField("ThrustModel", "ConstantThrustAndIsp")
         self.thruster.SetField("Isp", 4200)
         self.thruster.SetField("ConstantThrust", f)

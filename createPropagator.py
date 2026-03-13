@@ -8,7 +8,10 @@ class createPropagator:
         self.prop = None
         self.createProp(propType)
   
-    def getProp(self):
+    def getPropagator(self):
+        return self.prop
+    
+    def getIntegrator(self):
         return self.prop.GetPropagator()
 
     def createProp(self, propType: str):

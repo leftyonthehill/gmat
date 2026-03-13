@@ -1,6 +1,7 @@
 from load_gmat import *
 
 import datetime as dt
+import numpy as np
 
 class createSatellite:
     def __init__(self, satType: str):
@@ -13,6 +14,12 @@ class createSatellite:
     def getSat(self):
         return self.sat
     
+    def getCartesianState(self):
+        return self.sat.GetCartesianState()
+    
+    def getKeplerianState(self):
+        return self.sat.GetKeplerianState()
+
     def createSat(self, satType: str):
         self.sat = gmat.Construct("Spacecraft", f"{satType.lower()}Sat")
         self.sat.SetField("DateFormat", "UTCGregorian")
@@ -47,5 +54,16 @@ class createSatellite:
         self.sat.SetField("INC", i)
         self.sat.SetField("RAAN", raan)
         self.sat.SetField("AOP", aop)
-        self.sat.SetField("TA", f)   
+        self.sat.SetField("TA", f) 
+    
+    def assignTank(self, tank):
+        self.sat.SetField("Tanks", tank)
+    
+    def assignThruster(self, thruster):
+        self.sat.SetField("Thrusters", thruster)
 
+    def assignPower(self, power):
+        self.sat.SetField("PowerSystem", power)
+    
+    def setManeuvering(self, logic:bool):
+        self.sat.IsManeuvering(logic)
