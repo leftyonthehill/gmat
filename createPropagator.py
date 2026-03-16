@@ -1,5 +1,5 @@
-# from load_gmat import *
-import gmatpyplus as gmat
+from load_gmat import *
+# import gmatpyplus as gmat
 class createPropagator:
     def __init__(self, propType: str):
         if propType.lower() != "reference" and propType.lower() != "truth":

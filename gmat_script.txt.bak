@@ -258,7 +258,6 @@ ElectricThruster3.ConstantThrust = 0.1;
 
 
 
-
 %----------------------------------------
 %---------- ForceModels
 %----------------------------------------
@@ -574,13 +573,12 @@ ricDriftRate = 11; %deg/day
 
 
 
-
 %----------------------------------------
 %---------- Mission Sequence
 %----------------------------------------
 BeginMissionSequence;
 aop0 = dragInduced.AOP;
-While dragInduced.ElapsedDays < 3 % & dragInduced.ElapsedSecs < 90120
+While dragInduced.ElapsedDays < 14 & dragInduced.ElapsedSecs < 90120
    true_lat = dragInduced.Earth.TA + dragInduced.AOP;
    true_lat = mod(true_lat, 360);
    del_a = dragInduced.SMA-Reference.SMA;

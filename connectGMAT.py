@@ -38,14 +38,15 @@ today = dt.datetime.today()
 today = today.strftime("%d %b %Y 00:00:00.000")
 power.SetField("InitialEpoch", today)
 _truthSat.assignPower("power")
-
+"""print(power.Help())
+exit(1)"""
 tank = gmat.Construct("ElectricTank", "eTank")
 _refSat.assignTank("eTank")
 _truthSat.assignTank("eTank")
 
 _thruster = createThruster("mainThrust")
 _thruster.assignTank("eTank")
-_thruster.assignForce()
+_thruster.assignForce(1e-2)
 
 _thruster.assignDirection("v", 1)
 _thruster.assignDirection("n", 0)
@@ -56,6 +57,7 @@ _truthSat.assignThruster("mainThrust")
 
 burn = gmat.Construct("FiniteBurn", "stationkeep")
 burn.SetField("Thrusters", "mainThrust")
+burn.SetSolarSystem(gmat.GetSolarSystem())
 
 burnForce = gmat.FiniteThrust("Thrust")
 burnForce.SetRefObjectName(gmat.SPACECRAFT, "truthSat")
@@ -117,6 +119,11 @@ maxDays = 2
 state = "nominal"
 y_RIC_bounds = 15
 del_a_bounce = 0
+maxThrusting = 0
+
+print(_truthSat.getSat().IsInitialized())
+print(_thruster.getThruster().IsInitialized())
+
 while t[-1] <= maxDays * 86400:
     i += 1
     t.append(i * dt)
@@ -151,9 +158,9 @@ while t[-1] <= maxDays * 86400:
             if abs(r_RIC[1]) > y_RIC_bounds:
                 state = "wait to raise"
                 
-                thruster.SetField("ThrustDirection1", 1)
+                """thruster.SetField("ThrustDirection1", -1)
                 thruster.SetField("ThrustDirection2", 0)
-                thruster.SetField("ThrustDirection3", 0)
+                thruster.SetField("ThrustDirection3", 0)"""
 
                 del_a_bounce = abs(diffCOEs["del_a"][-1])
         case "wait to raise":
@@ -184,29 +191,60 @@ while t[-1] <= maxDays * 86400:
 
             if truthCOE[-1] >= 350:
                 state = "raising"
+                
         case "raising":
-            refIntegrator.Step(dt)
+
+            refIntegrator.Step(0.01*dt)
             refIntegrator.UpdateSpaceObject()
             
-            # gmat.Command("BeginFiniteBurn", "stationkeep(truthSat)")
+            print(0)
             thruster.SetField("IsFiring", True)
             _truthSat.setManeuvering(True)
             burn.SetSpacecraftToManeuver(_truthSat.getSat())
-            
+            print(0.5)
+            print(thruster.GetField("IsFiring"))
+            # print(_truthSat.getSat().HasActiveThrusters())
+            print(0.75)
             truthPropagator.AddForce(burnForce)
-            truthPropagator.PrepareInternals()
-            truthIntegrator = truthPropagator.GetPropagator()
-
-            truthIntegrator.Step(dt)
+            psm = truthPropagator.GetPropStateManager()
+            psm.BuildState()
+            # psm.SetProperty("MassFlow")
+            # fm.AddForce(burnForce)
+            # print(fm.Help())
+            # truthPropagator.AddForce(burnForce) # type: ignore
+            truthPropagator.PrepareInternals() # type: ignore
+            print(1)
+            truthIntegrator = truthPropagator.GetPropagator() # type: ignore
+            print(2)
+            # print(thruster.Help())
+            fm = _truthFM.getFM()
+            tempSat = _truthSat.getSat()
+            dv = fm.GetDerivativesForSpacecraft(tempSat)
+            print("Engine ignition:  ", dv)
+            # print(_truthSat.getCartesianState())
+            truthIntegrator.Step(0.01*dt)
+            print(3)
             truthIntegrator.UpdateSpaceObject()
+            # print(_truthSat.getCartesianState())
+            
+            
+            fm = _truthFM.getFM()
+            tempSat = _truthSat.getSat()
+            dv = fm.GetDerivativesForSpacecraft(tempSat)
+            print("Engine shutdown:  ", dv)
+
             # gmat.Command("EndFiniteBurn", "stationkeep(truthSat)")
-            fm = truthPropagator.GetODEModel()
             fm.DeleteForce(burnForce)
             thruster.SetField("IsFiring", False)
             _truthSat.setManeuvering(False)
-            truthPropagator.PrepareInternals()
-            truthIntegrator = truthPropagator.GetPropagator()
+            truthPropagator.PrepareInternals() # type: ignore
+            truthIntegrator = truthPropagator.GetPropagator() # type: ignore
 
+            fm = _truthFM.getFM()
+            tempSat = _truthSat.getSat()
+            dv = fm.GetDerivativesForSpacecraft(tempSat)
+            print("Engine disabled:  ", dv)
+            # break
             refXYZ = _refSat.getCartesianState()
             truthXYZ = _truthSat.getCartesianState()
             refCOE = _refSat.getKeplerianState()
@@ -216,7 +254,7 @@ while t[-1] <= maxDays * 86400:
             truthSatState[0].append(r_RIC[0])
             truthSatState[1].append(r_RIC[1])
             truthSatState[2].append(r_RIC[2])
-
+            
             coes = list(diffCOEs.keys())
             for j in range(6):
                 diff = truthCOE[j] - refCOE[j]
@@ -227,40 +265,22 @@ while t[-1] <= maxDays * 86400:
                     diff = diff + 360
                 diffCOEs[coes[j]].append(diff)
 
-            print(truthCOE)
-            print(refCOE)
-
-            t.append(i * dt)
-            refIntegrator.Step(dt)
-            refIntegrator.UpdateSpaceObject()
-            truthIntegrator.Step(dt)
-            truthIntegrator.UpdateSpaceObject()
-
-            refXYZ = _refSat.getCartesianState()
-            truthXYZ = _truthSat.getCartesianState()
-            refCOE = _refSat.getKeplerianState()
-            truthCOE = _truthSat.getKeplerianState()
-            
-            r_RIC, v_RIC, rotMatrix = xyz2ric(refXYZ, truthXYZ)
-            truthSatState[0].append(r_RIC[0])
-            truthSatState[1].append(r_RIC[1])
-            truthSatState[2].append(r_RIC[2])
-
-            coes = list(diffCOEs.keys())
-            for j in range(6):
-                diff = truthCOE[j] - refCOE[j]
-
-                if j > 1 and diff > 180:
-                    diff = diff - 360
-                elif j > 1 and diff < -180:
-                    diff = diff + 360
-                diffCOEs[coes[j]].append(diff)
-
-            break
             if diffCOEs["del_a"][-1] >= 0.9 * del_a_bounce:
+                print(4)
+                print(diffCOEs["del_a"][-1], 0.9 * del_a_bounce)
                 state = "nominal"
-            if truthCOE[-1] < 350 and truthCOE[-1] >= 10:
+            
+            maxThrusting += 1
+            if maxThrusting == 1:
+                break
+            else:
                 state = "wait to raise"
+            """if truthCOE[-1] < 350 and truthCOE[-1] >= 10:
+                state = "wait to raise"
+                print(state, truthCOE[-1])
+            else:
+                print(state, truthCOE[-1])"""
+            # break
         case _:
             break
 

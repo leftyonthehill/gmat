@@ -10,11 +10,11 @@ from os import path
 
 apistartup = "api_startup_file.txt"
 
-source = "desktop" # "laptop"
+source = "laptop" # "laptop"
 if source == "desktop":
    GmatInstall = "C:\gmat-win-R2025a\GMAT_R2025a"
 elif source == "laptop":
-   GmatInstall = ""
+   GmatInstall = "D:\GMAT_R2025a"
 else:
    raise ValueError("Incorrect computer source!")
 GmatBinPath = GmatInstall + "/bin"
