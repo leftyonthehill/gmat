@@ -42,8 +42,8 @@ fm.SetField("CentralBody", "Earth")
 earthgrav = gmat.Construct("GravityField")
 earthgrav.SetField("BodyName","Earth")
 earthgrav.SetField("PotentialFile", 'JGM2.cof')
-earthgrav.SetField("Degree",8)
-earthgrav.SetField("Order",8)
+earthgrav.SetField("Degree",0)
+earthgrav.SetField("Order",0) # 8
 
 
 # Drag using Jacchia-Roberts
@@ -59,8 +59,8 @@ srp = gmat.Construct("SolarRadiationPressure", "SRP")
 
 # Add forces into the ODEModel container
 fm.AddForce(earthgrav)
-fm.AddForce(jrdrag)
-fm.AddForce(srp)
+# fm.AddForce(jrdrag)
+# fm.AddForce(srp)
 
 # Initialize propagator object
 pdprop = gmat.Construct("Propagator","PDProp")
@@ -86,7 +86,14 @@ statesArrayElectric = np.zeros((numRandSys,numMinProp,problemDim))
 
 ETank = gmat.Construct("ElectricTank", "EFuel") # create an electric tank with the name "EFuel"
 EThruster = gmat.Construct("ElectricThruster", "EThruster") # create an electric thruster with the name "EThruster"
+EThruster.SetField("ThrustModel", "ConstantThrustAndIsp")
+EThruster.SetField("Isp", 3000)
+EThruster.SetField("ConstantThrust", 100)
+
 powerSystem = gmat.Construct("SolarPowerSystem", "EPS") # create a power system with the name "EPS"
+powerSystem.SetField("InitialMaxPower", 1e4)
+powerSystem.SetField("InitialEpoch", "20 Jul 2020 00:00:00.000")
+
 EThruster.SetField("DecrementMass", False)
 EThruster.SetField("Tank", "EFuel") # set the tank for the "EThruster" to use the "EFuel" object
 earthorb.SetField("Tanks", "EFuel") # set possible tanks for the "EThruster" to use the "Fuel" object
@@ -99,21 +106,27 @@ def setThrust(s, b):
     bf = gmat.FiniteThrust("Thrust")
     bf.SetRefObjectName(gmat.SPACECRAFT, s.GetName())
     bf.SetReference(b)
-    gmat.ConfigManager.Instance().AddPhysicalModel(bf)
+    # gmat.ConfigManager.Instance().AddPhysicalModel(bf)
+    fm.AddForce(bf)
+    pdprop.SetReference(fm)
     return bf
 
 
 burn = gmat.Construct("FiniteBurn", "TheEBurn")
 burn.SetField("Thrusters", "EThruster")
+burn.SetRefObject(EThruster, gmat.THRUSTER, EThruster.GetName())
 burn.SetSolarSystem(gmat.GetSolarSystem())
 burn.SetSpacecraftToManeuver(earthorb)
+burn.SetRefObject(earthorb, gmat.SPACECRAFT, earthorb.GetName())
 
 burnForce = setThrust(earthorb, burn)
 
-
 gmat.Initialize()
 
-
+print("Forces in FM:")
+for i in range(fm.GetNumForces()):
+    f = fm.GetForce(i)
+    print(" -", f.GetName(), f.GetTypeName())
 for i in range(numRandSys):
     earthorb.SetField("SMA", 7000) # km
     earthorb.SetField("ECC", 0.05)
@@ -133,7 +146,7 @@ for i in range(numRandSys):
     gmat.Initialize()
     
     pdprop.AddPropObject(earthorb)
-    pdprop.PrepareInternals()
+    # pdprop.PrepareInternals()
 
     theThruster = earthorb.GetRefObject(gmat.THRUSTER, "EThruster")
 
@@ -145,7 +158,7 @@ for i in range(numRandSys):
     earthorb.IsManeuvering(True)
     burn.SetSpacecraftToManeuver(earthorb)
     # # Add the thrust to the force model
-    pdprop.AddForce(burnForce)
+    # pdprop.AddForce(burnForce)
     psm = pdprop.GetPropStateManager()
     psm.SetProperty("MassFlow")
     # -----------------------------
@@ -158,9 +171,24 @@ for i in range(numRandSys):
         state = gator.GetState()
         statesArrayElectric[i,j,:] = state[0:6]
         gator.UpdateSpaceObject()
+        rv = gator.GetState()
+        r = np.linalg.norm(rv[:3])
+        accelActual = fm.GetDerivativesForSpacecraft(earthorb)
+        # print(accelActual[3:])
+        accel = -mu / r**3 * np.array(rv[:3])
+        # print(accel)
+        diff = np.linalg.norm(accelActual[3:] - accel)
+        # print(diff)
+        print(f"Step {j:2d} | diff = {diff:.10f} km/s²  | "
+            f"Commanded thrust = {theThruster.GetField('ConstantThrust')} N  | "
+            f"Scale factor     = {theThruster.GetField('ThrustScaleFactor')}  | "
+            f"IsFiring         = {theThruster.GetField('IsFiring')}  | "
+            f"Total spacecraft mass = {earthorb.GetField('TotalMass')} kg | "
+            f"ThrustCoeff1     = {theThruster.GetField('ThrustCoeff1')} | ")
 
-    fm = pdprop.GetODEModel()
-    fm.DeleteForce(burnForce)
+    """fm = pdprop.GetODEModel()
+    fm.DeleteForce(burnForce)"""
+    pdprop.GetODEModel().DeleteForce(burnForce)
     theThruster.SetField("IsFiring", False)
     earthorb.IsManeuvering(False)
     pdprop.PrepareInternals()

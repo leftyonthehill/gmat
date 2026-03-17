@@ -10,19 +10,10 @@ class createThruster:
     def assignTank(self, tank):
         self.thruster.SetField("Tank", tank)
 
-    def assignForce(self, f=5):
+    def assignForce(self, f):
         self.thruster.SetField("ThrustModel", "ConstantThrustAndIsp")
-        self.thruster.SetField("ThrustCoeff1", 0)
-        self.thruster.SetField("ThrustCoeff2", 0)
-        self.thruster.SetField("ThrustCoeff3", 0)
-        self.thruster.SetField("ThrustCoeff4", 0)
-        self.thruster.SetField("ThrustCoeff5", 0)
-        self.thruster.SetField("MassFlowCoeff1", 0)
-        self.thruster.SetField("MassFlowCoeff2", 0)
-        self.thruster.SetField("MassFlowCoeff3", 0)
-        self.thruster.SetField("MassFlowCoeff4", 0)
-        self.thruster.SetField("MassFlowCoeff5", 0)
-        self.thruster.SetField("Isp", 4200)
+        self.thruster.SetField("DecrementMass", False)
+        self.thruster.SetField("Isp", 3000)
         self.thruster.SetField("ConstantThrust", f)
 
     def assignDirection(self, axis, mag):

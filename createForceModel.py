@@ -17,19 +17,19 @@ class createForceModel:
             self.assignForces()
         else:
             self.assignForces(
-                #thirdBodyEffects=True,
-                atmDrag=True,
-                #srp=True
+                # thirdBodyEffects=True,
+                # atmDrag=True,
+                # srp=True
             )
 
     def assignForces(self, **kwargs):
         solar = gmat.GetSolarSystem()
         self.fm.SetSolarSystem(solar)
-
+        self.fm.SetField("CentralBody", "Earth")
         earthGrav = gmat.Construct("GravityField")
         earthGrav.SetField("BodyName", "Earth")
-        earthGrav.SetField("Degree", 4)
-        earthGrav.SetField("Order", 4)
+        earthGrav.SetField("Degree", 0)
+        earthGrav.SetField("Order", 0) # 4
         earthGrav.SetField("PotentialFile", "JGM2.cof")
         earthGrav.SetField("StmLimit", 100)
         earthGrav.SetField("TideModel", "None")
@@ -45,22 +45,22 @@ class createForceModel:
             self.fm.AddForce(sunGrav)
 
         if "atmDrag" in kwargs.keys() and kwargs["atmDrag"]:
-            drag = gmat.Construct("DragForce")
+            drag = gmat.Construct("DragForce", "atmDrag")
             drag.SetField("AtmosphereModel", "JacchiaRoberts")
             atmosphere = gmat.Construct("JacchiaRoberts")
             drag.SetReference(atmosphere)
             
-            drag.SetField("HistoricWeatherSource", "ConstantFluxAndGeoMag")
+            """drag.SetField("HistoricWeatherSource", "ConstantFluxAndGeoMag")
             drag.SetField("PredictedWeatherSource", "ConstantFluxAndGeoMag")
             drag.SetField("F107", 150.0)
             drag.SetField("F107A", 150.0)
             drag.SetField("MagneticIndex", 3.0)
 
-            #drag.SetField("CSSISpaceWeatherFile", "SpaceWeather-All-v1.2.txt")
-            #drag.SetField("SchattenFile", "SchattenPredict.txt")
+            drag.SetField("CSSISpaceWeatherFile", "SpaceWeather-All-v1.2.txt")
+            drag.SetField("SchattenFile", "SchattenPredict.txt")
 
             drag.SetField("SchattenErrorModel", "Nominal")
-            drag.SetField("SchattenTimingModel", "NominalCycle")
+            drag.SetField("SchattenTimingModel", "NominalCycle")"""
 
             self.fm.AddForce(drag)
 

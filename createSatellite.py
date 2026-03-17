@@ -25,18 +25,18 @@ class createSatellite:
         self.sat.SetField("DateFormat", "UTCGregorian")
 
         today = dt.datetime.today()
-        today = today.strftime("%d %b %Y 00:00:00.000")
+        today = today.strftime("%d %b %Y 12:00:00.000")
 
         self.sat.SetField("Epoch", today)
         self.sat.SetField("CoordinateSystem", "EarthMJ2000Eq")
         self.sat.SetField("DisplayStateType", "Keplerian")
 
         
-        self.sat.SetField("DryMass", 850)
+        self.sat.SetField("DryMass", 500)
         if satType.lower() == "truth":
-            self.sat.SetField("SRPArea", 1)
+            self.sat.SetField("SRPArea", 6)
             self.sat.SetField("Cr", 1.8)
-            self.sat.SetField("DragArea", 15)
+            self.sat.SetField("DragArea", 9)
             self.sat.SetField("Cd", 2.2)
         else:
             self.sat.SetField("SRPArea", 0)

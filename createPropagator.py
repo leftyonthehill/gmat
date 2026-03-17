@@ -35,4 +35,4 @@ class createPropagator:
     
     def assignSat(self, sat):
         self.prop.AddPropObject(sat)
-        self.prop.PrepareInternals()
+        # self.prop.PrepareInternals()
