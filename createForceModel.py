@@ -1,28 +1,33 @@
+from createSatellite import Satellite
 from load_gmat import *
 
-class createForceModel:
+
+class ForceModel:
     def __init__(self, fmType: str):
-        if fmType.lower() != "reference" and fmType.lower() != "truth":
-            raise ValueError(f"Incorrect propagation type was chosen (Provided: {fmType}). The propagator type must only be 'reference' or 'truth'.")
-        
-        self.fm = None
-        self.createFM(fmType)
+        self.fm = gmat.Construct("ForceModel", f"{fmType}_Forces")
+        self.burn = None
+        self.burnForce = None
+
+    def getBurnForce(self):
+        return self.burnForce
 
     def getFM(self):
         return self.fm
 
-    def createFM(self, propType: str):
-        self.fm = gmat.Construct("ForceModel", f"{propType.lower()}Forces")
+    def setDynamics(self, propType: str):
+        if propType.lower() != "reference" and propType.lower() != "truth":
+            raise ValueError(f"Incorrect propagation type was chosen (Provided: {propType}). The propagator type must only be 'reference' or 'truth'.")
+        
         if propType.lower() == "reference":
-            self.assignForces()
+            self.__setForces__()
         else:
-            self.assignForces(
-                # thirdBodyEffects=True,
-                # atmDrag=True,
-                # srp=True
+            self.__setForces__(
+                thirdBodyEffects=True,
+                atmDrag=True,
+                srp=True
             )
 
-    def assignForces(self, **kwargs):
+    def __setForces__(self, **kwargs):
         solar = gmat.GetSolarSystem()
         self.fm.SetSolarSystem(solar)
         self.fm.SetField("CentralBody", "Earth")
@@ -36,7 +41,7 @@ class createForceModel:
         self.fm.AddForce(earthGrav)
         
         if "thirdBodyEffects" in kwargs.keys() and kwargs["thirdBodyEffects"]:
-            moonGrav = gmat.Construct("PointMassForce")
+            moonGrav = gmat.Construct("PointMassForce")  
             moonGrav.SetField("BodyName", "Luna")
             self.fm.AddForce(moonGrav)
 
@@ -49,29 +54,23 @@ class createForceModel:
             drag.SetField("AtmosphereModel", "JacchiaRoberts")
             atmosphere = gmat.Construct("JacchiaRoberts")
             drag.SetReference(atmosphere)
-            
-            """drag.SetField("HistoricWeatherSource", "ConstantFluxAndGeoMag")
-            drag.SetField("PredictedWeatherSource", "ConstantFluxAndGeoMag")
-            drag.SetField("F107", 150.0)
-            drag.SetField("F107A", 150.0)
-            drag.SetField("MagneticIndex", 3.0)
-
-            drag.SetField("CSSISpaceWeatherFile", "SpaceWeather-All-v1.2.txt")
-            drag.SetField("SchattenFile", "SchattenPredict.txt")
-
-            drag.SetField("SchattenErrorModel", "Nominal")
-            drag.SetField("SchattenTimingModel", "NominalCycle")"""
-
             self.fm.AddForce(drag)
 
         if "srp" in kwargs.keys() and kwargs["srp"]:
             srp = gmat.Construct("SolarRadiationPressure")
             self.fm.AddForce(srp)
 
-    def assignSats(self, sat):
-        psm = gmat.PropagationStateManager()
-        psm.SetObject(sat)
-        psm.BuildState()
+    def setThrust(self, satObj:Satellite):
+        self.burn = gmat.Construct("FiniteBurn", f"{satObj.sat.GetName()}_EBurn")
+        self.burn.SetField("Thrusters", satObj.ethruster.GetName())
+        self.burn.SetRefObject(satObj.ethruster, gmat.THRUSTER, satObj.ethruster.GetName())
+        self.burn.SetSolarSystem(gmat.GetSolarSystem())
+        self.burn.SetSpacecraftToManeuver(satObj.getSat())
+        self.burn.SetRefObject(satObj.sat, gmat.SPACECRAFT, satObj.sat.GetName())
 
-        self.fm.SetPropStateManager(psm)
-        self.fm.SetState(psm.GetState())
+        self.burnForce = gmat.FiniteThrust("Thrust")
+        self.burnForce.SetRefObjectName(gmat.SPACECRAFT, satObj.sat.GetName())
+        self.burnForce.SetReference(self.burn)
+    
+        gmat.ConfigManager.Instance().AddPhysicalModel(self.burnForce)
+        self.fm.AddForce(self.burnForce)

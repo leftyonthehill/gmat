@@ -1,12 +1,10 @@
 from load_gmat import *
 # import gmatpyplus as gmat
-class createPropagator:
-    def __init__(self, propType: str):
-        if propType.lower() != "reference" and propType.lower() != "truth":
-            raise ValueError(f"Incorrect propagation type was chosen (Provided: {propType}). The propagator type must only be 'reference' or 'truth'.")
-        
-        self.prop = None
-        self.createProp(propType)
+class Propagator:
+    def __init__(self, propName: str):
+
+        self.prop = gmat.Construct("Propagator", f"{propName}_Prop")
+        self.integrator = None
   
     def getPropagator(self):
         return self.prop
@@ -14,10 +12,9 @@ class createPropagator:
     def getIntegrator(self):
         return self.prop.GetPropagator()
 
-    def createProp(self, propType: str):
-        self.prop = gmat.Construct("Propagator", f"{propType.lower()}Propagator")
-        integrator = gmat.Construct("RungeKutta89", "Gator")
-        self.prop.SetReference(integrator)
+    def setIntegrator(self, propType: str  = ""):
+        self.integrator = gmat.Construct("RungeKutta89", "Gator")
+        self.prop.SetReference(self.integrator)
         
         self.prop.SetField("InitialStepSize", 60)
         self.prop.SetField("MinStep", 1e-3)
@@ -30,9 +27,12 @@ class createPropagator:
             self.prop.SetField("MaxStep", 1200)
             self.prop.SetField("MaxStepAttempts", 100)
     
-    def assignFM(self, fm):
+    def setFM(self, fm):
         self.prop.SetReference(fm)
     
-    def assignSat(self, sat):
+    def setSat(self, sat):
         self.prop.AddPropObject(sat)
         # self.prop.PrepareInternals()
+    
+    def prepareInternals(self):
+        self.prop.PrepareInternals()

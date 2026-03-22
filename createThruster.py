@@ -1,6 +1,6 @@
 # import gmatpyplus as gmat
 from load_gmat import *
-class createThruster:
+class createElectricThruster:
     def __init__(self, thursterName: str):
         self.thruster = gmat.Construct("ElectricThruster", thursterName)
     

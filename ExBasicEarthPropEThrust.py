@@ -77,21 +77,26 @@ pdprop.SetField("InitialStepSize", 60.0)
 pdprop.SetField("Accuracy", 1.0e-12)
 pdprop.SetField("MinStep", 0.0)
 
+nonthrust = gmat.Construct("Propagator","noThrust")
+nonthrust.Copy(pdprop)
+
 rng = np.random.default_rng()
 rng.random()
 
 
 
 statesArrayElectric = np.zeros((numRandSys,numMinProp,problemDim))
+statesArrayElectric2 = np.zeros((numRandSys,numMinProp,problemDim))
+statesArrayCoast = np.zeros((numRandSys,numMinProp,problemDim))
 
 ETank = gmat.Construct("ElectricTank", "EFuel") # create an electric tank with the name "EFuel"
 EThruster = gmat.Construct("ElectricThruster", "EThruster") # create an electric thruster with the name "EThruster"
 EThruster.SetField("ThrustModel", "ConstantThrustAndIsp")
 EThruster.SetField("Isp", 3000)
-EThruster.SetField("ConstantThrust", 100)
+EThruster.SetField("ConstantThrust", .1)
 
-powerSystem = gmat.Construct("SolarPowerSystem", "EPS") # create a power system with the name "EPS"
-powerSystem.SetField("InitialMaxPower", 1e4)
+powerSystem = gmat.Construct("NuclearPowerSystem", "EPS") # create a power system with the name "EPS"
+powerSystem.SetField("InitialMaxPower", 20)
 powerSystem.SetField("InitialEpoch", "20 Jul 2020 00:00:00.000")
 
 EThruster.SetField("DecrementMass", False)
@@ -127,7 +132,7 @@ print("Forces in FM:")
 for i in range(fm.GetNumForces()):
     f = fm.GetForce(i)
     print(" -", f.GetName(), f.GetTypeName())
-for i in range(numRandSys):
+for i in range(1): # numRandSys):
     earthorb.SetField("SMA", 7000) # km
     earthorb.SetField("ECC", 0.05)
     earthorb.SetField("INC", 10) # deg
@@ -135,7 +140,7 @@ for i in range(numRandSys):
     earthorb.SetField("AOP", 0) # deg
     earthorb.SetField("TA", 0) # deg
 
-    ETank.SetField("FuelMass", 200.0)
+    ETank.SetField("FuelMass", 210.0)
 
     # Perform initializations
     gmat.Initialize()
@@ -156,11 +161,12 @@ for i in range(numRandSys):
     # Turn on the thruster
     theThruster.SetField("IsFiring", True)
     earthorb.IsManeuvering(True)
-    burn.SetSpacecraftToManeuver(earthorb)
+    # burn.SetSpacecraftToManeuver(earthorb)
     # # Add the thrust to the force model
     # pdprop.AddForce(burnForce)
-    psm = pdprop.GetPropStateManager()
-    psm.SetProperty("MassFlow")
+    # pdprop.GetODEModel().AddForce(burnForce)
+    # psm = pdprop.GetPropStateManager()
+    # psm.SetProperty("MassFlow")
     # -----------------------------
     pdprop.PrepareInternals()
     gator = pdprop.GetPropagator()
@@ -180,26 +186,157 @@ for i in range(numRandSys):
         diff = np.linalg.norm(accelActual[3:] - accel)
         # print(diff)
         print(f"Step {j:2d} | diff = {diff:.10f} km/s²  | "
-            f"Commanded thrust = {theThruster.GetField('ConstantThrust')} N  | "
-            f"Scale factor     = {theThruster.GetField('ThrustScaleFactor')}  | "
-            f"IsFiring         = {theThruster.GetField('IsFiring')}  | "
-            f"Total spacecraft mass = {earthorb.GetField('TotalMass')} kg | "
-            f"ThrustCoeff1     = {theThruster.GetField('ThrustCoeff1')} | ")
+            f"IsFiring         = {theThruster.GetField('IsFiring')}  | ")
 
-    """fm = pdprop.GetODEModel()
-    fm.DeleteForce(burnForce)"""
-    pdprop.GetODEModel().DeleteForce(burnForce)
+    fm = pdprop.GetODEModel()
+    fm.DeleteForce(burnForce)
+    pdprop.PrepareInternals()
     theThruster.SetField("IsFiring", False)
     earthorb.IsManeuvering(False)
+    
+    print("end-thrust state: ", gator.GetState())
+
+    nonthrust.AddPropObject(earthorb)
+    nonthrust.PrepareInternals()
+    fm = nonthrust.GetODEModel()
+    gator = nonthrust.GetPropagator()
+    print("start-nonthrust state: ", gator.GetState())
+    
+    for j in range(numMinProp):
+        gator.Step(dt)
+        elapsed = elapsed + dt
+        state = gator.GetState()
+        statesArrayCoast[i,j,:] = state[0:6]
+        gator.UpdateSpaceObject()
+        rv = gator.GetState()
+        r = np.linalg.norm(rv[:3])
+        accelActual = fm.GetDerivativesForSpacecraft(earthorb)
+        # print(accelActual[3:])
+        accel = -mu / r**3 * np.array(rv[:3])
+        # print(accel)
+        diff = np.linalg.norm(accelActual[3:] - accel)
+        # print(diff)
+        print(f"Step {j:2d} | diff = {diff:.10f} km/s²  | "
+            f"IsFiring         = {theThruster.GetField('IsFiring')}  | ")
+
+    # Turn on the thruster
+    theThruster.SetField("IsFiring", True)
+    earthorb.IsManeuvering(True)
+    # burn.SetSpacecraftToManeuver(earthorb)
+    # # Add the thrust to the force model
+    pdprop.AddForce(burnForce)
+    # pdprop.GetODEModel().AddForce(burnForce)
+    # psm = pdprop.GetPropStateManager()
+    # psm.SetProperty("MassFlow")
+    # -----------------------------
+    
+    print("end-nonthrust state: ", gator.GetState())
+    pdprop.AddPropObject(earthorb)
     pdprop.PrepareInternals()
     gator = pdprop.GetPropagator()
+    print("start-thrust state: ", gator.GetState())
+    print("Forces in FM:")
+    fm = pdprop.GetODEModel()
+    for j in range(fm.GetNumForces()):
+        f = fm.GetForce(j)
+        print(" -", f.GetName(), f.GetTypeName())
+
+    for j in range(numMinProp):
+        gator.Step(dt)
+        elapsed = elapsed + dt
+        state = gator.GetState()
+        statesArrayElectric2[i,j,:] = state[0:6]
+        gator.UpdateSpaceObject()
+        rv = gator.GetState()
+        r = np.linalg.norm(rv[:3])
+        accelActual = fm.GetDerivativesForSpacecraft(earthorb)
+        # print(accelActual[3:])
+        accel = -mu / r**3 * np.array(rv[:3])
+        # print(accel)
+        diff = np.linalg.norm(accelActual[3:] - accel)
+        # print(diff)
+        print(f"Step {j:2d} | diff = {diff:.10f} km/s²  | "
+            f"IsFiring         = {theThruster.GetField('IsFiring')}  | ")
+
+    fm = pdprop.GetODEModel()
+    fm.DeleteForce(burnForce)
+    pdprop.PrepareInternals()
+    
+    # pdprop.GetODEModel().DeleteForce(burnForce)
+    theThruster.SetField("IsFiring", False)
+    earthorb.IsManeuvering(False)
+    
+    nonthrust.AddPropObject(earthorb)
+    nonthrust.PrepareInternals()
+    gator = nonthrust.GetPropagator()
+    print("Forces in FM:")
+    fm = nonthrust.GetODEModel()
+    for j in range(fm.GetNumForces()):
+        f = fm.GetForce(j)
+        print(" -", f.GetName(), f.GetTypeName())
+    for j in range(numMinProp):
+        gator.Step(dt)
+        elapsed = elapsed + dt
+        state = gator.GetState()
+        statesArrayCoast[i,j,:] = state[0:6]
+        gator.UpdateSpaceObject()
+        rv = gator.GetState()
+        r = np.linalg.norm(rv[:3])
+        accelActual = fm.GetDerivativesForSpacecraft(earthorb)
+        # print(accelActual[3:])
+        accel = -mu / r**3 * np.array(rv[:3])
+        # print(accel)
+        diff = np.linalg.norm(accelActual[3:] - accel)
+        # print(diff)
+        print(f"Step {j:2d} | diff = {diff:.10f} km/s²  | "
+            f"IsFiring         = {theThruster.GetField('IsFiring')}  | ")
+
+    # Turn on the thruster
+    theThruster.SetField("IsFiring", True)
+    earthorb.IsManeuvering(True)
+    # burn.SetSpacecraftToManeuver(earthorb)
+    # # Add the thrust to the force model
+    pdprop.AddForce(burnForce)
+    # psm = pdprop.GetPropStateManager()
+    # psm.SetProperty("MassFlow")
+    # -----------------------------
+    pdprop.AddPropObject(earthorb)
+    pdprop.PrepareInternals()
+    gator = pdprop.GetPropagator()
+    print("Forces in FM:")
+    fm = pdprop.GetODEModel()
+    for j in range(fm.GetNumForces()):
+        f = fm.GetForce(j)
+        print(" -", f.GetName(), f.GetTypeName())
+
+    for j in range(numMinProp):
+        gator.Step(dt)
+        elapsed = elapsed + dt
+        state = gator.GetState()
+        statesArrayElectric2[i,j,:] = state[0:6]
+        gator.UpdateSpaceObject()
+        rv = gator.GetState()
+        r = np.linalg.norm(rv[:3])
+        accelActual = fm.GetDerivativesForSpacecraft(earthorb)
+        # print(accelActual[3:])
+        accel = -mu / r**3 * np.array(rv[:3])
+        # print(accel)
+        diff = np.linalg.norm(accelActual[3:] - accel)
+        # print(diff)
+        print(f"Step {j:2d} | diff = {diff:.10f} km/s²  | "
+            f"IsFiring         = {theThruster.GetField('IsFiring')}  | ")
+
+        
+    
 
 t = np.linspace(0,numMinProp*dt,len(statesArrayElectric[0,:,0]))
 
 
 fig = plt.figure()
 ax = fig.add_subplot(projection='3d')
-ax.plot(statesArrayElectric[0,:,0],statesArrayElectric[0,:,1],statesArrayElectric[0,:,2],label='Electric')
+ax.plot(statesArrayElectric[0,:,0],statesArrayElectric[0,:,1],statesArrayElectric[0,:,2],label='Electric',c='r')
+ax.plot(statesArrayCoast[0,:,0],statesArrayCoast[0,:,1],statesArrayCoast[0,:,2],label='Electric',c='b')
+ax.plot(statesArrayElectric2[0,:,0],statesArrayElectric2[0,:,1],statesArrayElectric2[0,:,2],label='Electric',c='r')
 ax.set_xlabel('X (km)')
 ax.set_ylabel('Y (km)')
 ax.set_zlabel('Z (km)')
