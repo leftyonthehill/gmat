@@ -33,8 +33,8 @@ class ForceModel:
         self.fm.SetField("CentralBody", "Earth")
         earthGrav = gmat.Construct("GravityField")
         earthGrav.SetField("BodyName", "Earth")
-        earthGrav.SetField("Degree", 0)
-        earthGrav.SetField("Order", 0) # 4
+        earthGrav.SetField("Degree", 4)
+        earthGrav.SetField("Order", 4) # 4
         earthGrav.SetField("PotentialFile", "JGM2.cof")
         earthGrav.SetField("StmLimit", 100)
         earthGrav.SetField("TideModel", "None")
@@ -61,16 +61,20 @@ class ForceModel:
             self.fm.AddForce(srp)
 
     def setThrust(self, satObj:Satellite):
-        self.burn = gmat.Construct("FiniteBurn", f"{satObj.sat.GetName()}_EBurn")
-        self.burn.SetField("Thrusters", satObj.ethruster.GetName())
-        self.burn.SetRefObject(satObj.ethruster, gmat.THRUSTER, satObj.ethruster.GetName())
-        self.burn.SetSolarSystem(gmat.GetSolarSystem())
-        self.burn.SetSpacecraftToManeuver(satObj.getSat())
-        self.burn.SetRefObject(satObj.sat, gmat.SPACECRAFT, satObj.sat.GetName())
+        if self.burn is None:
+            self.burn = gmat.Construct("FiniteBurn", f"{satObj.sat.GetName()}_EBurn")
 
-        self.burnForce = gmat.FiniteThrust("Thrust")
-        self.burnForce.SetRefObjectName(gmat.SPACECRAFT, satObj.sat.GetName())
-        self.burnForce.SetReference(self.burn)
-    
-        gmat.ConfigManager.Instance().AddPhysicalModel(self.burnForce)
-        self.fm.AddForce(self.burnForce)
+            self.burn.SetField("Thrusters", satObj.ethruster.GetName())
+            self.burn.SetRefObject(satObj.ethruster, gmat.THRUSTER, satObj.ethruster.GetName())
+            self.burn.SetSolarSystem(gmat.GetSolarSystem())
+            self.burn.SetSpacecraftToManeuver(satObj.getSat())
+            self.burn.SetRefObject(satObj.sat, gmat.SPACECRAFT, satObj.sat.GetName())
+
+            self.burnForce = gmat.FiniteThrust("Thrust")
+            self.burnForce.SetRefObjectName(gmat.SPACECRAFT, satObj.sat.GetName())
+            self.burnForce.SetReference(self.burn)
+        
+            gmat.ConfigManager.Instance().AddPhysicalModel(self.burnForce)
+            self.fm.AddForce(self.burnForce)
+        else:
+            self.burn.SetField("Thrusters", satObj.ethruster.GetName())

@@ -18,6 +18,7 @@ class Satellite:
         self.ethruster = None
         self.etank = None
         self.powerSystem = None
+        self.maneuverable = False
 
         self.__setSatParam__(satName)
     
@@ -123,6 +124,8 @@ class Satellite:
         self.powerSystem.SetField("InitialMaxPower", kw)
     
     def setManeuverable(self):
+        self.maneuverable = True
+
         if self.etank is None:
             self.setETank()
         self.sat.SetField("Tanks", self.etank.GetName())
