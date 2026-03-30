@@ -17,12 +17,13 @@ class Propagator:
         self.prop.SetReference(self.integrator)
         
         self.prop.SetField("InitialStepSize", 60)
-        self.prop.SetField("MinStep", 1e-3)
+        self.prop.SetField("MinStep", 1e-4)
         self.prop.SetField("Accuracy", 1e-10)
 
         if propType.lower() == "truth":
             self.prop.SetField("MaxStep", 20)
             self.prop.SetField("MaxStepAttempts", 10000)
+            # self.prop.SetField("StopIfAccuracyIsViolated", False)
         else:
             self.prop.SetField("MaxStep", 1200)
             self.prop.SetField("MaxStepAttempts", 100)

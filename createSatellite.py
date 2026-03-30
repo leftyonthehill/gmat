@@ -15,7 +15,7 @@ class Satellite:
     def __init__(self, satName: str):
         self.sat = None
         self.epoch = None
-        self.ethruster = None
+        self.thrusters = {}
         self.etank = None
         self.powerSystem = None
         self.maneuverable = False
@@ -42,6 +42,7 @@ class Satellite:
         self.sat.SetField("Cr", 1.8)
         self.sat.SetField("DragArea", 9)
         self.sat.SetField("Cd", 2.2)
+        self.sat.SetField("DryMass", 800)
 
     def __repr__(self):
         return f"{self.sat}, {self.etank}, {self.ethruster}, {self.powerSystem}"
@@ -87,31 +88,65 @@ class Satellite:
         self.sat.SetField("AOP", aop)
         self.sat.SetField("TA", f) 
     
+    def setCartesianState(self, xyz: list):
+        if len(xyz) != 6:
+            raise ValueError("Incorrect amount of cartesian elements passed. There needs to be exactly 6")
+        x, y, z, xdot, ydot, zdot = xyz
+
+        self.sat.SetField("X", x)
+        self.sat.SetField("Y", y)
+        self.sat.SetField("Z", z)
+        self.sat.SetField("VX", xdot)
+        self.sat.SetField("VY", ydot)
+        self.sat.SetField("VZ", zdot)
+        
+        self.sat.SetField("DisplayStateType", "Cartesian")
+        self.sat.SetField("DisplayStateType", "Keplerian") 
+
+
     def setETank(self, mass: float = 200):
         self.etank = gmat.Construct("ElectricTank", f"{self.sat.GetName()}_tank")
         self.etank.SetField("FuelMass", 200.0)
         self.sat.SetField("Tanks", self.etank.GetName())
     
-    def setEThruster(self, engineSpecs: tuple = (.1, 3000)):
+    def setEThruster(self, axis:str = "I", engineSpecs: tuple = (0.1, 3000)):
+        if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
+            raise ValueError(f"{axis} axis not found. Acceptable values are: R+, R-, I+, I-, C+, C-")
+        
         thrust = engineSpecs[0]
         isp = engineSpecs[1]
-        self.ethruster = gmat.Construct("ElectricThruster",f"{self.sat.GetName()}_electric_thruster")
-        self.ethruster.SetField("Isp", isp)
-        self.ethruster.SetField("ConstantThrust", thrust)
-        self.ethruster.SetField("ThrustModel", "ConstantThrustAndIsp")
-        self.ethruster.SetField("DecrementMass", False)
+        ethruster = gmat.Construct("ElectricThruster",f"{self.sat.GetName()}_electric_thruster_{axis}")
+        ethruster.SetField("Isp", isp)
+        ethruster.SetField("ConstantThrust", thrust)
+        ethruster.SetField("ThrustModel", "ConstantThrustAndIsp")
+        ethruster.SetField("DecrementMass", False)
 
-        self.setEThrusterDirection()
+        self.thrusters[axis] = ethruster
 
-    def setEThrusterDirection(self, mags: list[float] = [1, 0, 0]):
+        self.setEThrusterDirection(axis)
+
+    def setEThrusterDirection(self, axis):
+        if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
+            raise ValueError(f"{axis} axis not found. Acceptable values are: R+, R-, I+, I-, C+, C-")
+        
+        axisMap = {
+            "R+": [0, 0, 1], 
+            "R-": [0, 0, -1], 
+            "I+": [1, 0, 0], 
+            "I-": [-1, 0, 0], 
+            "C+": [1e-5, 1, 1e-5], 
+            "C-": [-1e-5, -1, -1e-5]}
+        mags = axisMap[axis]
+        
+        
         v = mags[0]
-        self.ethruster.SetField("ThrustDirection1", v)
+        self.thrusters[axis].SetField("ThrustDirection1", v)
 
         n = mags[1]
-        self.ethruster.SetField("ThrustDirection2", n)
+        self.thrusters[axis].SetField("ThrustDirection2", n)
         
         b = mags[2]
-        self.ethruster.SetField("ThrustDirection3", b)
+        self.thrusters[axis].SetField("ThrustDirection3", b)
 
     def setPowerSystem(self, powerSystemType: str = "Nuclear"):
         if powerSystemType != "Nuclear" and powerSystemType != "Solar":
@@ -130,10 +165,20 @@ class Satellite:
             self.setETank()
         self.sat.SetField("Tanks", self.etank.GetName())
 
-        if self.ethruster is None:
-            self.setEThruster()
-        self.ethruster.SetField("Tank", self.etank.GetName())
-        self.sat.SetField("Thrusters", self.ethruster.GetName())
+        if self.thrusters == {}:
+            thrusterAxes = ["R+", "R-", "I+", "C+", "C-"]
+            for i in thrusterAxes:
+                self.setEThruster(i)
+                self.thrusters[i].SetField("Tank", self.etank.GetName())
+            
+            thrusterNames = [i.GetName() for i in self.thrusters.values()]
+            thrusterArray = "{" + ", ".join(thrusterNames) + "}"
+            self.sat.SetField("Thrusters", thrusterArray)
+        else:
+            thrusterNames = [i.GetName() for i in self.thrusters.values()]
+            thrusterArray = "{" + ", ".join(thrusterNames) + "}"
+            self.sat.SetField("Thrusters", thrusterArray)
+            [i.SetField("Tank", self.etank.GetName()) for i in self.thrusters.values()]
 
         if self.powerSystem is None:
             self.setPowerSystem()
