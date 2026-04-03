@@ -12,6 +12,7 @@ class Satellite:
     This object's name must not be exist in the GMAT scenario otherwise an 
     error will be raised.
     """
+    
     def __init__(self, satName: str):
         self.sat = None
         self.epoch = None
@@ -19,6 +20,8 @@ class Satellite:
         self.etank = None
         self.powerSystem = None
         self.maneuverable = False
+
+        self.mu = mu = 3.986e5
 
         self.__setSatParam__(satName)
     
@@ -65,6 +68,15 @@ class Satellite:
     def getKeplerianState(self):
         return self.sat.GetKeplerianState()
     
+    def getSMAFromEnergy(self):
+        rv = self.getCartesianState()
+        r = np.linalg.norm(rv[:3])
+        v = np.linalg.norm(rv[3:])
+
+        specificEnergy = v**2 / 2 - self.mu / r
+        sma = -self.mu / (2 * specificEnergy)
+        return sma
+
     """
     Provided a list of classical orbital elements, this method assigns the state vector to the satellite
     coes: [
@@ -109,7 +121,7 @@ class Satellite:
         self.etank.SetField("FuelMass", 200.0)
         self.sat.SetField("Tanks", self.etank.GetName())
     
-    def setEThruster(self, axis:str = "I", engineSpecs: tuple = (0.1, 3000)):
+    def setEThruster(self, axis:str = "I", engineSpecs: tuple = (0.6, 3000)):
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
             raise ValueError(f"{axis} axis not found. Acceptable values are: R+, R-, I+, I-, C+, C-")
         
@@ -130,8 +142,8 @@ class Satellite:
             raise ValueError(f"{axis} axis not found. Acceptable values are: R+, R-, I+, I-, C+, C-")
         
         axisMap = {
-            "R+": [0, 0, 1], 
-            "R-": [0, 0, -1], 
+            "R+": [0, 0, -1], 
+            "R-": [0, 0, 1], 
             "I+": [1, 0, 0], 
             "I-": [-1, 0, 0], 
             "C+": [1e-5, 1, 1e-5], 
@@ -166,10 +178,16 @@ class Satellite:
         self.sat.SetField("Tanks", self.etank.GetName())
 
         if self.thrusters == {}:
-            thrusterAxes = ["R+", "R-", "I+", "C+", "C-"]
-            for i in thrusterAxes:
-                self.setEThruster(i)
-                self.thrusters[i].SetField("Tank", self.etank.GetName())
+            thrusterAxes = {
+                "R+": (0.2, 3000), 
+                "R-": (0.2, 3000), 
+                "I+": (0.2, 3000), 
+                "I-": (0.2, 3000), 
+                "C+": (0.6, 3000), 
+                "C-": (0.6, 3000)}
+            for ax, thrParam in thrusterAxes.items():
+                self.setEThruster(ax, thrParam)
+                self.thrusters[ax].SetField("Tank", self.etank.GetName())
             
             thrusterNames = [i.GetName() for i in self.thrusters.values()]
             thrusterArray = "{" + ", ".join(thrusterNames) + "}"

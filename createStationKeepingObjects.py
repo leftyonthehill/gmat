@@ -46,6 +46,47 @@ class StationKeepingObjects:
         for prop in self.prop_wrap.values():
             prop.prepareInternals()
 
+    def satEnginesOn(self, axis:str):
+        prop = self.prop_wrap[axis]
+        fm = self.fm_wrap[axis]
+
+        prop.prepareInternals()
+
+        thr_name = self.sat_wrap.thrusters[axis].GetName()
+        thruster = self.sat_wrap.getSat().GetRefObject(gmat.THRUSTER, thr_name)
+        thruster.SetField("IsFiring", True)
+        self.sat_wrap.getSat().IsManeuvering(True)
+
+        prop.getPropagator().AddForce(fm.getBurnForce(axis))
+        prop.getPropagator().AddPropObject(self.sat_wrap.getSat())
+
+        prop.prepareInternals()
+        gator = prop.getIntegrator()
+        fm = self.fm_wrap[axis].getFM()
+        return gator, fm
+
+    def satEnginesOff(self, axis:str = "coast"):
+        if axis == "coast":
+            gator = self.prop_wrap[axis].getIntegrator()
+            fm = self.fm_wrap[axis].getFM()
+            return gator, fm
+        
+        prop = self.prop_wrap["coast"]
+        fm = self.fm_wrap["coast"]
+
+        prop.prepareInternals()
+        
+        thr_name = self.sat_wrap.thrusters[axis].GetName()
+        thruster = self.sat_wrap.getSat().GetRefObject(gmat.THRUSTER, thr_name)
+        thruster.SetField("IsFiring", False)
+        self.sat_wrap.getSat().IsManeuvering(False)
+        prop.getPropagator().AddPropObject(self.sat_wrap.getSat())
+
+        prop.prepareInternals()
+        gator = prop.getIntegrator()
+        fm = self.fm_wrap[axis].getFM()
+        return gator, fm
+
     def dispObjects(self):
         print(f"{self.objType} objects:")
         print("\nsatellites:")

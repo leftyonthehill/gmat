@@ -1,25 +1,15 @@
 
 from collections import deque
-from createForceModel import ForceModel
-from createPropagator import Propagator
-from createSatellite import Satellite
 from createStationKeepingObjects import StationKeepingObjects
-# from createThruster import createThruster
 from load_gmat import *
 from matplotlib import pyplot as plt
 from xyz2ric import xyz2ric
 
-# import datetime as dt
 import numpy as np
 
 # -----------create variables--------------------------------------
 
-problemDim = 3
-numRandSys = 10
 mu = 398600  # Earth’s mu in km^3/s^2
-R = 6371 # radius of earth in km
-numMinProp = 60 * 24 # take a step 60 times in an hour and for 24 hours
-numMinProp = 80 # take a step 60 times in an hour and for 24 hours
 dt = 60.0 # step every 60 secs
 elapsed = 0.0
 
@@ -50,52 +40,6 @@ gator_ref = refObjs.prop_wrap["coast"].getIntegrator()
 truthObjs.preparePropInternal()
 gator_truth = truthObjs.prop_wrap["coast"].getIntegrator()
 truth_Sat_wrapper = truthObjs.sat_wrap
-def enginesOn(axis: str):
-    prop = truthObjs.prop_wrap[axis]
-    fm = truthObjs.fm_wrap[axis]
-
-    prop.prepareInternals()
-
-    thr_name = truth_Sat_wrapper.thrusters[axis].GetName()
-    thruster = truth_Sat_wrapper.getSat().GetRefObject(gmat.THRUSTER, thr_name)
-    thruster.SetField("IsFiring", True)
-    truth_Sat_wrapper.getSat().IsManeuvering(True)
-
-    prop.getPropagator().AddForce(fm.getBurnForce(axis))
-    prop.getPropagator().AddPropObject(truth_Sat_wrapper.getSat())
-
-    prop.prepareInternals()
-    gator = prop.getIntegrator()
-    fm = truthObjs.fm_wrap[axis].getFM()
-    return gator, fm
-
-def enginesOff(axis: str = ""):
-    if axis == "":
-        gator = truthObjs.prop_wrap["coast"].getIntegrator()
-        fm = truthObjs.fm_wrap["coast"].getFM()
-        return gator, fm
-    
-    prop = truthObjs.prop_wrap["coast"]
-    fm = truthObjs.fm_wrap["coast"]
-
-    prop.prepareInternals()
-    
-    thr_name = truthObjs.sat_wrap.thrusters[axis].GetName()
-    thruster = truthObjs.sat_wrap.getSat().GetRefObject(gmat.THRUSTER, thr_name)
-    thruster.SetField("IsFiring", False)
-    truth_Sat_wrapper.getSat().IsManeuvering(False)
-    prop.getPropagator().AddPropObject(truth_Sat_wrapper.getSat())
-
-    prop.prepareInternals()
-    gator = prop.getIntegrator()
-    fm = truthObjs.fm_wrap[axis].getFM()
-    return gator, fm
-
-    
-
-statesArrayElectric = np.zeros((numRandSys,numMinProp,problemDim))
-statesArrayElectric2 = np.zeros((numRandSys,numMinProp,problemDim))
-statesArrayCoast = np.zeros((numRandSys,numMinProp,problemDim))
 
 t = [0]
 truthOffset = [[0], [0], [0]]
@@ -121,24 +65,31 @@ diffCOEs_avg = {
 fig = plt.figure()
 ax_ric = fig.add_subplot(projection='3d')
 
-maxDays = 4
+maxDays = 30
 revs_to_avg = 3
 mean_motion = np.sqrt(mu / orbitParam[0]**3)
 period_sec = 2 * np.pi / mean_motion
 steps_per_rev = int(np.ceil(period_sec / dt))
 steps_to_avg = int(revs_to_avg * steps_per_rev) + 5
 
-R_bounds = 3
+R_bounds = 1
 I_bounds = 15
 C_bounds = 1.5
 
 R_buffer = deque([0], maxlen=steps_per_rev)
 I_buffer = deque([0], maxlen=steps_per_rev)
 C_buffer = deque([0], maxlen=steps_per_rev)
+recentRmaneuver = False
+recentImaneuver = False
+recentCmaneuver = False
+
+R_amp_log = deque([0], maxlen=steps_per_rev)
+C_amp_log = deque([0], maxlen=steps_per_rev)
 
 counter = 0
-del_a_to_return = 0
-del_a_recovered_history = deque([0.13], maxlen=8)
+del_a_target = 0
+del_a_recovered_history = deque([0.125], maxlen=8)
+targetSMA = 0
 
 burn_duration = 0
 maxDutyTime = 30 * 60
@@ -160,7 +111,7 @@ count = 0
 stateOld = []
 stateNew = []
 rotMatrix = []
-gator_truth, fm_truth = enginesOff()
+gator_truth, fm_truth = truthObjs.satEnginesOff()
 while elapsed < maxDays * 86400:
     
     elapsed = elapsed + dt
@@ -172,6 +123,9 @@ while elapsed < maxDays * 86400:
     gator_truth.UpdateSpaceObject()
     rv_truth = gator_truth.GetState()
 
+    if dt != 60 and (state != "I burn" and state != "C burn"):
+        dt = 60
+
     rRIC, vRIC, rotMatrix = xyz2ric(rv_ref, rv_truth)
 
     R_buffer.append(rRIC[0])
@@ -180,7 +134,8 @@ while elapsed < maxDays * 86400:
 
     R_amp = (max(R_buffer) - min(R_buffer)) / 2 if len(R_buffer) > 1 else rRIC[0]
     C_amp = (max(C_buffer) - min(C_buffer)) / 2 if len(C_buffer) > 1 else rRIC[2]
-
+    R_amp_log.append(R_amp)
+    C_amp_log.append(C_amp)
 
     truthOffset[0].append(rRIC[0])
     truthOffset[1].append(rRIC[1])
@@ -191,7 +146,7 @@ while elapsed < maxDays * 86400:
     
     t.append(elapsed)
     refCOE = refObjs.sat_wrap.getKeplerianState()
-    truthCOE = truth_Sat_wrapper.getKeplerianState()
+    truthCOE = truthObjs.sat_wrap.getKeplerianState()
     coes = list(diffCOEs.keys())
     for k in range(6):
         diff = truthCOE[k] - refCOE[k]
@@ -203,107 +158,166 @@ while elapsed < maxDays * 86400:
         diffCOEs[coes[k]].append(diff)
         _diffCOEs_buffer[coes[k]].append(diff)
         diffCOEs_avg[coes[k]].append(np.mean(_diffCOEs_buffer[coes[k]]))
-    
+
+    sma_truth = truthObjs.sat_wrap.getSMAFromEnergy()
+    sma_ref = refObjs.sat_wrap.getSMAFromEnergy()
+    del_a_energy = sma_truth - sma_ref
+
+
     match state:
         case "nominal":    
-            if abs(rRIC[1]) > I_bounds:
-                historical_del_a_avg = np.mean(del_a_recovered_history)
-                del_a_to_return = historical_del_a_avg
+            if rRIC[1] > I_bounds : # np.mean(I_buffer) > I_bounds :
                 state = "wait for I burn"
-            elif C_amp > C_bounds:
+            elif C_amp > C_bounds :
                 state = "wait for C burn"
-            elif R_amp > R_bounds:
-                print(f"R ({rRIC[0]:0.3}/{R_bounds}) or C({rRIC[2]:0.3}/{C_bounds}) were violated")
-                break  
+            elif R_amp > R_bounds :
+                state = "wait for R burn"
         case "wait for I burn":
-            if not(10 < truthCOE[-1] <= 170) and not(190 < truthCOE[-1] <= 350):
+            f = truthCOE[-1]
+            if not(10 < f <= 170) and not(190 < f <= 350) and diffCOEs_avg["del_a"][-1] < 0:
                 del_a_recovered_history.append(abs(diffCOEs_avg["del_a"][-1]))
-
+                ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'b')
+                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]   
+                
                 state = "I burn"
                 thrusterAxis = "I+"
                 burnStarts.append(len(t))
-                gator_truth, fm_truth = enginesOn(thrusterAxis)
-                
-                ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'b')
-                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]
-                r = np.linalg.norm(rv_truth[:3])
-                accelActual = fm_truth.GetDerivativesForSpacecraft(truth_Sat_wrapper.getSat())
-                accel = -mu / r**3 * np.array(rv_truth[:3])
-                a_diff = np.linalg.norm(accelActual[3:] - accel)   
-        case "wait for C burn":
-            true_lat = (truthCOE[4] + truthCOE[5]) % 360
-            ture_lat_trigger = np.arctan(diffCOEs_avg["del_raan"][-1] / diffCOEs_avg["del_i"][-1] * truthCOE[2]) / np.pi * 180
-            state = "C burn"
-            if (90 <= true_lat < 270):
-                thrusterAxis = "C+"
-                gator_truth, fm_truth = enginesOn(thrusterAxis)
-            else:
-                thrusterAxis = "C-"
-                gator_truth, fm_truth = enginesOn(thrusterAxis)
-            """if (130 < true_lat < 2200) or ((310 < true_lat < 360) or (0 < true_lat < 40)):
-                # print(ture_lat_trigger, true_lat, ture_lat_trigger+180)
+                gator_truth, fm_truth = truthObjs.satEnginesOn(thrusterAxis)
+
+                historical_del_a_avg = np.mean(del_a_recovered_history)
+
+                del_a_target = -0.75 * del_a_energy
+                dt = 5
+                # I_buffer.clear()
+                # I_buffer.append(rRIC[1])
+        case "wait for C burn": 
+            velo_phase = np.arctan2(vRIC[2], vRIC[1])
+            in_node_window = abs(abs(velo_phase) - np.pi /2) < np.deg2rad(30)
+            
+            # true_lat = (truthCOE[4] + truthCOE[5]) % 360
+            # in_node_window = (70 <= true_lat <= 110) or (250 <= true_lat <= 290)
+            if in_node_window:
+                thrusterAxis = "C+" if vRIC[2] < 0 else "C-"
+                gator_truth, fm_truth = truthObjs.satEnginesOn(thrusterAxis)
                 state = "C burn"
-                burn_duration = 0
+                burn_duration = 0.0
+                total_burn_this_rev = 0.0
                 ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'b')
-                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]
-                if (130 < true_lat < 2200):
-                    thrusterAxis = "C+"
-                    gator_truth, fm_truth = enginesOn(thrusterAxis)
-                elif (310 < true_lat < 360) or (0 < true_lat < 40):
-                    thrusterAxis = "C-"
-                    gator_truth, fm_truth = enginesOn(thrusterAxis)"""
-                
+                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]   
+                dt = 5
+                C_buffer.clear()
+                C_buffer.append(rRIC[2])
+
+        case "wait for R burn":
+            velo_phase = np.arctan2(vRIC[0], vRIC[1])
+            in_node_window = abs(abs(velo_phase) - np.pi /2) < np.deg2rad(15)
+            temp = abs(abs(velo_phase) - np.pi /2) 
+            # true_lat = (truthCOE[4] + truthCOE[5]) % 360
+            # in_node_window = (70 <= true_lat <= 110) or (250 <= true_lat <= 290)
+            if in_node_window:
+                thrusterAxis = "R+" if vRIC[2] < 0 else "R-"
+                gator_truth, fm_truth = truthObjs.satEnginesOn(thrusterAxis)
+                state = "R burn"
+                burn_duration = 0.0
+                total_burn_this_rev = 0.0
+                ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'b')
+                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]    
+                dt = 5
+                R_buffer.clear()
+                R_buffer.append(rRIC[0])
+
         case "I burn":
             burn_duration += dt
-            r = np.linalg.norm(rv_truth[:3])
-            accelActual = fm_truth.GetDerivativesForSpacecraft(truth_Sat_wrapper.getSat())
-            thrust_inertial = np.array(accelActual[3:]) + (mu / r**3) * np.array(rv_truth[:3])
-            thrust_ric = rotMatrix @ thrust_inertial
 
-            if diffCOEs_avg["del_a"][-1] >= del_a_to_return or burn_duration >= maxDutyTime:
-                print(f"Complete {thrusterAxis} burn duration (min) = {(burn_duration / 60):2.0f} | t = {(elapsed / 86400):2.2f} days | Recovered del_a = {del_a_to_return:0.5f}")
+            del_a_recovered = del_a_energy >= del_a_target
+            if del_a_recovered or burn_duration >= maxDutyTime:
+                
+                print(f"Complete {thrusterAxis} burn duration (min) = {(burn_duration / 60):2.0f} | t = {(elapsed / 86400):2.2f} days | Recovered del_a = {diffCOEs['del_a'][-1]:0.5f} out of {del_a_target:0.5f}")
                 state = "returning to nominal from I burn"
                 burnEnds.append(len(t))
-                gator_truth, fm_truth = enginesOff(thrusterAxis)
+                gator_truth, fm_truth = truthObjs.satEnginesOff(thrusterAxis)
                 thrusterAxis = ""
 
                 ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'r')
                 truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]
-
+                
                 burn_duration = 0
+                dt = 60 - elapsed % 60
+
         case "C burn":
             burn_duration += dt
-            true_lat = (truthCOE[4] + truthCOE[5]) % 360
-
-            maxBurnTime = (burn_duration >= maxDutyTime)
-            del_raan_zeroed = diffCOEs_avg["del_raan"][-1] < 0
-            maxBurnWindow = (10 <= true_lat < 170) or (190 <= true_lat < 350)
-            if  maxBurnTime or del_raan_zeroed:
-                
-                state = "wait for C burn"
-                print(f"Complete {thrusterAxis} burn duration (min) = {(burn_duration / 60):2.0f} | t = {(elapsed / 86400):2.2f} days | C-axis Amplitude = {C_amp:0.6f} | True latitude = {true_lat:3.2f}")
-                
-                if thrusterAxis == "C+":
-                    gator_truth, fm_truth = enginesOff(thrusterAxis)
-                    thrusterAxis = ""
-                elif thrusterAxis == "C-":
-                    gator_truth, fm_truth = enginesOff(thrusterAxis)
-                    thrusterAxis = ""
-                
+            velo_phase = np.arctan2(vRIC[2], vRIC[1])
+            in_cross_track_pass = abs(abs(velo_phase) - np.pi /2) < np.deg2rad(40)
+            # true_lat = (truthCOE[4] + truthCOE[5]) % 360
+            # in_cross_track_pass = (70 <= true_lat <= 110) or (250 <= true_lat <= 290)
+            
+            if burn_duration >= maxDutyTime or not in_cross_track_pass:
+                # print(f"Complete {thrusterAxis} burn duration (min) = {(burn_duration / 60):2.0f} | t = {(elapsed / 86400):2.2f} days | C-axis Amplitude = {C_amp:0.6f} | Velo phase angle = {(np.rad2deg(velo_phase)):3.2f}")
+                gator_truth, fm_truth = truthObjs.satEnginesOff(thrusterAxis)
+                state = "returning to nominal from C burn"
+                recentCmaneuver = False if C_amp > 1 / 3 * C_bounds else True
                 burnEnds.append(len(t))
                 ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'g')
-                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]
-
-                burn_duration = 0
-
-                if diffCOEs_avg["del_raan"][-1] < 0:
-                    state = "nominal"
-                
+                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]  
+                dt = 60 - elapsed % 60
+        
+        case "R burn":
+            burn_duration += dt
+            velo_phase = np.arctan2(vRIC[0], vRIC[1])
+            in_cross_track_pass = abs(abs(velo_phase) - np.pi /2) < np.deg2rad(20)
+            temp = np.rad2deg(abs(abs(velo_phase) - np.pi /2))
+            # true_lat = (truthCOE[4] + truthCOE[5]) % 360
+            # in_cross_track_pass = (70 <= true_lat <= 110) or (250 <= true_lat <= 290)
+            
+            if burn_duration >= maxDutyTime or not in_cross_track_pass:
+                print(f"Complete {thrusterAxis} burn duration (min) = {(burn_duration / 60):2.0f} | t = {(elapsed / 86400):2.2f} days | R-axis Amplitude = {R_amp:0.6f} | Velo phase angle = {(np.rad2deg(velo_phase)):3.2f}")
+                gator_truth, fm_truth = truthObjs.satEnginesOff(thrusterAxis)
+                state = "nominal" # "returning to nominal from R burn"
+                recentCmaneuver = False if R_amp > 1 / 3 * R_bounds else True
+                burnEnds.append(len(t))
+                ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'k')
+                truthOffset = [[truthOffset[0][-1]], [truthOffset[1][-1]], [truthOffset[2][-1]]]  
+                dt = 60 - elapsed % 60
+    
         case "returning to nominal from I burn":
-            # print("Returning:", rRIC)
-            if diffCOEs["del_a"][-1] <= 0:
+
+            del_a_recovered = del_a_energy >= del_a_target
+            if rRIC[1] < 0.6 * I_bounds and del_a_recovered:
                 state = "nominal"
-        # case "returning to nominal from C burn":
+                recentImaneuver = True
+            elif (elapsed - t[burnEnds[-1]] > 3 * period_sec):
+                state = "wait for I burn"
+            else:
+                continue
+        case "returning to nominal from C burn":
+            C_amp_recovering = C_amp_log[-1] <= C_amp_log[-2]
+            if C_amp <= 1 /3 * C_bounds:
+                state = "nominal"
+            elif not C_amp_recovering or (elapsed - t[burnEnds[-1]] > period_sec):
+
+                if rRIC[1] > I_bounds:
+                    historical_del_a_avg = np.mean(del_a_recovered_history)
+                    del_a_target = del_a_target = -0.6 * del_a_energy # 1.1 * historical_del_a_avg # abs(diffCOEs_avg["del_a"][-1]) # historical_del_a_avg 
+                    state = "wait for I burn"
+                else:
+                    state = "wait for C burn"
+            else:
+                continue
+        case "returning to nominal from R burn":
+            R_amp_recovering = R_amp_log[-1] <= R_amp_log[-2]
+            
+            if R_amp <= 1 /3 * R_bounds:
+                state = "nominal"
+            elif not R_amp_recovering or (elapsed - t[burnEnds[-1]] > period_sec):
+                break
+                if rRIC[1] > I_bounds:
+                    historical_del_a_avg = np.mean(del_a_recovered_history)
+                    del_a_target = del_a_target = -0.6 * del_a_energy # 1.1 * historical_del_a_avg # abs(diffCOEs_avg["del_a"][-1]) # historical_del_a_avg 
+                    state = "wait for I burn"
+                else:
+                    state = "wait for R burn"
+            else:
+                continue
 
 if state == "raising":
     ax_ric.plot(truthOffset[0], truthOffset[1], truthOffset[2], 'r')
