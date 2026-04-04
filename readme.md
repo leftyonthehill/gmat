@@ -25,20 +25,23 @@ NASA's **General Mission Analysis Tool (GMAT)**.
    https://sourceforge.net/projects/gmat/
     
 2. **Create API Connection** - 
-   Navigate to .../GMAT Install/application/api' and open BuildApiStartupFile.py. In the terminal enter:
-   '''python BuildApiStartupFile.py'''
+   Navigate to .../GMAT Install/application/api and open BuildApiStartupFile.py. In the terminal enter:
+   ```python BuildApiStartupFile.py
 
-3. **Connect API to repo**
+3. **Clone Repository** - 
+   Add this repo to your coding environment:
+   ```git clone https://github.com/leftyonthehill/gmat.git
+
+4. **Connect API to Repo** - 
    Copy the path to .../GMAT Install and paste it in this repo's load_gmat.py script for
    either the desktop path or the laptop path (this will change later, was intended to help me
    switch between two of my computers while traveling)
 
-4. **Install libraries** - 
-   Install supporting **Python** libraries:
-   - Numpy
-   - Matplotlib
+5. **Install libraries** - 
+   Install supporting **Python** libraries by running the following command:
+   ```pip install numpy matplotlib
 
-5.  **Test for correct install ** - 
+6.  **Test for correct install** - 
    Run 'testThrusting.py' and analyze the station keeping data!
 
     
