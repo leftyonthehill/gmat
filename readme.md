@@ -1,9 +1,11 @@
 # Closed-Loop Station Keeping State Machine
-
-## Description:
 This repo was created to study techniques in **closed-loop station keeping** for satellites in proliferated 
 Low Earth Orbit (PLEO) satellite constellations. The underlying dynamics are computed using API calls to 
 NASA's **General Mission Analysis Tool (GMAT)**. 
+
+The simulation models tight operational bounds typical of PLEO satellites. Station-keeping control logic
+(including the state machine) lives in `testThrusting.py`, which also serves as the main entry point for the
+project.
 
 ## Features
 - Full GMAT API integration for high-fidelity orbit propagation
