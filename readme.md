@@ -29,15 +29,16 @@ NASA's **General Mission Analysis Tool (GMAT)**.
    '''python BuildApiStartupFile.py'''
 
 3. **Connect API to repo**
-   Copy the path to '.../GMAT Install' and paste it in this repo's load_gmat.py script for
+   Copy the path to .../GMAT Install and paste it in this repo's load_gmat.py script for
    either the desktop path or the laptop path (this will change later, was intended to help me
    switch between two of my computers while traveling)
 
-4. **Install libraries ** - 
+4. **Install libraries** - 
    Install supporting **Python** libraries:
    - Numpy
    - Matplotlib
 
-5.  Run 'testThrusting.py' and analyze the station keeping data!
+5.  **Test for correct install ** - 
+   Run 'testThrusting.py' and analyze the station keeping data!
 
     
