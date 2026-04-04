@@ -14,24 +14,27 @@ NASA's **General Mission Analysis Tool (GMAT)**.
 
 ## Requirements
 - **Python** 3.10+
-- NASA GMAT-2025+
+- **NASA GMAT-2026**
 - The following **Python** libraries:
    - Numpy
    - Matplotlib
 
 ## Instructions:
-1. **Installing GMAT**
+1. **Installing GMAT** - 
    Download and install the latest version of GMAT from NASA's SourceForge page:
    https://sourceforge.net/projects/gmat/
     
-2. Navigate to '.../GMAT Install/application/api' and open BuildApiStartupFile.py. In the terminal enter:
+2. **Create API Connection** - 
+   Navigate to .../GMAT Install/application/api' and open BuildApiStartupFile.py. In the terminal enter:
    '''python BuildApiStartupFile.py'''
 
-3. Copy the path to '.../GMAT Install/application/bin' and paste it in this repo's load_gmat.py script for
+3. **Connect API to repo**
+   Copy the path to '.../GMAT Install' and paste it in this repo's load_gmat.py script for
    either the desktop path or the laptop path (this will change later, was intended to help me
    switch between two of my computers while traveling)
 
-4. Install supporting **Python** libraries:
+4. **Install libraries ** - 
+   Install supporting **Python** libraries:
    - Numpy
    - Matplotlib
 
