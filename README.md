@@ -21,13 +21,13 @@ project.
    - Numpy
    - Matplotlib
 
-## Instructions:
+## Instructions
 1. **Installing GMAT** - 
    Download and install the latest version of GMAT from NASA's SourceForge page:
    https://sourceforge.net/projects/gmat/
     
 2. **Create API Connection** - 
-   Navigate to .../GMAT Install/application/api and open BuildApiStartupFile.py. In the terminal enter:
+   Navigate to `.../GMAT Install/application/api` and open BuildApiStartupFile.py. In the terminal enter:
    ```bash
    python BuildApiStartupFile.py
 
@@ -37,7 +37,7 @@ project.
    git clone https://github.com/leftyonthehill/gmat.git
 
 4. **Connect API to Repo** - 
-   Copy the path to .../GMAT Install and paste it in this repo's load_gmat.py script for
+   Copy the path to `.../GMAT Install` and paste it in this repo's `load_gmat.py` script for
    either the desktop path or the laptop path (this will change later, was intended to help me
    switch between two of my computers while traveling)
 
@@ -47,6 +47,9 @@ project.
    pip install numpy matplotlib
 
 6.  **Test for correct install** - 
-   Run 'testThrusting.py' and analyze the station keeping data!
+   Run `testThrusting.py` and analyze the station keeping data!
 
+## Contributing
+This is currently a personal research project, but feel free to open issues or pull requests if 
+you have suggestions for improving the station-keeping logic or modularity.
     
