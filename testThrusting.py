@@ -65,7 +65,7 @@ diffCOEs_avg = {
 fig = plt.figure()
 ax_ric = fig.add_subplot(projection='3d')
 
-maxDays = 30
+maxDays = 7
 revs_to_avg = 3
 mean_motion = np.sqrt(mu / orbitParam[0]**3)
 period_sec = 2 * np.pi / mean_motion

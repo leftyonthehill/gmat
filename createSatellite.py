@@ -3,14 +3,13 @@ from load_gmat import *
 import datetime as dt
 import numpy as np
 
-
 class Satellite:
-    """
-    Create a GMAT Satellite object using the createSatellite wrapper.
+    """This class is a wrapper for a Spacecraft object in GMAT.
 
-    To create this wrapper, provide a name for this satellite as a string. 
-    This object's name must not be exist in the GMAT scenario otherwise an 
-    error will be raised.
+    
+    Inputs during intitialization:
+        - satName (str): Any name the user would like to call their satellite
+    
     """
     
     def __init__(self, satName: str):
@@ -46,9 +45,6 @@ class Satellite:
         self.sat.SetField("DragArea", 9)
         self.sat.SetField("Cd", 2.2)
         self.sat.SetField("DryMass", 800)
-
-    def __repr__(self):
-        return f"{self.sat}, {self.etank}, {self.ethruster}, {self.powerSystem}"
 
     """
     Return the GMAT object contained in this wrapper

@@ -13,7 +13,7 @@ class StationKeepingObjects:
         self.fm_wrap     = {"coast": ForceModel(objectType)}
         self.prop_wrap   = {"coast": Propagator(objectType)}
 
-        self.fm_wrap["coast"].setDynamics(objectType)
+        self.fm_wrap["coast"].setForcesToPropagate(objectType)
 
         self.prop_wrap["coast"].setIntegrator(objectType)
         self.prop_wrap["coast"].setFM(self.fm_wrap["coast"].getFM())
@@ -30,7 +30,7 @@ class StationKeepingObjects:
         
         for ax in self.sat_wrap.thrusters.keys():
             self.fm_wrap[ax]     = ForceModel(f"{self.objType}_{ax}")
-            self.fm_wrap[ax].setDynamics(self.objType)
+            self.fm_wrap[ax].setForcesToPropagate(self.objType)
 
             self.prop_wrap[ax]   = Propagator(f"{self.objType}_{ax}")
             self.prop_wrap[ax].setIntegrator(self.objType)
