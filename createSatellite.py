@@ -28,7 +28,12 @@ class Satellite:
     """
     
     def __init__(self, satName: str):
-        """Initialize the Satellite wrapper"""
+        """Initialize the Satellite wrapper
+        
+        Inputs:
+            - satName (str): Can be any name
+        """
+
         self.sat = None
         self.epoch = None
         self.thrusters = {}
@@ -37,49 +42,78 @@ class Satellite:
 
         self.mu = 3.986e5
 
-        self.__setSatParam__(satName)
+        self._setSatParam(satName)
     
-    """
-    This class is private and designed to only be called from __init__(). 
-    This class establishes the parameters needed for the satellite objects. 
-    Future methods will be built to provide an override all parameters below.
-    """
-    def __setSatParam__(self, satName: str):
-        self.sat = gmat.Construct("Spacecraft", satName)
-        self.sat.SetField("DateFormat", "UTCGregorian")
+    def _setSatParam(self, satName: str):
+        """Local function to create and assign GMAt spacecraft parameters. SHOULD NOT BE CALLED ANYWHERE ELSE.
+        
+        Inputs:
+            - satName (str): Can be any name
+        """
 
+        self.sat = gmat.Construct("Spacecraft", satName)
+
+        # Default epoch for all satellites will be 1200 UTC of the day the code is run
         today = dt.datetime.today()
         self.epoch = today.strftime("%d %b %Y 12:00:00.000")
-
+        self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
+
+        # Default satellite areas
+        self.sat.SetField("SRPArea", 6)
+        self.sat.SetField("DragArea", 9)
+
+        # Default reflective and drag coefficients
+        self.sat.SetField("Cr", 1.8)
+        self.sat.SetField("Cd", 2.2)
+
+        # Default mass of the satellite
+        self.sat.SetField("DryMass", 800)
+        
         self.sat.SetField("CoordinateSystem", "EarthMJ2000Eq")
         self.sat.SetField("DisplayStateType", "Keplerian")
 
-        self.sat.SetField("SRPArea", 6)
-        self.sat.SetField("Cr", 1.8)
-        self.sat.SetField("DragArea", 9)
-        self.sat.SetField("Cd", 2.2)
-        self.sat.SetField("DryMass", 800)
-
-    """
-    Return the GMAT object contained in this wrapper
-    """
     def getSat(self):
+        """Return the satellite
+        
+        Returns:
+            - GMAT Spacecraft object
+        """
+
         return self.sat
     
-    """
-    Return the cartesian state vector of the satellite
-    """
     def getCartesianState(self):
+        """Return the satellite's current cartesian state vector
+        
+        Returns:
+            - Cartesian State (list() with length 6)
+                + rX
+                + rY
+                + rZ
+                + vX
+                + vY
+                + vZ
+        """
+
         return self.sat.GetCartesianState()
     
-    """
-    Return the keplerian state vector of the satellite
-    """
     def getKeplerianState(self):
+        """Return the satellite's current keplerian state vector
+        
+        Returns:
+            - Keplerian State (list() with length 6)
+                + Semi-major axis
+                + Eccentricity
+                + Inclination
+                + Right Ascension of the Ascending Node
+                + Argument of Periapsis
+                + True Anomaly
+        """
+
         return self.sat.GetKeplerianState()
     
     def getSMAFromEnergy(self):
+        """Return current semi-major axis based on position and velocity vectors"""
         rv = self.getCartesianState()
         r = np.linalg.norm(rv[:3])
         v = np.linalg.norm(rv[3:])
@@ -88,18 +122,19 @@ class Satellite:
         sma = -self.mu / (2 * specificEnergy)
         return sma
 
-    """
-    Provided a list of classical orbital elements, this method assigns the state vector to the satellite
-    coes: [
-            a =      Semi-major Axis,
-            e =     Eccentricity
-            i =     Inclination
-            raan =  Right Ascention of the Ascending Node
-            aop =   Argument of Periapsis
-            f =     True anomaly
-        ]
-    """
     def setOrbitElements(self, coes: list):
+        """
+        Provided a list of classical orbital elements, this method assigns the state vector to the satellite
+        coes: [
+                a =      Semi-major Axis,
+                e =     Eccentricity
+                i =     Inclination
+                raan =  Right Ascention of the Ascending Node
+                aop =   Argument of Periapsis
+                f =     True anomaly
+            ]
+        """
+
         if len(coes) != 6:
             raise ValueError("Incorrect amount of orbital elements passed. There needs to be exactly 6")
         a, e, i, raan, aop, f = coes
@@ -112,6 +147,19 @@ class Satellite:
         self.sat.SetField("TA", f) 
     
     def setCartesianState(self, xyz: list):
+        """Provided a list containing the cartesian position and velocity vectors, 
+        assign the corresponding values to the GMAT Spacecraft object
+        
+        xyz = [
+                rX,
+                rY,
+                rZ,
+                vX,
+                vY,
+                vZ
+            ]
+        """
+
         if len(xyz) != 6:
             raise ValueError("Incorrect amount of cartesian elements passed. There needs to be exactly 6")
         x, y, z, xdot, ydot, zdot = xyz
@@ -128,11 +176,15 @@ class Satellite:
 
 
     def setETank(self, mass: float = 200):
+        """Create electric fuel tank and attach it to the Spacecraft object"""
+
         self.etank = gmat.Construct("ElectricTank", f"{self.sat.GetName()}_tank")
         self.etank.SetField("FuelMass", 200.0)
         self.sat.SetField("Tanks", self.etank.GetName())
     
     def setEThruster(self, axis:str = "I+", engineSpecs: tuple = (0.6, 3000)):
+        """Given a direction in the RIC, create a thruster to be attached to the Spacecraft object later"""
+
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
             raise ValueError(f"{axis} axis not found. Acceptable values are: R+, R-, I+, I-, C+, C-")
         
@@ -148,20 +200,22 @@ class Satellite:
 
         self.setEThrusterDirection(axis)
 
-    def setEThrusterDirection(self, axis):
+    def setEThrusterDirection(self, axis: str):
+        """Assign the thruster direction for the provided thruster axis"""
+
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
             raise ValueError(f"{axis} axis not found. Acceptable values are: R+, R-, I+, I-, C+, C-")
         
+        # Thruster is default created using VNB reference frame where V -> I, N -> C, and B => -R
         axisMap = {
             "R+": [0, 0, -1], 
             "R-": [0, 0, 1], 
             "I+": [1, 0, 0], 
             "I-": [-1, 0, 0], 
-            "C+": [1e-5, 1, 1e-5], 
+            "C+": [1e-5, 1, 1e-5], # Thruster cannot be initialized with any smaller V and B components
             "C-": [-1e-5, -1, -1e-5]}
         mags = axisMap[axis]
-        
-        
+
         v = mags[0]
         self.thrusters[axis].SetField("ThrustDirection1", v)
 
@@ -171,20 +225,24 @@ class Satellite:
         b = mags[2]
         self.thrusters[axis].SetField("ThrustDirection3", b)
 
-    def setPowerSystem(self, powerSystemType: str = "Nuclear"):
+    def setPowerSystem(self, powerSystemType: str = "Nuclear", kw: float = 20):
+        """Create power source for electric the onboard engines and attach it to the satellite."""
+
         if powerSystemType != "Nuclear" and powerSystemType != "Solar":
             raise TypeError(f"{powerSystemType} is not a valid power system type in GMAT. Please select from either 'Nuclear' or 'Solar'")
         self.powerSystem = gmat.Construct(f"{powerSystemType}PowerSystem", f"{self.sat.GetName()}_{powerSystemType}Power")
-        self.powerSystem.SetField("InitialMaxPower", 20)
-        self.powerSystem.SetField("InitialEpoch", self.epoch)
-
-    def setPowerSystemWattage(self, kw: float = 20):
         self.powerSystem.SetField("InitialMaxPower", kw)
-    
+        self.powerSystem.SetField("InitialEpoch", self.epoch)
+        self.sat.SetField("PowerSystem", self.powerSystem.GetName())
+
     def setManeuverable(self):
+        """Create a tank, power system, and thrusters (if not created already) then assign them to the Spacecraft object"""
+        
         if self.etank is None:
             self.setETank()
-        self.sat.SetField("Tanks", self.etank.GetName())
+
+        if self.powerSystem is None:
+            self.setPowerSystem()
 
         if self.thrusters == {}:
             thrusterAxes = {
@@ -207,9 +265,7 @@ class Satellite:
             self.sat.SetField("Thrusters", thrusterArray)
             [i.SetField("Tank", self.etank.GetName()) for i in self.thrusters.values()]
 
-        if self.powerSystem is None:
-            self.setPowerSystem()
-        self.sat.SetField("PowerSystem", self.powerSystem.GetName())
+        
         
 
     

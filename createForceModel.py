@@ -47,7 +47,7 @@ class ForceModel:
         return self.burnForce[axis]
 
     def getFM(self):
-        """Returns the GMAT ForceModel object
+        """Returns the force model
         
         Retuns:
             - GMAT ForceModel object

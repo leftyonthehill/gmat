@@ -166,7 +166,7 @@ while elapsed < maxDays * 86400:
 
     match state:
         case "nominal":    
-            if rRIC[1] > I_bounds : # np.mean(I_buffer) > I_bounds :
+            if rRIC[1] > I_bounds :
                 state = "wait for I burn"
             elif C_amp > C_bounds :
                 state = "wait for C burn"
@@ -186,7 +186,7 @@ while elapsed < maxDays * 86400:
 
                 historical_del_a_avg = np.mean(del_a_recovered_history)
 
-                del_a_target = -0.75 * del_a_energy
+                del_a_target = -0.8 * del_a_energy
                 dt = 5
                 # I_buffer.clear()
                 # I_buffer.append(rRIC[1])
@@ -297,7 +297,7 @@ while elapsed < maxDays * 86400:
 
                 if rRIC[1] > I_bounds:
                     historical_del_a_avg = np.mean(del_a_recovered_history)
-                    del_a_target = del_a_target = -0.6 * del_a_energy # 1.1 * historical_del_a_avg # abs(diffCOEs_avg["del_a"][-1]) # historical_del_a_avg 
+                    del_a_target = del_a_target = -0.8 * del_a_energy # 1.1 * historical_del_a_avg # abs(diffCOEs_avg["del_a"][-1]) # historical_del_a_avg 
                     state = "wait for I burn"
                 else:
                     state = "wait for C burn"
@@ -312,7 +312,7 @@ while elapsed < maxDays * 86400:
                 break
                 if rRIC[1] > I_bounds:
                     historical_del_a_avg = np.mean(del_a_recovered_history)
-                    del_a_target = del_a_target = -0.6 * del_a_energy # 1.1 * historical_del_a_avg # abs(diffCOEs_avg["del_a"][-1]) # historical_del_a_avg 
+                    del_a_target = del_a_target = -0.8 * del_a_energy # 1.1 * historical_del_a_avg # abs(diffCOEs_avg["del_a"][-1]) # historical_del_a_avg 
                     state = "wait for I burn"
                 else:
                     state = "wait for R burn"
