@@ -10,17 +10,32 @@ class Satellite:
     Inputs during intitialization:
         - satName (str): Any name the user would like to call their satellite
     
+    - If this is for the reference satellite, no other work is required.
+    - If this is for the truth satellite, make sure to call the 
+      setManeuverable() function to create thrusters along the +/-R, +/-I, +/-C 
+      axes in the RIC reference frame. If a different combination of thrusters 
+      are required, make sure to call setEThruster(axis, engineSpecs) before 
+      calling setManeuverable().
+    
+      Variables:
+        - sat: GMAT Spacecraft Object
+        - epoch: string of today's date set to 1200 UTC
+        - thrusters: dict containing any and all of the thrusters assigned to 
+          this satellite
+        - etank: GMAT Electric Tank object
+        - powerSystem: GMAT Solar/Nuclear Power System
+        - mu : Earth's GM
     """
     
     def __init__(self, satName: str):
+        """Initialize the Satellite wrapper"""
         self.sat = None
         self.epoch = None
         self.thrusters = {}
         self.etank = None
         self.powerSystem = None
-        self.maneuverable = False
 
-        self.mu = mu = 3.986e5
+        self.mu = 3.986e5
 
         self.__setSatParam__(satName)
     
@@ -117,7 +132,7 @@ class Satellite:
         self.etank.SetField("FuelMass", 200.0)
         self.sat.SetField("Tanks", self.etank.GetName())
     
-    def setEThruster(self, axis:str = "I", engineSpecs: tuple = (0.6, 3000)):
+    def setEThruster(self, axis:str = "I+", engineSpecs: tuple = (0.6, 3000)):
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
             raise ValueError(f"{axis} axis not found. Acceptable values are: R+, R-, I+, I-, C+, C-")
         
@@ -167,8 +182,6 @@ class Satellite:
         self.powerSystem.SetField("InitialMaxPower", kw)
     
     def setManeuverable(self):
-        self.maneuverable = True
-
         if self.etank is None:
             self.setETank()
         self.sat.SetField("Tanks", self.etank.GetName())
