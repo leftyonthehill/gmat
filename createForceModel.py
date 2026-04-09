@@ -25,7 +25,7 @@ class ForceModel:
     """
 
     def __init__(self, fmType: str):
-        """Initialize the ForceModel wrapper using the ForceModel type.
+        """Initialize the ForceModel wrapper.
         
         Inputs:
             - fmType (str): Type of ForceModel to produce (must be either "reference" or "truth")
