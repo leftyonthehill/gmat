@@ -1,6 +1,7 @@
+import numpy as np
+
 def xyz2ric(refState, offsetState):
     """Converts state vector from inertial frame to RIC frame based on reference state."""
-    import numpy as np
 
     r_ref = np.array(refState[:3])
     v_ref = np.array(refState[3:6])
@@ -16,10 +17,11 @@ def xyz2ric(refState, offsetState):
     # Rotation matrix from inertial to RIC
     rotMatrix = np.vstack((R, I, C))
     
-    # Position in RIC frame
+    # Position delta in ECI frame
     delta_r = r_offset - r_ref
     delta_v = v_offset - v_ref
 
+    # Position delta in RIC frame
     r_RIC = rotMatrix @ delta_r
     v_RIC = rotMatrix @ delta_v
 

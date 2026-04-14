@@ -126,8 +126,7 @@ class StationKeepingObjects:
         
         # Collect new numerical integrator and ForceModel for modeling
         gator = prop.getIntegrator()
-        fm = self.fm_wrap[axis].getFM()
-        return gator, fm
+        return gator
 
     def satEnginesOff(self, axis:str = "coast"):
         """During the scenario when it is time to turn off the thrusters, this function turns off the corresponding thruster 
@@ -136,15 +135,13 @@ class StationKeepingObjects:
         # Only at the beginning of the scenario should no axis be given. This sets the scene for the upcoming propagation
         if axis == "coast":
             gator = self.prop_wrap[axis].getIntegrator()
-            fm = self.fm_wrap[axis].getFM()
-            return gator, fm
+            return gator
         
         # Otherwise should any axis be given, perform the following:
 
 
         # Collect the Propagator and ForceModel for coast period
         prop = self.prop_wrap["coast"]
-        fm = self.fm_wrap["coast"]
 
         # Update the latest internal values for the propagator
         prop.prepareInternals()
@@ -165,5 +162,4 @@ class StationKeepingObjects:
 
         # Collect the new numerical integrator and ForceModel for simulation
         gator = prop.getIntegrator()
-        fm = self.fm_wrap[axis].getFM()
-        return gator, fm
+        return gator

@@ -4,18 +4,16 @@ import datetime as dt
 import numpy as np
 
 class Satellite:
-    """This class is a wrapper for a Spacecraft object in GMAT.
-
+    """
+    This class is a wrapper for a Spacecraft object in GMAT. If this is for the 
+    reference satellite, no other work is required. If this is for the truth 
+    satellite, make sure to call the setManeuverable() function to create thrusters 
+    along the +/-R, +/-I, +/-C axes in the RIC reference frame. If a different 
+    combination of thrusters are required, make sure to call setEThruster(axis, 
+    engineSpecs) before calling setManeuverable().
     
     Inputs during intitialization:
         - satName (str): Any name the user would like to call their satellite
-    
-    - If this is for the reference satellite, no other work is required.
-    - If this is for the truth satellite, make sure to call the 
-      setManeuverable() function to create thrusters along the +/-R, +/-I, +/-C 
-      axes in the RIC reference frame. If a different combination of thrusters 
-      are required, make sure to call setEThruster(axis, engineSpecs) before 
-      calling setManeuverable().
     
       Variables:
         - sat: GMAT Spacecraft Object
@@ -81,7 +79,7 @@ class Satellite:
         return self.sat.GetKeplerianState()
     
     def getSMAFromEnergy(self):
-        """Returns the semi-major axis based on teh current position and velocity vectors"""
+        """Returns the semi-major axis based on the current position and velocity vectors"""
         rv = self.getCartesianState()
         r = np.linalg.norm(rv[:3])
         v = np.linalg.norm(rv[3:])

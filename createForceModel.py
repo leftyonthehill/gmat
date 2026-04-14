@@ -3,20 +3,20 @@ from load_gmat import *
 
 
 class ForceModel:
-    """This class is a wrapper for a ForceModel object in GMAT.
+    """
+    This class is a wrapper for a ForceModel object in GMAT.
 
     This force model wrapper is to support the reference satellite object or the truth satellite. Depending on the inputs, this class will 
     assign the corresponding forces and perturbations
-
-    Inputs during intialization:
-        - fmType (str): MUST BE EITHER "reference" or "truth" (non-case specific, determines the forces that need to be modeled)
-
     - If a reference force model, only perturbations considered are a 2x0 Earth geopotential model
     - If a truth force model, the following perturbations are considered:
         - 4x4 Earth geopotential model
         - Atmospheric drag
         - 3rd body effects (Lunar and Solar)
         - Solar radiation pressure
+
+    Inputs during intialization:
+        - fmType (str): MUST BE EITHER "reference" or "truth" (non-case specific, determines the forces that need to be modeled)
 
     Variables:
         - fm: GMAT ForceModel Object (object containing all described forces)
