@@ -11,7 +11,7 @@ import numpy as np
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 30
+maxDays = 14
 
 # Simulation step size while coasting
 dtCoast = 60.0 
@@ -31,17 +31,17 @@ orbitParam = [
 
 # Operational bounds (+/-) to keep the truth satellite within
 R_bounds = 1
-I_bounds = 15
-C_bounds = 1
+I_bounds = 10
+C_bounds = 5
 
 # Maximum thruster duty time in seconds
-maxDutyTime = 1800
+maxDutyTime = 3600
 
 # % of SMA deviation to target for recovery
-smaRecoveryPercent = 0.5
+smaRecoveryPercent = 0.95
 
 # 
-maneuverArcHalfAngle = 20
+maneuverArcHalfAngle = 60
 
 # -----------output options------------------------------------------
 """
@@ -69,7 +69,7 @@ plot_rRIC_v_Time = True
 plot_vRIC_v_Time = False
 
 plot_COE_diffs = {
-    "del_a": False,
+    "del_a": True,
     "del_e": False,
     "del_i": True,
     "del_raan": True,
@@ -442,7 +442,7 @@ while elapsed / 86400 < maxDays:
             
             if min_I_between_maneuvers > -5:
                 in_burn_window = 170 < f <= 190
-                del_a_target = max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][-1]))
+                del_a_target = 1 * max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][-1]))
             else:
                 in_burn_window = f < 10 or f > 350
                 del_a_target = smaRecoveryPercent * max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][-1]))
@@ -564,7 +564,7 @@ while elapsed / 86400 < maxDays:
         case "I burn":
             burn_duration += dt
             del_a_recovered = del_a_energy >= del_a_target
-            if burn_duration >= 720 and (del_a_recovered or burn_duration >= maxDutyTime):
+            if burn_duration >= 750 and (del_a_recovered or burn_duration >= 810): # maxDutyTime
                 if terminal_Completed_Firings:
                     terminalStr = f"Complete {thrusterAxis} burn duration (min) = "
                     terminalStr += f"{(burn_duration / 60):2.2f} | " if (burn_duration / 60) >= 10 else f"{(burn_duration / 60):1.3f} | "

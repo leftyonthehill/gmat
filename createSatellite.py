@@ -267,14 +267,14 @@ class Satellite:
             # Default thruster combination:
             # - 1 thruster in both R+/- directions
             # - 1 thruster in both I+/- directions
-            # - 3 thrusters in both R+/- directions (3x the thrust to represent 3 thrusters instead of 1)
+            # - 1 thruster in both C+/- directions
             thrusterAxes = {
                 "R+": (0.2, 3000), 
                 "R-": (0.2, 3000), 
                 "I+": (0.2, 3000), 
                 "I-": (0.2, 3000), 
-                "C+": (0.6, 3000), 
-                "C-": (0.6, 3000)}
+                "C+": (0.2, 3000), 
+                "C-": (0.2, 3000)}
             
             # Create a thruster for each thruster direction and assign it to the onboard tank 
             for ax, thrParam in thrusterAxes.items():
