@@ -32,6 +32,7 @@ class Satellite:
         self.thrusters = {}
         self.etank = None
         self.powerSystem = None
+        self.mass = 0
 
         self.mu = 3.986e5
 
@@ -56,6 +57,7 @@ class Satellite:
         self.sat.SetField("DragArea", 9)
         self.sat.SetField("Cd", 2.2)
         self.sat.SetField("DryMass", 800)
+        self.mass += 800
 
         # Spacecraft time reference
         today = dt.datetime.today()
@@ -157,6 +159,7 @@ class Satellite:
 
         self.etank = gmat.Construct("ElectricTank", f"{self.sat.GetName()}_tank")
         self.etank.SetField("FuelMass", mass)
+        self.mass += mass
         
         # Assign the tank to the spacecraft
         self.sat.SetField("Tanks", self.etank.GetName())

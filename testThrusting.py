@@ -11,7 +11,7 @@ import numpy as np
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 14
+maxDays = 28
 
 # Simulation step size while coasting
 dtCoast = 60.0 
@@ -32,14 +32,14 @@ orbitParam = [
 # Operational bounds (+/-) to keep the truth satellite within
 R_bounds = 1
 I_bounds = 10
-C_bounds = 5
+C_bounds = 4
 
 # Maximum thruster duty time in seconds
 maxDutyTime = 3600
 
 # % of SMA deviation to target for recovery
-smaRecoveryPercent = 0.95
-
+smaRecoveryPercent = 0.75
+smaOffsetFromDel_f = 0.05
 # 
 maneuverArcHalfAngle = 60
 
@@ -71,8 +71,8 @@ plot_vRIC_v_Time = False
 plot_COE_diffs = {
     "del_a": True,
     "del_e": False,
-    "del_i": True,
-    "del_raan": True,
+    "del_i": False,
+    "del_raan": False,
     "del_aop": False,
     "del_f": False
 }
@@ -200,6 +200,8 @@ gator_truth = truthObjs.satEnginesOff()
 
 tDay = 0
 
+del_a_energy = 0
+del_a_energy_old = 0
 # While the elapsed time is less the max number of days
 while elapsed / 86400 < maxDays:
     
@@ -211,7 +213,8 @@ while elapsed / 86400 < maxDays:
         state = "nominal"
         gator_truth = truthObjs.satEnginesOff(thrusterAxis)
     
-    
+    del_a_energy_old = del_a_energy
+
     # Propagate spacecraft
     gator_ref.Step(dt)
     gator_truth.Step(dt)
@@ -339,7 +342,8 @@ while elapsed / 86400 < maxDays:
                 
                 # Sometimes the I-axis check falsely flags for a maneuver just after one has occured. This is one of two logic checks to 
                 # keep the thruster from firing
-                if del_a_energy < -0.1: # not returning:
+                if del_a_energy < -0.12: # not returning:
+                    
                     state = "wait for I burn"
                 else:
                     # False flag, try again later
@@ -439,17 +443,15 @@ while elapsed / 86400 < maxDays:
             # Collect the current True Anomaly value to see if the spacecraft is in the appropriate window for a maneuver
             f = truthCOE[-1]
             # in_burn_window = not(10 < f <= 170) and not(190 < f <= 350)
-            
-            if min_I_between_maneuvers > -5:
-                in_burn_window = 170 < f <= 190
-                del_a_target = 1 * max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][-1]))
-            else:
-                in_burn_window = f < 10 or f > 350
-                del_a_target = smaRecoveryPercent * max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][-1]))
+
+            in_burn_window = 170 < f <= 190
+            del_a_target = smaRecoveryPercent * max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][-1]))
 
             # Possibility for controller to trigger a maneuver when spacecraft is within user-defined bounds, this check prevents that
             valid_burn = diffCOEs_avg["del_a"][-1] < 0 and rRIC[1] > I_bounds
-            if in_burn_window and valid_burn:
+            
+            recentManeuver = (elapsed - (t[burnEnds[-1]] if len(burnEnds) > 0 else (3 * period_sec - elapsed)) >= 3 * period_sec)
+            if in_burn_window and valid_burn and recentManeuver:
                 # Update the controller state
                 state = "I burn"
                 thrusterAxis = "I+"
@@ -460,7 +462,6 @@ while elapsed / 86400 < maxDays:
 
                 # Establish recovery criteria for I-axis maneuver
                 del_a_recovered = False
-                tempSMA = abs(diffCOEs_avg["del_a"][-1])
                 
                 
                 # Change simulation step size
@@ -468,6 +469,12 @@ while elapsed / 86400 < maxDays:
                 
                 # reset steps waiting counter
                 numStepsWaiting = 0
+
+
+                da_since_maneuver = diffCOEs["del_a"][:] if len(burnEnds) == 0 else diffCOEs["del_a"][:burnEnds[-1]]
+                da_since_maneuver_mean = np.mean(da_since_maneuver)
+                t_since_maneuver = t[:] if len(burnEnds) == 0 else t[:burnEnds[-1]]
+                t_since_maneuver_mean = np.mean(t_since_maneuver)
 
                 # If plotting the 3D RIC trajectory is on, plot the latest coast segment
                 if plot_3D_RIC:
@@ -563,13 +570,21 @@ while elapsed / 86400 < maxDays:
                 
         case "I burn":
             burn_duration += dt
-            del_a_recovered = del_a_energy >= del_a_target
-            if burn_duration >= 750 and (del_a_recovered or burn_duration >= 810): # maxDutyTime
+            del_f_offset = -smaOffsetFromDel_f * diffCOEs_avg["del_f"][-1]
+            del_a_newTarget = del_a_target + del_f_offset
+            del_a_recovered = del_a_energy >= del_a_newTarget
+            # if burn_duration >= 750 and (del_a_recovered or burn_duration >= 810): # maxDutyTime
+            if burn_duration >= 660 and (del_a_recovered or burn_duration >= maxDutyTime):
                 if terminal_Completed_Firings:
                     terminalStr = f"Complete {thrusterAxis} burn duration (min) = "
                     terminalStr += f"{(burn_duration / 60):2.2f} | " if (burn_duration / 60) >= 10 else f"{(burn_duration / 60):1.3f} | "
                     terminalStr += f"t = {(elapsed / 86400):2.2f} days | " if (elapsed / 86400) >= 10 else f"t = {(elapsed / 86400):1.3f} days | "
-                    terminalStr += f"Recovered del_a = {(del_a_target + del_a_energy):0.5f} out of {(2 * del_a_target):0.5f} | TA at maneuver start = {f:2.2f}"
+                    terminalStr += f"Recovered del_a = {(del_a_energy):0.5f} / {(del_a_newTarget):0.5f} | TA at maneuver = {f:3.2f} | "
+                    terminalStr += "average del_f post maneuver = " + (" " if (diffCOEs_avg["del_f"][-1] > 0) else "") +  f"{diffCOEs_avg["del_f"][-1]:1.3f} deg | "
+                    
+                    accel = 0.2 / truth_Sat_wrapper.mass # m/s
+                    deltaV = accel * burn_duration
+                    terminalStr += f"deltaV = {deltaV:1.3f} m/s" 
                     # print(f"Complete {thrusterAxis} burn duration (min) = {(burn_duration / 60):2.3f} | t = {(elapsed / 86400):2.3f} days | Recovered del_a = {(del_a_target + del_a_energy):0.5f} out of {(2 * del_a_target):0.5f} | TA at maneuver start = {f:2.2f}")
                     print(terminalStr)
                 state = "returning to nominal from I burn"
