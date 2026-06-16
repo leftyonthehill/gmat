@@ -54,10 +54,10 @@ class Satellite:
         # Spacecraft physical parameters
         self.sat.SetField("SRPArea", 6)
         self.sat.SetField("Cr", 1.8)
-        self.sat.SetField("DragArea", 9)
+        self.sat.SetField("DragArea", 10)
         self.sat.SetField("Cd", 2.2)
-        self.sat.SetField("DryMass", 800)
-        self.mass += 800
+        self.sat.SetField("DryMass", 900)
+        self.mass += 900
 
         # Spacecraft time reference
         today = dt.datetime.today()
@@ -150,7 +150,7 @@ class Satellite:
         self.sat.SetField("DisplayStateType", "Keplerian") 
 
 
-    def setETank(self, mass: float = 200):
+    def setETank(self, mass: float = 100):
         """Create the fuel tank that the onboard electric thrusters will use.
         
         Inputs:
