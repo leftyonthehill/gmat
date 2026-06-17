@@ -25,4 +25,5 @@ def xyz2ric(refState, offsetState):
     r_RIC = rotMatrix @ delta_r
     v_RIC = rotMatrix @ delta_v
 
-    return r_RIC, v_RIC, rotMatrix
+    rv_RIC = list(r_RIC) + list(v_RIC)
+    return rv_RIC, rotMatrix

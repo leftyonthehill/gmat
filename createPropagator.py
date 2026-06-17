@@ -51,17 +51,12 @@ class Propagator:
         self.prop.SetReference(self.integrator)
         
         # Shared integratation parameters
-        self.prop.SetField("InitialStepSize", 60)
+        self.prop.SetField("InitialStepSize", 5)
         self.prop.SetField("MinStep", 1e-4)
         self.prop.SetField("Accuracy", 1e-10)
 
-        # Case-specific parameters
-        if propType.lower() == "truth":
-            self.prop.SetField("MaxStep", 20)
-            self.prop.SetField("MaxStepAttempts", 10000)
-        else:
-            self.prop.SetField("MaxStep", 1200)
-            self.prop.SetField("MaxStepAttempts", 100)
+        self.prop.SetField("MaxStep", 60)
+        self.prop.SetField("MaxStepAttempts", 1e4)
     
     def setFM(self, fm):
         """Assign a ForceModel object to the propagator
