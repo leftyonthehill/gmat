@@ -1,18 +1,16 @@
 from load_gmat import *
 
 class Propagator:
-    """This class is a wrapper for a Propagator object in GMAT.
+    """
+    This class is a wrapper for a Propagator object in GMAT.
     
     This propagator wrapper is to support the propagation of the reference and truth satellites. Depending on the inputs,
-    this class will assign the corresponding propagator parameters
+    this class will assign the corresponding propagator parameters. The main differences between the two modes are:
+        - Maximum step size
+        - Max step attemps
 
     Inputs during intiialization:
         - propName: Name of the propagator to be created (does not need to include "reference" or "truth")
-
-    - Calling setIntegrator() is where the integrator will get the reference/truth specific parameters. The main difference
-      between the two modes are:
-        - Maximum step size
-        - Max step attemps
 
     Variables:
         - prop: GMAT Propagator object (object descibing what is being numerical integrated)
