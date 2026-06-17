@@ -71,14 +71,14 @@ class ForceModel:
         # Assigning the forces for the reference ForceModel
         if propType.lower() == "reference":
             self._setForces(
-                degree=2,
+                degree=4,
                 order=0
             )
         # Assigning the forces for the truth ForceModel
         else:
             self._setForces(
-                degree=4,
-                order=4,
+                degree=8,
+                order=8,
                 thirdBodyEffects=True, # If it is desired to remove any additional forces, simply delete the kwarg(s)
                 atmDrag=True,
                 srp=True
@@ -125,6 +125,11 @@ class ForceModel:
             drag.SetField("AtmosphereModel", "JacchiaRoberts")
             atmosphere = gmat.Construct("JacchiaRoberts")
             drag.SetReference(atmosphere)
+
+            drag.SetField("F107", 105.0)
+            drag.SetField("F107A", 120.0)
+            drag.SetField("MagneticIndex", 2.6)
+
             self.fm.AddForce(drag)
 
         # Adding solar radiation pressure effects
