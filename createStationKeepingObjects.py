@@ -33,19 +33,20 @@ class StationKeepingObjects:
 
         self.objType = objectType
         self.coes = []
+        self.thrustAxis = "coast"
 
         # Create object wrappers
         self.sat_wrap    = Satellite(f"{objectType}_Sat")
-        self.fm_wrap     = {"coast": ForceModel(objectType)}
-        self.prop_wrap   = {"coast": Propagator(objectType)}
+        self.fm_wrap     = {self.thrustAxis: ForceModel(objectType)}
+        self.prop_wrap   = {self.thrustAxis: Propagator(objectType)}
 
         # For the coasting period, assign the corresponding forces and satellite to the propagator
-        self.fm_wrap["coast"].setForcesToPropagate(objectType)
-        self.prop_wrap["coast"].setIntegrator(objectType)
+        self.fm_wrap[self.thrustAxis].setForcesToPropagate(objectType)
+        self.prop_wrap[self.thrustAxis].setIntegrator(objectType)
 
-        self.prop_wrap["coast"].setFM(self.fm_wrap["coast"].getFM())
+        self.prop_wrap[self.thrustAxis].setFM(self.fm_wrap[self.thrustAxis].getFM())
         
-        self.prop_wrap["coast"].setSat(self.sat_wrap.getSat())
+        self.prop_wrap[self.thrustAxis].setSat(self.sat_wrap.getSat())
 
     def setSatCOEs(self, coes: list):
         """Provided a 6-element list of classical orbit elements, assign the keplerian state vector to the spacecraft
@@ -100,15 +101,16 @@ class StationKeepingObjects:
         Inputs:
             - axis (str): The corresponding axis in which the thrusters will fire"""
         
+        self.thrustAxis = axis
         # Collect the Propagator and ForceModel for the new axis
-        prop = self.prop_wrap[axis]
-        fm = self.fm_wrap[axis]
+        prop = self.prop_wrap[self.thrustAxis]
+        fm = self.fm_wrap[self.thrustAxis]
 
         # Update the latest internal values for the propagator
         prop.prepareInternals()
 
         # Collect the thruster we want to fire
-        thr_name = self.sat_wrap.thrusters[axis].GetName()
+        thr_name = self.sat_wrap.thrusters[self.thrustAxis].GetName()
         thruster = self.sat_wrap.getSat().GetRefObject(gmat.THRUSTER, thr_name)
         
         # Turn on thruster and set Spacecraft to maneuverable
@@ -116,7 +118,7 @@ class StationKeepingObjects:
         self.sat_wrap.getSat().IsManeuvering(True)
 
         # Add the thruster's force to the Propagator
-        prop.getPropagator().AddForce(fm.getBurnForce(axis))
+        prop.getPropagator().AddForce(fm.getBurnForce(self.thrustAxis))
 
         # Update the Propagator's satellite reference
         prop.getPropagator().AddPropObject(self.sat_wrap.getSat())
@@ -132,9 +134,10 @@ class StationKeepingObjects:
         """During the scenario when it is time to turn off the thrusters, this function turns off the corresponding thruster 
         and returns the satellite object to a "coast" mode. """
         
+        self.thrustAxis = axis
         # Only at the beginning of the scenario should no axis be given. This sets the scene for the upcoming propagation
-        if axis == "coast":
-            gator = self.prop_wrap[axis].getIntegrator()
+        if self.thrustAxis == "coast":
+            gator = self.prop_wrap[self.thrustAxis].getIntegrator()
             return gator
         
         # Otherwise should any axis be given, perform the following:
@@ -147,7 +150,7 @@ class StationKeepingObjects:
         prop.prepareInternals()
         
         # Collect the thruster we want to turn off
-        thr_name = self.sat_wrap.thrusters[axis].GetName()
+        thr_name = self.sat_wrap.thrusters[self.thrustAxis].GetName()
         thruster = self.sat_wrap.getSat().GetRefObject(gmat.THRUSTER, thr_name)
 
         # Turn off the thruster and set the spacecraft to be no longer maneuverable
@@ -163,3 +166,6 @@ class StationKeepingObjects:
         # Collect the new numerical integrator and ForceModel for simulation
         gator = prop.getIntegrator()
         return gator
+    
+    def getEngineAxis(self):
+        return self.thrustAxis

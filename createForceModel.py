@@ -72,13 +72,13 @@ class ForceModel:
         if propType.lower() == "reference":
             self._setForces(
                 degree=4,
-                order=0
+                order=4
             )
         # Assigning the forces for the truth ForceModel
         else:
             self._setForces(
-                degree=8,
-                order=8,
+                degree=4,
+                order=4,
                 thirdBodyEffects=True, # If it is desired to remove any additional forces, simply delete the kwarg(s)
                 atmDrag=True,
                 srp=True

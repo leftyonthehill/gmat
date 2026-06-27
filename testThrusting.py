@@ -3,6 +3,7 @@ from collections import deque
 from createStationKeepingObjects import StationKeepingObjects
 from load_gmat import *
 from matplotlib import pyplot as plt
+from plotting import terminal_Completed_Firings, outputPlots
 from xyz2ric import xyz2ric
 
 import numpy as np
@@ -11,7 +12,7 @@ import numpy as np
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 7
+maxDays = 15
 
 # Simulation step size while coasting
 dtCoast = 20.0 
@@ -42,50 +43,6 @@ I_deadband_min = 0.85
 # 
 maneuverArcHalfAngle = 20
 
-# -----------output options------------------------------------------
-"""
-Measuring the differences as (Truth - Reference), there are 9 graphs available to plot:
-    - 3D trajectory in RIC frame (plot_3D_RIC)
-    - Position in each RIC axis over time (plot_RIC_v_Time)
-    - Differences in the instantaneous and averaged values for each orbital element over time:
-        - Semi-major Axis (del_a)
-        - Eccentricity (del_e)
-        - Inclination (del_i)
-        - Right Ascension of the Ascending Node (del_raan)
-        - Argument of Periapsis (del_aop)
-        - True Anomaly (del_f)
-    - Differences in the instantaneous and averaged values for the True Latitude (del_theta)
-Each plot can include a point for when each thruster fired, if desired (plot_Show_Firings)
-
-Additionally, the scenario can print to the terminal what maneuver was completed, how long it took
-to complete, and at what time did the maneuver conclude (terminal_Completed_Firings)
-"""
-
-plot_3D_RIC = False
-
-plot_rRIC_v_Time = True
-
-plot_rRIC_Amp_v_Time = True
-
-plot_vRIC_v_Time = False
-
-plot_vRIC_Amp_v_Time = False
-
-plot_COE_diffs = {
-    "del_a": False,
-    "del_e": True,
-    "del_i": False,
-    "del_raan": False,
-    "del_aop": False,
-    "del_f": False
-}
-
-plot_True_Lat_diff = False
-
-plot_Show_Firings = True
-
-terminal_Completed_Firings = True
-
 # -----------create variables----------------------------------------
 """Additional variables used in the script that SHOULD NOT BE CHANGED"""
 mu = 398600  # Earth’s mu in km^3/s^2
@@ -100,59 +57,22 @@ steps_to_avg = int(revs_to_avg * steps_per_rev) + 5 # number of simulation steps
 
 elapsed = 0.0 # elpased number of seconds since the start of the scenario
 totalDeltaV = 0
-t = [0] # array to hold each time step
+
+totalSecs = maxDays * 86400
+timeSteps = int(totalSecs / dtCoast) + 1
+t = [dtCoast * i for i in range(0, timeSteps)] # array to hold each time step
 
 # stores the RIC history of the truth spacecraft about the reference spacecraft 
-RIC_History = {
-    "R": {0: 0},
-    "I": {0: 0},
-    "C": {0: 0},
-    "R_dot": {0: 0},
-    "I_dot": {0: 0},
-    "C_dot": {0: 0},
-}
-
-RIC_Amp_History = {
-    "R": {0: 0},
-    "I": {0: 0},
-    "C": {0: 0},
-    "R_dot": {0: 0},
-    "I_dot": {0: 0},
-    "C_dot": {0: 0},
-}
-
-RIC_Amp_Buffer = {
-    i: deque([0], maxlen=int(1.5 * steps_per_rev)) for i in RIC_History
-}
-
-RIC_keys = [*RIC_Amp_Buffer.keys()]
+RIC_keys = ["R", "I", "C", "R_dot", "I_dot", "C_dot"]
+RIC_History = {key: {0.0:0.0} for key in RIC_keys} # step: 0.0 for step in t
+RIC_Amp_History = {key: {0.0:0.0} for key in RIC_keys}
+RIC_Amp_Buffer = {key: deque([0.0], maxlen=int(1.5 * steps_per_rev)) for key in RIC_History}
 
 # Storage of the differences in the orbital elements throughout the scenario
-diffCOEs_dict = {
-    "del_a": {0: 0},
-    "del_e": {0: 0},
-    "del_i": {0: 0},
-    "del_raan": {0: 0},
-    "del_aop": {0: 0},
-    "del_f": {0: 0}
-}
-
-# Storage of the average difference for each orbital element after each time step
-diffCOEs_avg = {
-    "del_a": {0: 0},
-    "del_e": {0: 0},
-    "del_i": {0: 0},
-    "del_raan": {0: 0},
-    "del_aop": {0: 0},
-    "del_f": {0: 0}
-}
-
-# Storage of the orbital element differences across three rev about Earth
-diffCOEs_buffer = {
-    i: deque([0], maxlen=int(steps_to_avg)) for i in diffCOEs_dict
-}
-
-COEs_keys = [*diffCOEs_dict.keys()]
+COEs_keys = ["del_a", "del_e", "del_i", "del_raan", "del_aop", "del_f"]
+diffCOEs_dict = {key: {0.0:0.0} for key in COEs_keys}
+diffCOEs_avg = {key: {0.0:0.0} for key in COEs_keys}
+diffCOEs_buffer = {key: deque([0.0], maxlen=int(steps_to_avg)) for key in COEs_keys}
 
 # Variables used to help complete I-axis maneuvers
 del_a_target = 0 # desired increase in the difference of semi-major axis between the truth and reference satellites
@@ -162,7 +82,8 @@ maneuverLog = []
 # Log of maneuver times
 burnStarts = []
 burnEnds = []
-
+step_RIC = {key: 0.0 for key in RIC_keys}
+step_COE = {key: 0.0 for key in COEs_keys}
 # Timer to prevent controller from being stuck waiting to maneuver
 numStepsWaiting = 0
 
@@ -201,9 +122,9 @@ dt = dtCoast
 
 # Get initial integrator for the truth satellite
 gator_truth = truthObjs.satEnginesOff()
-temp1234 = [[],[]]
+
 # While the elapsed time is less the max number of days
-while elapsed / 86400 < maxDays: 
+while elapsed < totalSecs: 
     # Propagate spacecraft
     gator_ref.Step(dt)
     gator_truth.Step(dt)
@@ -213,8 +134,8 @@ while elapsed / 86400 < maxDays:
     gator_truth.UpdateSpaceObject()
     
     # Update the the elpased time
-    elapsed = elapsed + dt
-    t.append(elapsed)
+    elapsed += dt
+
     # Get the updated cartesian states for each spacecraft from the ECI frame
     rv_ref = gator_ref.GetState()
     rv_truth = gator_truth.GetState()
@@ -226,17 +147,59 @@ while elapsed / 86400 < maxDays:
     refCOE = refObjs.sat_wrap.getKeplerianState()
     truthCOE = truthObjs.sat_wrap.getKeplerianState()
 
+    # To determine if the I-axis corections have completed successfully, we will use the difference in semi-major axis based on the spacecraft's specific energy
+    sma_truth = truthObjs.sat_wrap.getSMAFromEnergy()
+    sma_ref = refObjs.sat_wrap.getSMAFromEnergy()
+    del_a_energy = sma_truth - sma_ref
+
+    if elapsed % dtCoast == 0:
+        for j in range(6):
+            step_RIC[RIC_keys[j]] = rvRIC[j]
+            
+            diff_COE = float(truthCOE[j] - refCOE[j])
+            quad_Correction = (-360 if (j > 1 and diff_COE > 180) else (360 if j > 1 and diff_COE < 180 else 0))
+            step_COE[COEs_keys[j]] = diff_COE + quad_Correction
+
+
+            RIC_History[RIC_keys[j]][elapsed] = rvRIC[j]
+            RIC_Amp_Buffer[RIC_keys[j]].append(rvRIC[j]) 
+            RIC_Amp_History[RIC_keys[j]][elapsed] = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 \
+                if len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev else max((RIC_Amp_Buffer[RIC_keys[j]]))
+            
+            diffCOEs_dict[COEs_keys[j]][elapsed] = diff_COE + quad_Correction
+            diffCOEs_buffer[COEs_keys[j]].append(diff_COE + quad_Correction)
+            diffCOEs_avg[COEs_keys[j]][elapsed] = float(np.mean(diffCOEs_buffer[COEs_keys[j]])) \
+                if len(diffCOEs_buffer[COEs_keys[j]]) == steps_to_avg else diff_COE + quad_Correction
+            
+        interpruptManeuver = {
+            "R": RIC_Amp_History["R"][elapsed] > R_bounds,
+            "I": rvRIC[1] > I_deadband_min * I_bounds,
+            "C": RIC_Amp_History["C"][elapsed] > C_bounds,
+        }
+
+        if interpruptManeuver["I"] and state not in ["wait for I burn", "R burn", "I burn", "C burn"]:
+            interpruptedState = state
+            state = "wait for I burn"
+        elif interpruptManeuver["C"] and state not in ["wait for I burn", "wait for C burn", "R burn", "I burn", "C burn", "returning to nominal from C burn"] and interpruptedState == "nominal":
+            interpruptedState = state
+            state = "wait for C burn"
+        elif interpruptManeuver["R"] and state not in ["wait for R burn", "wait for I burn", "wait for C burn", "R burn", "I burn", "C burn", "returning to nominal from R burn", "returning to nominal from C burn"] and interpruptedState == "nominal":
+            interpruptedState = state
+            state = "wait for R burn"
+        # t.append(elapsed)
+
+    """
     # Store latest RIC position vector
     for j in range(6):
         RIC_History[RIC_keys[j]][elapsed] = rvRIC[j]
         
-        if state == "I burn" and thrusterAxis != "":
+        # if state == "I burn" and thrusterAxis != "":
             # Only update the 1 rev buffers when elpased is a multiple of dtCoast
-            if round(elapsed % dtCoast) == 0:
-                RIC_Amp_Buffer[RIC_keys[j]].append(rvRIC[j])
+        if round(elapsed % dtCoast) == 0:
+            RIC_Amp_Buffer[RIC_keys[j]].append(rvRIC[j])
 
-            amp = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 if len(RIC_Amp_Buffer[RIC_keys[j]]) > 1 else rvRIC[j]
-            RIC_Amp_History[RIC_keys[j]][elapsed] = amp
+        amp = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 if len(RIC_Amp_Buffer[RIC_keys[j]]) > 1 else rvRIC[j]
+        RIC_Amp_History[RIC_keys[j]][elapsed] = amp
     
     # Compute and store the differences in each of the 6 keplerian elements 
     for j in range(6):
@@ -248,12 +211,8 @@ while elapsed / 86400 < maxDays:
             diff = diff + 360
         diffCOEs_dict[COEs_keys[j]][elapsed] = diff # instaneous differences
         diffCOEs_buffer[COEs_keys[j]].append(diff) # instaneous differences within the past rev
-        diffCOEs_avg[COEs_keys[j]][elapsed] = np.mean(diffCOEs_buffer[COEs_keys[j]]) # average differences across one rev
-
-    # To determine if the I-axis corections have completed successfully, we will use the difference in semi-major axis based on the spacecraft's specific energy
-    sma_truth = truthObjs.sat_wrap.getSMAFromEnergy()
-    sma_ref = refObjs.sat_wrap.getSMAFromEnergy()
-    del_a_energy = sma_truth - sma_ref
+        diffCOEs_avg[COEs_keys[j]][elapsed] = float(np.mean(diffCOEs_buffer[COEs_keys[j]])) # average differences across one rev
+    """
 
     """
     State Machine Controller Logic:
@@ -285,21 +244,7 @@ while elapsed / 86400 < maxDays:
     - C-axis: The truth spacecraft's C-axis position amplitude has dropped to 1/3 of the boundary condition
     """
 
-    interpruptManeuver = {
-        "R": RIC_Amp_History["R"][elapsed] > R_bounds,
-        "I": rvRIC[1] > I_deadband_min * I_bounds,
-        "C": RIC_Amp_History["C"][elapsed] > C_bounds,
-    }
-
-    if interpruptManeuver["I"] and state not in ["wait for I burn", "R burn", "I burn", "C burn"]:
-        interpruptedState = state
-        state = "wait for I burn"
-    elif interpruptManeuver["C"] and state not in ["wait for I burn", "wait for C burn", "R burn", "I burn", "C burn", "returning to nominal from C burn"] and interpruptedState == "nominal":
-        interpruptedState = state
-        state = "wait for C burn"
-    elif interpruptManeuver["R"] and state not in ["wait for R burn", "wait for I burn", "wait for C burn", "R burn", "I burn", "C burn", "returning to nominal from R burn", "returning to nominal from C burn"] and interpruptedState == "nominal":
-        interpruptedState = state
-        state = "wait for R burn"
+    
 
     match state:
         # -----------waiting for maneuver opoprtunties------------------------
@@ -354,7 +299,7 @@ while elapsed / 86400 < maxDays:
                 state = "R burn"
                 
                 # Add to the list of when burns start the corresponding color for this maneuver
-                burnStarts.append((len(t) - 1, "m"))
+                burnStarts.append((elapsed, "m"))
 
                 # Start maneuver duration timer
                 burn_duration = 0.0
@@ -383,12 +328,14 @@ while elapsed / 86400 < maxDays:
             del_a_target = max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][elapsed]))
 
             # Possibility for controller to trigger a maneuver when spacecraft is within user-defined bounds, this check prevents that
-            subset = [diffCOEs_avg["del_a"][i] for i in t[-10 * steps_per_rev:]]
-            decayRate, _ = np.polyfit(t[-10 * steps_per_rev:], subset,  1)
+            tStep = len(t) - t.index(elapsed)
+            tHistory = t[-(10 * steps_per_rev + tStep):-tStep]
+            subset = [diffCOEs_avg["del_a"][j] for j in tHistory]
+            decayRate, _ = np.polyfit(tHistory, subset,  1)
             del subset
 
             isNegativeSMA = diffCOEs_avg["del_a"][elapsed] < 0
-            isNegativeSMATrend = (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][t[-10 * steps_per_rev]]) < 0
+            isNegativeSMATrend = (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][t[-(10 * steps_per_rev + tStep)]]) < 0
             isInDeadBand = rvRIC[1] > I_deadband_min * I_bounds
             valid_burn = isNegativeSMA and isNegativeSMATrend and isInDeadBand
             
@@ -396,7 +343,7 @@ while elapsed / 86400 < maxDays:
                 if burnStarts[-1][1] != "r":
                     recentManeuver = True
                 else:
-                    recentManeuver = (elapsed - (t[burnEnds[-1]]) >= 3 * period_sec)
+                    recentManeuver = (elapsed - burnEnds[-1] >= 3 * period_sec)
             else:
                 recentManeuver = True
 
@@ -408,7 +355,7 @@ while elapsed / 86400 < maxDays:
                 gator_truth = truthObjs.satEnginesOn(thrusterAxis)
 
                 # Add to the list of when burns start the corresponding color for this maneuver
-                burnStarts.append((len(t) - 1, "r"))
+                burnStarts.append((elapsed, "r"))
 
                 # Establish recovery criteria for I-axis maneuver
                 del_a_recovered = False
@@ -442,7 +389,7 @@ while elapsed / 86400 < maxDays:
                 
                 gator_truth = truthObjs.satEnginesOn(thrusterAxis)
                 state = "C burn"
-                burnStarts.append((len(t) - 1, "c"))
+                burnStarts.append((elapsed, "c"))
                 burn_duration = 0.0
                 dt = dtThrust
                 
@@ -497,7 +444,7 @@ while elapsed / 86400 < maxDays:
                     terminalStr = f"t = {(t[burnStarts[-1][0]] / 86400):2.2f} days | " if (t[burnStarts[-1][0]] / 86400) >= 10 else f"t = {(t[burnStarts[-1][0]] / 86400):1.3f} days | "
                     terminalStr += f"{thrusterAxis} burn duration (min) = "
                     terminalStr += f"{(burn_duration / 60):2.2f} | " if (burn_duration / 60) >= 10 else f"{(burn_duration / 60):1.3f} | "
-                    terminalStr += f"R-axis Amplitude = {RIC_Amp_History["R"][elapsed]:0.6f} km         | "
+                    terminalStr += f"R-axis Amplitude = {RIC_Amp_History['R'][elapsed]:0.6f} km         | "
                     
                     accel = 0.2 / truth_Sat_wrapper.mass # m/s
                     deltaV = accel * burn_duration
@@ -507,7 +454,7 @@ while elapsed / 86400 < maxDays:
                     print(terminalStr)
                 gator_truth = truthObjs.satEnginesOff(thrusterAxis)
                 state = "returning to nominal from R burn"
-                burnEnds.append(len(t) - 1)
+                burnEnds.append(elapsed)
                 dt = dtCoast - round(elapsed % dtCoast)
 
                 burn_duration = 0
@@ -518,7 +465,7 @@ while elapsed / 86400 < maxDays:
                 burn_duration += dt
 
                 if (burn_duration >= 600 and maneuverAttempts == 0) or maneuverAttempts > 0:
-                    burnEnds.append(len(t) - 1)
+                    burnEnds.append(elapsed)
                     del_a_energy_maneuver = del_a_energy
 
                     gator_truth = truthObjs.satEnginesOff(thrusterAxis)
@@ -531,7 +478,7 @@ while elapsed / 86400 < maxDays:
                 minIPosition = rvRIC[1] if rvRIC[1] < minIPosition else minIPosition
                 coast_duration += dt
                 dt = dtCoast
-                temp = (diffCOEs_avg["del_a"][t[-1]] - diffCOEs_avg["del_a"][t[-2]]) / dt
+                
                 if coast_duration > period_sec:
                     # Termination conditions:
                     # - achieves deadband target by the time SMA changes sign (no change)
@@ -541,7 +488,7 @@ while elapsed / 86400 < maxDays:
                     # achieves deadband target by the time SMA changes sign (no change)
                     if diffCOEs_avg["del_a"][elapsed] < 0 and -I_deadband_min * I_bounds > minIPosition >= -I_bounds:
                         if terminal_Completed_Firings:
-                            terminalStr = f"t = {(t[burnStarts[-1][0]] / 86400):2.2f} days | " if (t[burnStarts[-1][0]] / 86400) >= 10 else f"t = {(t[burnStarts[-1][0]] / 86400):1.3f} days | "
+                            terminalStr = f"t = {(burnStarts[-1][0] / 86400):2.2f} days | " if (burnStarts[-1][0] / 86400) >= 10 else f"t = {(burnStarts[-1][0] / 86400):1.3f} days | "
                             terminalStr += f"I+ burn duration (min) = "
                             terminalStr += f"{(burn_duration / 60):2.2f} | " if (burn_duration / 60) >= 10 else f"{(burn_duration / 60):1.3f} | "
                             terminalStr += f"Recovered del_a = {(del_a_energy_maneuver):0.5f} / {(del_a_target):0.5f} km | "
@@ -556,7 +503,7 @@ while elapsed / 86400 < maxDays:
                         state = interpruptedState
                         interpruptedState = "nominal"
                         
-                        for j in COEs_keys:
+                        """for j in COEs_keys:
                             COEs_restore_history = {k:v for k, v in diffCOEs_dict[j].items() if t[burnEnds[-1] - steps_to_avg] < k <= t[burnEnds[-1]]}
                             diffCOEs_buffer[j] = deque([*COEs_restore_history.values()], maxlen=int(steps_to_avg))
 
@@ -564,7 +511,17 @@ while elapsed / 86400 < maxDays:
                             RIC_restore_history = {k:v for k, v in RIC_History[j].items() if t[burnEnds[-1] - steps_to_avg] < k <= t[burnEnds[-1]] and k % dtCoast == 0}
                             RIC_Amp_Buffer[j] = deque([*RIC_restore_history.values()], maxlen=int(1.5 * steps_per_rev))
 
-                        t = t[:burnEnds[-1] + 1]
+                        t = t[:burnEnds[-1] + 1]"""
+
+                        restoreFromTime = burnEnds[-1] - burnEnds[-1] % dtCoast 
+                        tStep = t.index(restoreFromTime)
+                        tHistoryCOEs = t[-(steps_to_avg + tStep):-tStep]
+                        for j in COEs_keys:
+                            [diffCOEs_buffer[j].append(k) for k in tHistoryCOEs]
+
+                        tHistoryRIC = t[-int(1.5 * steps_per_rev + tStep):-tStep]
+                        for j in RIC_keys:
+                            [RIC_Amp_Buffer[j].append(k) for k in tHistoryRIC]
 
                         gator_ref.Step(-coast_duration)
                         gator_truth.Step(-coast_duration)
@@ -579,8 +536,9 @@ while elapsed / 86400 < maxDays:
                         gator_truth.UpdateSpaceObject()
 
                     # undershoots deadband target when SMA changes sign (more thrusting)    
-                    elif diffCOEs_avg["del_a"][elapsed] < 0 and (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][t[-10 * steps_per_rev]]) < 0 and -I_deadband_min * I_bounds <= minIPosition:
-                        # print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
+                    elif diffCOEs_avg["del_a"][elapsed] < 0 and (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][elapsed - 10 * steps_per_rev * dtCoast]) < 0 and -I_deadband_min * I_bounds <= minIPosition:
+                        print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
+                        """
                         for j in COEs_keys:
                             COEs_restore_history = {k:v for k, v in diffCOEs_dict[j].items() if t[burnEnds[-1] - steps_to_avg] < k <= t[burnEnds[-1]]}
                             diffCOEs_buffer[j] = deque([*COEs_restore_history.values()], maxlen=int(steps_to_avg))
@@ -588,9 +546,18 @@ while elapsed / 86400 < maxDays:
                         for j in RIC_keys:
                             RIC_restore_history = {k:v for k, v in RIC_History[j].items() if t[burnEnds[-1] - steps_to_avg] < k <= t[burnEnds[-1]] and k % dtCoast == 0}
                             RIC_Amp_Buffer[j] = deque([*RIC_restore_history.values()], maxlen=int(1.5 * steps_per_rev))
+                        """
 
-                        t = t[:burnEnds[-1] + 1]
-                        
+                        restoreFromTime = burnEnds[-1] - burnEnds[-1] % dtCoast 
+                        tStep = t.index(restoreFromTime)
+                        tHistoryCOEs = t[-(steps_to_avg + tStep):-tStep]
+                        for j in COEs_keys:
+                            [diffCOEs_buffer[j].append(k) for k in tHistoryCOEs]
+
+                        tHistoryRIC = t[-int(1.5 * steps_per_rev + tStep):-tStep]
+                        for j in RIC_keys:
+                            [RIC_Amp_Buffer[j].append(k) for k in tHistoryRIC]
+
                         # Propagate spacecraft
                         gator_ref.Step(-coast_duration)
                         gator_truth.Step(-coast_duration)
@@ -623,14 +590,14 @@ while elapsed / 86400 < maxDays:
                             break
                         
                     # overshoots deadband target (less thrusting)
-                    elif diffCOEs_avg["del_a"][elapsed] < 0 and (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][t[-10 * steps_per_rev]]) < 0 and minIPosition < -I_bounds:
+                    elif diffCOEs_avg["del_a"][elapsed] < 0 and (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][elapsed - 10 * steps_per_rev * dtCoast]) < 0 and minIPosition < -I_bounds:
                         print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
                         stepsToBackTrack = 5
                         if burn_duration - dtThrust * stepsToBackTrack in maneuverLog: 
                             stepsToBackTrack -=1
                         maneuverLog.append(burn_duration)
                         
-                        deleteToIndex = burnEnds[-1] - stepsToBackTrack - 1
+                        """deleteToIndex = burnEnds[-1] - stepsToBackTrack - 1
                         for k_super, v_dict in diffCOEs_dict.items():
                             for k_sub, v in v_dict.items():
                                 if t[deleteToIndex] <= k_sub < t[burnEnds[-1]] and k_sub % dtCoast != 0:
@@ -650,7 +617,17 @@ while elapsed / 86400 < maxDays:
                         for j in RIC_keys:
                             RIC_restore_history = {k:v for k, v in RIC_History[j].items() if t[burnEnds[-1] - steps_to_avg] < k <= t[burnEnds[-1]] and k % dtCoast == 0}
                             RIC_Amp_Buffer[j] = deque([*RIC_restore_history.values()], maxlen=int(1.5 * steps_per_rev))
+                        """
 
+                        restoreFromTime = burnEnds[-1] - burnEnds[-1] % dtCoast - (stepsToBackTrack * dtThrust // dtCoast) * dtCoast
+                        tStep = t.index(restoreFromTime)
+                        tHistoryCOEs = t[-(steps_to_avg + tStep):-tStep]
+                        for j in COEs_keys:
+                            [diffCOEs_buffer[j].append(k) for k in tHistoryCOEs]
+
+                        tHistoryRIC = t[-int(1.5 * steps_per_rev + tStep):-tStep]
+                        for j in RIC_keys:
+                            [RIC_Amp_Buffer[j].append(k) for k in tHistoryRIC]
                         burnEnds.pop()
                         
                         # Propagate spacecraft
@@ -704,7 +681,7 @@ while elapsed / 86400 < maxDays:
                     terminalStr = f"t = {(t[burnStarts[-1][0]] / 86400):2.2f} days | " if (t[burnStarts[-1][0]] / 86400) >= 10 else f"t = {(t[burnStarts[-1][0]]) / 86400:1.3f} days | "
                     terminalStr += f"{thrusterAxis} burn duration (min) = "
                     terminalStr += f"{(burn_duration / 60):2.2f} | " if (burn_duration / 60) >= 10 else f"{(burn_duration / 60):1.3f} | "
-                    terminalStr += f"C-axis Amplitude = {RIC_Amp_History["C"][elapsed]:0.6f} km         | "
+                    terminalStr += f"C-axis Amplitude = {RIC_Amp_History['C'][elapsed]:0.6f} km         | "
                     
                     accel = 0.2 / truth_Sat_wrapper.mass # m/s
                     deltaV = accel * burn_duration
@@ -716,7 +693,7 @@ while elapsed / 86400 < maxDays:
                 gator_truth = truthObjs.satEnginesOff(thrusterAxis)
                 thrusterAxis = ""
                 state = "returning to nominal from C burn"
-                burnEnds.append(len(t) - 1)
+                burnEnds.append(elapsed)
                 
                 burn_duration = 0
 
@@ -751,253 +728,70 @@ while elapsed / 86400 < maxDays:
         case _:
             continue
 print(state)
+
 # -----------plots---------------------------------------------------
-t = np.array(t) / 86400
-for i in COEs_keys:
-    diffCOEs_dict[i] = {k / 86400: v for k, v in sorted(diffCOEs_dict[i].items())}
-    diffCOEs_avg[i] = {k / 86400: v for k, v in sorted(diffCOEs_avg[i].items())}
+timings =  [burnEnds, burnStarts, t, revs_to_avg]
+coes = [COEs_keys, diffCOEs_dict, diffCOEs_avg]
+ric = [RIC_keys, RIC_History, RIC_Amp_History]
+outputPlots(timings, coes, ric)
 
-for i in RIC_keys:
-    RIC_History[i] = {k / 86400: v for k, v in sorted(RIC_History[i].items())}
-    RIC_Amp_History[i] = {k / 86400: v for k, v in sorted(RIC_Amp_History[i].items())}
+def compute_I_Burn_Time(
+        truthSat: StationKeepingObjects, 
+        refSat: StationKeepingObjects, 
+        dtArray: list, 
+        minBurn: float, 
+        maxBurn: float,
+        minIBounds: float,
+        maxIBounds: float):
 
-
-if plot_3D_RIC:
-    ax_ric_traj = plt.figure().add_subplot(projection='3d')
-    if len(burnStarts) > 0:
-        burnEnds.append(0)
-        for i in range(len(burnStarts)):
-            R = {k:v for k, v in RIC_History["R"].items() if t[burnEnds[i-1]] <= k < t[burnStarts[i][0]]}
-            I = {k:v for k, v in RIC_History["I"].items() if t[burnEnds[i-1]] <= k < t[burnStarts[i][0]]}
-            C = {k:v for k, v in RIC_History["C"].items() if t[burnEnds[i-1]] <= k < t[burnStarts[i][0]]}
-            ax_ric_traj.plot([*R.values()], [*I.values()], [*C.values()], 'b')
-
-            R = {k:v for k, v in RIC_History["R"].items() if t[burnStarts[i][0]] <= k < t[burnEnds[i]]}
-            I = {k:v for k, v in RIC_History["I"].items() if t[burnStarts[i][0]] <= k < t[burnEnds[i]]}
-            C = {k:v for k, v in RIC_History["C"].items() if t[burnStarts[i][0]] <= k < t[burnEnds[i]]}
-            ax_ric_traj.plot([*R.values()], [*I.values()], [*C.values()], burnStarts[i][1])
-            
-            if i == 0 and len(burnStarts) == len(burnEnds):
-                burnEnds[-1] = t[-1]
-
-        if len(burnStarts) != len(burnEnds):
-            R = {k:v for k, v in RIC_History["R"].items() if t[burnEnds[-2]] <= k}
-            I = {k:v for k, v in RIC_History["I"].items() if t[burnEnds[-2]] <= k}
-            C = {k:v for k, v in RIC_History["C"].items() if t[burnEnds[-2]] <= k}
-            ax_ric_traj.plot([*R.values()], [*I.values()], [*C.values()], 'b')
-    else:
-        R = {k:v for k, v in RIC_History["R"].items()}
-        I = {k:v for k, v in RIC_History["I"].items()}
-        C = {k:v for k, v in RIC_History["C"].items()}
-        ax_ric_traj.plot([*R.values()], [*I.values()], [*C.values()], 'b')
-
-    ax_ric_traj.set_xlabel('R (km)')
-    ax_ric_traj.set_ylabel('I (km)')
-    ax_ric_traj.set_zlabel('C (km)')
-    ax_ric_traj.set_title('3D Trajectory of Earth Orbiter')
-    ax_ric_traj.axis('equal')
-    ax_ric_traj.set_title("3D RIC Positions Over Time")
-
-# separate out the maneuvers by type
-R_burns = []
-I_burns = []
-C_burns = []
-for i in burnStarts:
-    if i[1] == "m":
-        R_burns.append(i[0])
-    elif i[1] == "r":
-        I_burns.append(i[0])
-    elif i[1] == "c":
-        C_burns.append(i[0])
-
-if plot_rRIC_v_Time:
-    ax = plt.figure().add_subplot()
-    ax.plot(RIC_History["R"].keys(), RIC_History["R"].values(), label="R")
-    ax.plot(RIC_History["I"].keys(), RIC_History["I"].values(), label="I")
-    ax.plot(RIC_History["C"].keys(), RIC_History["C"].values(), label="C")
-
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [RIC_History["R"][t[i]] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [RIC_History["I"][t[i]] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [RIC_History["C"][t[i]] for i in C_burns], "*", c="c", label="C-axis maneuver")
-
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (km)')
-    ax.set_title("True Position in Reference RIC Frame vs Time")
-    ax.legend()
-
-if plot_rRIC_Amp_v_Time:
-    ax = plt.figure().add_subplot()
-    ax.plot(RIC_Amp_History["R"].keys(), RIC_Amp_History["R"].values(), label="R")
-    ax.plot(RIC_Amp_History["I"].keys(), RIC_Amp_History["I"].values(), label="I")
-    ax.plot(RIC_Amp_History["C"].keys(), RIC_Amp_History["C"].values(), label="C")
-
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [RIC_Amp_History["R"][t[i]] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [RIC_Amp_History["I"][t[i]] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [RIC_Amp_History["C"][t[i]] for i in C_burns], "*", c="c", label="C-axis maneuver")
-
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (km)')
-    ax.set_title("Oscillation Amplitude of Position in RIC Frame vs Time")
-    ax.legend()
-
-if plot_vRIC_v_Time:
-    ax = plt.figure().add_subplot()
-    ax.plot(RIC_History["R_dot"].keys(), RIC_History["R_dot"].values(), label="R_dot")
-    ax.plot(RIC_History["I_dot"].keys(), RIC_History["I_dot"].values(), label="I_dot")
-    ax.plot(RIC_History["C_dot"].keys(), RIC_History["C_dot"].values(), label="C_dot")
-
-    if plot_Show_Firings and len(burnStarts) > 0:
-        R = {k:v for k, v in RIC_History["R_dot"].items() if k in burnStarts[:][0]}
-        I = {k:v for k, v in RIC_History["I_dot"].items() if k in burnStarts[:][0]}
-        C = {k:v for k, v in RIC_History["C_dot"].items() if k in burnStarts[:][0]}
-        ax.plot(R.keys(), R.values(), "*", c="m", label="R-axis maneuver")
-        ax.plot(I.keys(), I.values(), "*", c="r", label="I-axis maneuver")
-        ax.plot(C.keys(), C.values(), "*", c="c", label="C-axis maneuver")
-
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (km/sec)')
-    ax.set_title("True Velocity in Reference RIC Frame vs Time")
-    ax.legend()
-
-if plot_vRIC_Amp_v_Time:
-    ax = plt.figure().add_subplot()
-    ax.plot(RIC_Amp_History["R_dot"].keys(), RIC_Amp_History["R_dot"].values(), label="R_dot")
-    ax.plot(RIC_Amp_History["I_dot"].keys(), RIC_Amp_History["I_dot"].values(), label="I_dot")
-    ax.plot(RIC_Amp_History["C_dot"].keys(), RIC_Amp_History["C_dot"].values(), label="C_dot")
-
-    if plot_Show_Firings and len(burnStarts) > 0:
-        R = {k:v for k, v in RIC_Amp_History["R_dot"].items() if k in burnStarts[:][0]}
-        I = {k:v for k, v in RIC_Amp_History["I_dot"].items() if k in burnStarts[:][0]}
-        C = {k:v for k, v in RIC_Amp_History["C_dot"].items() if k in burnStarts[:][0]}
-        ax.plot(R.keys(), R.values(), "*", c="m", label="R-axis maneuver")
-        ax.plot(I.keys(), I.values(), "*", c="r", label="I-axis maneuver")
-        ax.plot(C.keys(), C.values(), "*", c="c", label="C-axis maneuver")
-
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (km/sec)')
-    ax.set_title("True Velocity in Reference RIC Frame vs Time")
-    ax.legend()
-
-if plot_COE_diffs["del_a"]:
-    ax = plt.figure().add_subplot()
-    ax.plot([*diffCOEs_dict["del_a"].keys()], [*diffCOEs_dict["del_a"].values()], label="del_a")
-    ax.plot([*diffCOEs_avg["del_a"].keys()], [*diffCOEs_avg["del_a"].values()], "--", label=f"{revs_to_avg} orbit average")
+    dtBurn = dtArray[0]
+    dtCoast = dtArray[1]    
+    if minBurn % dtCoast != 0:
+        raise ValueError("Invalid initial burn duration. minBurn must be a multiple of dtCoast (dtArray[1])")
     
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [diffCOEs_avg["del_a"][t[i]] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [diffCOEs_avg["del_a"][t[i]] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [diffCOEs_avg["del_a"][t[i]] for i in C_burns], "*", c="c", label="C-axis maneuver")
-    
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (km)')
-    ax.set_title("Truth-Reference Differences in SMA vs Time")
-    ax.legend()
+    coastTime = 0
+    burnTime = minBurn
+    elapsedTime = minBurn
 
-if plot_COE_diffs["del_e"]:
-    ax = plt.figure().add_subplot()
-    ax.plot(diffCOEs_dict["del_e"].keys(), diffCOEs_dict["del_e"].values(), label="del_e")
-    ax.plot(diffCOEs_avg["del_e"].keys(), diffCOEs_avg["del_e"].values(), "--", label=f"{revs_to_avg} orbit average")
-    
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [diffCOEs_avg["del_e"][t[i]] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [diffCOEs_avg["del_e"][t[i]] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [diffCOEs_avg["del_e"][t[i]] for i in C_burns], "*", c="c", label="C-axis maneuver")
-    
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset')
-    ax.set_title("Truth-Reference Differences in Eccentricity vs Time")
-    ax.legend()
 
-if plot_COE_diffs["del_i"]:
-    ax = plt.figure().add_subplot()
-    ax.plot(diffCOEs_dict["del_i"].keys(), diffCOEs_dict["del_i"].values(), label="del_i")
-    ax.plot(diffCOEs_avg["del_i"].keys(), diffCOEs_avg["del_i"].values(), "--", label=f"{revs_to_avg} orbit average")
-    
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [diffCOEs_avg["del_i"][t[i]] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [diffCOEs_avg["del_i"][t[i]] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [diffCOEs_avg["del_i"][t[i]] for i in C_burns], "*", c="c", label="C-axis maneuver")
-    
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (deg)')
-    ax.set_title("Truth-Reference Differences in Inclination vs Time")
-    ax.legend()
+    solving = True
 
-if plot_COE_diffs["del_raan"]:
-    ax = plt.figure().add_subplot()
-    ax.plot(diffCOEs_dict["del_raan"].keys(), diffCOEs_dict["del_raan"].values(), label="del_raan")
-    ax.plot(diffCOEs_avg["del_raan"].keys(), diffCOEs_avg["del_raan"].values(), "--", label=f"{revs_to_avg} orbit average")
-    
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [diffCOEs_avg["del_raan"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [diffCOEs_avg["del_raan"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [diffCOEs_avg["del_raan"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
-    
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (deg)')
-    ax.set_title("Truth-Reference Differences in Right Ascension vs Time")
-    ax.legend()
+    axis = truthSat.getEngineAxis()
+    gator_ref = refSat.prop_wrap[axis].getIntegrator()
+    gator_truth = truthSat.prop_wrap[axis].getIntegrator()
 
-if plot_COE_diffs["del_aop"]:
-    ax = plt.figure().add_subplot()
-    ax.plot(diffCOEs_dict["del_aop"].keys(), diffCOEs_dict["del_aop"].values(), label="del_aop")
-    ax.plot(diffCOEs_avg["del_aop"].keys(), diffCOEs_avg["del_aop"].values(), "--", label=f"{revs_to_avg} orbit average")
-    
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [diffCOEs_avg["del_aop"][t[i]] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [diffCOEs_avg["del_aop"][t[i]] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [diffCOEs_avg["del_aop"][t[i]] for i in C_burns], "*", c="c", label="C-axis maneuver")
-    
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (deg)')
-    ax.set_title("Truth-Reference Differences in Argument of Perigee vs Time")
-    ax.legend()
+    # Propagate spacecraft
+    gator_ref.Step(minBurn)
+    gator_truth.Step(minBurn)
 
-if plot_COE_diffs["del_f"]:
-    ax = plt.figure().add_subplot()
-    ax.plot(diffCOEs_dict["del_f"].keys(), diffCOEs_dict["del_f"].values(), label="del_f")
-    ax.plot(diffCOEs_avg["del_f"].keys(), diffCOEs_avg["del_f"].values(), "--", label=f"{revs_to_avg} orbit average")
-    
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [diffCOEs_avg["del_f"][t[i]] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [diffCOEs_avg["del_f"][t[i]] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [diffCOEs_avg["del_f"][t[i]] for i in C_burns], "*", c="c", label="C-axis maneuver")
-    
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (deg)')
-    ax.set_title("Truth-Reference Differences in True Anomaly vs Time")
-    ax.legend()
+    # Update numerical integrator references
+    gator_ref.UpdateSpaceObject()
+    gator_truth.UpdateSpaceObject()
 
-if plot_True_Lat_diff:
-    del_f = np.array([*diffCOEs_dict["del_f"].values()])
-    del_f_avg = np.array([*diffCOEs_avg["del_f"].values()])
-    del_aop = np.array([*diffCOEs_dict["del_aop"].values()])
-    del_aop_avg = np.array([*diffCOEs_avg["del_aop"].values()])
+    gator_truth = truthSat.satEnginesOff(axis)
 
-    del_theta = del_f + del_aop
-    del_theta_avg = del_f_avg + del_aop_avg
+    # Get the updated cartesian states for each spacecraft from the ECI frame
+    rv_ref = gator_ref.GetState()
+    rv_truth = gator_truth.GetState()
 
-    ax = plt.figure().add_subplot()
-    ax.plot(t, del_theta, label="del_theta")
-    ax.plot(t, del_theta_avg, "--", label=f"{revs_to_avg} orbit average")
-    
-    if plot_Show_Firings and len(burnStarts) > 0:
-        ax.plot([t[i] for i in R_burns], [del_theta_avg[i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-        ax.plot([t[i] for i in I_burns], [del_theta_avg[i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-        ax.plot([t[i] for i in C_burns], [del_theta_avg[i] for i in C_burns], "*", c="c", label="C-axis maneuver")
-        
-    ax.set_xlabel('Time (Days)')
-    ax.set_ylabel('Offset (deg)')
-    ax.set_title("Truth-Reference Differences in True Latitude vs Time")
-    ax.legend()
+    # Get the corresponding cartesian state from the RIC frame
+    rvRIC, rotMatrix = xyz2ric(rv_ref, rv_truth)
 
-if any([
-    plot_3D_RIC,
-    plot_rRIC_v_Time,
-    plot_vRIC_v_Time,
-    plot_COE_diffs.items()
-    ]):
-    
-    plt.show()
+    maxI = rvRIC[1]
+
+    while solving:
+        gator_ref.Step(dtCoast)
+        gator_truth.Step(dtCoast)
+
+        # Update numerical integrator references
+        gator_ref.UpdateSpaceObject()
+        gator_truth.UpdateSpaceObject()
+
+        # Get the updated cartesian states for each spacecraft from the ECI frame
+        rv_ref = gator_ref.GetState()
+        rv_truth = gator_truth.GetState()
+
+        # Get the corresponding cartesian state from the RIC frame
+        rvRIC, rotMatrix = xyz2ric(rv_ref, rv_truth)
+
+        maxI = rvRIC[1] if rvRIC[1] < maxI else maxI
