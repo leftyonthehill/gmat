@@ -40,12 +40,12 @@ plot_COE_diffs = {
 
 plot_True_Lat_diff = False
 
-plot_Show_Firings = False
+plot_Show_Firings = True
 
 terminal_Completed_Firings = True
 
 def outputPlots(timings: list, coes: list, ric: list):
-    burnEnds, burnStarts, t, revs_to_avg = timings
+    burnEnds, burnStarts, t, revs_to_avg, dtCoast = timings
     COEs_keys, diffCOEs_dict, diffCOEs_avg = coes
     RIC_keys, RIC_History, RIC_Amp_History = ric
     t = np.array(t) / 86400
@@ -99,12 +99,13 @@ def outputPlots(timings: list, coes: list, ric: list):
     I_burns = []
     C_burns = []
     for i in burnStarts:
+        burnTime = (i[0] + i[0] % dtCoast) / 86400
         if i[1] == "m":
-            R_burns.append(i[0])
+            R_burns.append(burnTime)
         elif i[1] == "r":
-            I_burns.append(i[0])
+            I_burns.append(burnTime)
         elif i[1] == "c":
-            C_burns.append(i[0])
+            C_burns.append(burnTime)
 
     if plot_rRIC_v_Time:
         ax = plt.figure().add_subplot()
@@ -112,10 +113,14 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([i for i in RIC_History["I"].keys()], [i for i in RIC_History["I"].values()], label="I")
         ax.plot([i for i in RIC_History["C"].keys()], [i for i in RIC_History["C"].values()], label="C")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([i for i in R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([i for i in I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([i for i in C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [float(RIC_History["R"][i]) for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [float(RIC_History["I"][i]) for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [float(RIC_History["C"][i]) for i in C_burns], "*", c="c", label="C-axis maneuver")
 
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (km)')
@@ -128,10 +133,14 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([i for i in RIC_Amp_History["I"].keys()], [i for i in RIC_Amp_History["I"].values()], label="I")
         ax.plot([i for i in RIC_Amp_History["C"].keys()], [i for i in RIC_Amp_History["C"].values()], label="C")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [float(RIC_Amp_History["R"][i]) for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [float(RIC_Amp_History["I"][i]) for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [float(RIC_Amp_History["C"][i]) for i in C_burns], "*", c="c", label="C-axis maneuver")
 
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (km)')
@@ -181,11 +190,15 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([*diffCOEs_dict["del_a"].keys()], [*diffCOEs_dict["del_a"].values()], label="del_a")
         ax.plot([*diffCOEs_avg["del_a"].keys()], [*diffCOEs_avg["del_a"].values()], "--", label=f"{revs_to_avg} orbit average")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
-        
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [diffCOEs_avg["del_a"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [diffCOEs_avg["del_a"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [diffCOEs_avg["del_a"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (km)')
         ax.set_title("Truth-Reference Differences in SMA vs Time")
@@ -196,10 +209,15 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([i for i in diffCOEs_dict["del_e"].keys()], [i for i in diffCOEs_dict["del_e"].values()], label="del_e")
         ax.plot([i for i in diffCOEs_avg["del_e"].keys()], [i for i in diffCOEs_avg["del_e"].values()], "--", label=f"{revs_to_avg} orbit average")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [diffCOEs_avg["del_e"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [diffCOEs_avg["del_e"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [diffCOEs_avg["del_e"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset')
         ax.set_title("Truth-Reference Differences in Eccentricity vs Time")
@@ -210,10 +228,14 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([i for i in diffCOEs_dict["del_i"].keys()], [i for i in diffCOEs_dict["del_i"].values()], label="del_i")
         ax.plot([i for i in diffCOEs_avg["del_i"].keys()], [i for i in diffCOEs_avg["del_i"].values()], "--", label=f"{revs_to_avg} orbit average")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [diffCOEs_avg["del_i"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [diffCOEs_avg["del_i"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [diffCOEs_avg["del_i"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
         
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (deg)')
@@ -225,11 +247,15 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([i for i in diffCOEs_dict["del_raan"].keys()], [i for i in diffCOEs_dict["del_raan"].values()], label="del_raan")
         ax.plot([i for i in diffCOEs_avg["del_raan"].keys()], [i for i in diffCOEs_avg["del_raan"].values()], "--", label=f"{revs_to_avg} orbit average")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
-        
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [diffCOEs_avg["del_raan"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [diffCOEs_avg["del_raan"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [diffCOEs_avg["del_raan"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (deg)')
         ax.set_title("Truth-Reference Differences in Right Ascension vs Time")
@@ -240,10 +266,15 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([i for i in diffCOEs_dict["del_aop"].keys()], [i for i in diffCOEs_dict["del_aop"].values()], label="del_aop")
         ax.plot([i for i in diffCOEs_avg["del_aop"].keys()], [i for i in diffCOEs_avg["del_aop"].values()], "--", label=f"{revs_to_avg} orbit average")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [diffCOEs_avg["del_aop"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [diffCOEs_avg["del_aop"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [diffCOEs_avg["del_aop"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (deg)')
         ax.set_title("Truth-Reference Differences in Argument of Perigee vs Time")
@@ -254,10 +285,14 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot([i for i in diffCOEs_dict["del_f"].keys()], [i for i in diffCOEs_dict["del_f"].values()], label="del_f")
         ax.plot([i for i in diffCOEs_avg["del_f"].keys()], [i for i in diffCOEs_avg["del_f"].values()], "--", label=f"{revs_to_avg} orbit average")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [diffCOEs_avg["del_f"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [diffCOEs_avg["del_f"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [diffCOEs_avg["del_f"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
         
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (deg)')
@@ -277,10 +312,14 @@ def outputPlots(timings: list, coes: list, ric: list):
         ax.plot(t, del_theta, label="del_theta")
         ax.plot(t, del_theta_avg, "--", label=f"{revs_to_avg} orbit average")
 
-        if plot_Show_Firings and len(burnStarts) > 0:
-            ax.plot([R_burns], [RIC_History["R"][i] for i in R_burns], "*", c="m", label="R-axis maneuver")
-            ax.plot([I_burns], [RIC_History["I"][i] for i in I_burns], "*", c="r", label="I-axis maneuver")
-            ax.plot([C_burns], [RIC_History["C"][i] for i in C_burns], "*", c="c", label="C-axis maneuver")
+        if plot_Show_Firings and len(R_burns) > 0:
+            ax.plot(R_burns, [del_theta_avg[i] for i in R_burns], "*", c="m", label="R-axis maneuver")
+            
+        if plot_Show_Firings and len(I_burns) > 0:
+            ax.plot(I_burns, [del_theta_avg[i] for i in I_burns], "*", c="r", label="I-axis maneuver")
+            
+        if plot_Show_Firings and len(C_burns) > 0:
+            ax.plot(C_burns, [del_theta_avg[i] for i in C_burns], "*", c="c", label="C-axis maneuver")
             
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (deg)')

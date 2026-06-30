@@ -79,11 +79,15 @@ class Satellite:
     
     def getCartesianState(self):
         """Returns the cartesian state vector of the spacecraft"""
-        return self.sat.GetCartesianState()
+        state = self.sat.GetCartesianState()
+        x = [float(state[i]) for i in range(6)]
+        return x
     
     def getKeplerianState(self):
         """Return the keplerian state vector of the satellite"""
-        return self.sat.GetKeplerianState()
+        state = self.sat.GetKeplerianState()
+        x = [float(state[i]) for i in range(6)]
+        return x
     
     def getSMAFromEnergy(self):
         """Returns the semi-major axis based on the current position and velocity vectors"""

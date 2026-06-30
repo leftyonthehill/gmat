@@ -12,7 +12,7 @@ import numpy as np
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 15
+maxDays = 11
 
 # Simulation step size while coasting
 dtCoast = 20.0 
@@ -125,6 +125,10 @@ gator_truth = truthObjs.satEnginesOff()
 
 # While the elapsed time is less the max number of days
 while elapsed < totalSecs: 
+
+    if state not in ["R burn", "I burn", "C burn"] and elapsed % dtCoast != 0:
+        dt -= elapsed % dtCoast
+
     # Propagate spacecraft
     gator_ref.Step(dt)
     gator_truth.Step(dt)
@@ -135,6 +139,9 @@ while elapsed < totalSecs:
     
     # Update the the elpased time
     elapsed += dt
+
+    if state not in ["R burn", "I burn", "C burn"] and dt != dtCoast:
+        dt = dtCoast
 
     # Get the updated cartesian states for each spacecraft from the ECI frame
     rv_ref = gator_ref.GetState()
@@ -156,21 +163,37 @@ while elapsed < totalSecs:
         for j in range(6):
             step_RIC[RIC_keys[j]] = rvRIC[j]
             
-            diff_COE = float(truthCOE[j] - refCOE[j])
-            quad_Correction = (-360 if (j > 1 and diff_COE > 180) else (360 if j > 1 and diff_COE < 180 else 0))
+            diff_COE = truthCOE[j] - refCOE[j]
+            quad_Correction = (-360 if (j > 1 and diff_COE > 180) else (360 if j > 1 and diff_COE < -180 else 0))
             step_COE[COEs_keys[j]] = diff_COE + quad_Correction
 
 
             RIC_History[RIC_keys[j]][elapsed] = rvRIC[j]
             RIC_Amp_Buffer[RIC_keys[j]].append(rvRIC[j]) 
             RIC_Amp_History[RIC_keys[j]][elapsed] = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 \
-                if len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev else max((RIC_Amp_Buffer[RIC_keys[j]]))
+                if len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev else max(RIC_Amp_Buffer[RIC_keys[j]])
             
+            if RIC_keys[j] == "C" and RIC_Amp_History[RIC_keys[j]][elapsed] > 1:
+                max(RIC_Amp_Buffer[RIC_keys[j]])
+                min(RIC_Amp_Buffer[RIC_keys[j]])
+                
+                len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev
+                max(RIC_Amp_Buffer[RIC_keys[j]])
+                print("woah")
+                break
+
             diffCOEs_dict[COEs_keys[j]][elapsed] = diff_COE + quad_Correction
             diffCOEs_buffer[COEs_keys[j]].append(diff_COE + quad_Correction)
             diffCOEs_avg[COEs_keys[j]][elapsed] = float(np.mean(diffCOEs_buffer[COEs_keys[j]])) \
                 if len(diffCOEs_buffer[COEs_keys[j]]) == steps_to_avg else diff_COE + quad_Correction
             
+            if COEs_keys[j] == "del_e" and diffCOEs_avg[COEs_keys[j]][elapsed] > 1:
+                print("woah")
+                print(f"AVG Diff = {diffCOEs_avg[COEs_keys[j]][elapsed]}")
+                for k in range(6):
+                    print(f"truth = {truthCOE[k]} | ref = {refCOE[k]}")
+                break
+
         interpruptManeuver = {
             "R": RIC_Amp_History["R"][elapsed] > R_bounds,
             "I": rvRIC[1] > I_deadband_min * I_bounds,
@@ -323,8 +346,8 @@ while elapsed < totalSecs:
 
             # Collect the current True Anomaly value to see if the spacecraft is in the appropriate window for a maneuver
             f = truthCOE[-1]
-
-            in_burn_window = 160 < f <= 180
+            trueLat = (f + truthCOE[-2]) % 360
+            in_burn_window = f >= 340 # 160 < trueLat <= 180 #  # 160 < f <= 180
             del_a_target = max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][elapsed]))
 
             # Possibility for controller to trigger a maneuver when spacecraft is within user-defined bounds, this check prevents that
@@ -512,16 +535,16 @@ while elapsed < totalSecs:
                             RIC_Amp_Buffer[j] = deque([*RIC_restore_history.values()], maxlen=int(1.5 * steps_per_rev))
 
                         t = t[:burnEnds[-1] + 1]"""
-
+                        
                         restoreFromTime = burnEnds[-1] - burnEnds[-1] % dtCoast 
                         tStep = t.index(restoreFromTime)
-                        tHistoryCOEs = t[-(steps_to_avg + tStep):-tStep]
+                        tHistoryCOEs = t[(tStep - steps_to_avg):tStep]
                         for j in COEs_keys:
-                            [diffCOEs_buffer[j].append(k) for k in tHistoryCOEs]
+                            [diffCOEs_buffer[j].append(diffCOEs_dict[j][k]) for k in tHistoryCOEs]
 
-                        tHistoryRIC = t[-int(1.5 * steps_per_rev + tStep):-tStep]
+                        tHistoryRIC = t[int(tStep - 1.5 * steps_per_rev):tStep]
                         for j in RIC_keys:
-                            [RIC_Amp_Buffer[j].append(k) for k in tHistoryRIC]
+                            [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
 
                         gator_ref.Step(-coast_duration)
                         gator_truth.Step(-coast_duration)
@@ -537,7 +560,7 @@ while elapsed < totalSecs:
 
                     # undershoots deadband target when SMA changes sign (more thrusting)    
                     elif diffCOEs_avg["del_a"][elapsed] < 0 and (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][elapsed - 10 * steps_per_rev * dtCoast]) < 0 and -I_deadband_min * I_bounds <= minIPosition:
-                        print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
+                        # print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
                         """
                         for j in COEs_keys:
                             COEs_restore_history = {k:v for k, v in diffCOEs_dict[j].items() if t[burnEnds[-1] - steps_to_avg] < k <= t[burnEnds[-1]]}
@@ -550,13 +573,13 @@ while elapsed < totalSecs:
 
                         restoreFromTime = burnEnds[-1] - burnEnds[-1] % dtCoast 
                         tStep = t.index(restoreFromTime)
-                        tHistoryCOEs = t[-(steps_to_avg + tStep):-tStep]
+                        tHistoryCOEs = t[(tStep - steps_to_avg):tStep]
                         for j in COEs_keys:
-                            [diffCOEs_buffer[j].append(k) for k in tHistoryCOEs]
+                            [diffCOEs_buffer[j].append(diffCOEs_dict[j][k]) for k in tHistoryCOEs]
 
-                        tHistoryRIC = t[-int(1.5 * steps_per_rev + tStep):-tStep]
+                        tHistoryRIC = t[int(tStep - 1.5 * steps_per_rev):tStep]
                         for j in RIC_keys:
-                            [RIC_Amp_Buffer[j].append(k) for k in tHistoryRIC]
+                            [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
 
                         # Propagate spacecraft
                         gator_ref.Step(-coast_duration)
@@ -591,7 +614,7 @@ while elapsed < totalSecs:
                         
                     # overshoots deadband target (less thrusting)
                     elif diffCOEs_avg["del_a"][elapsed] < 0 and (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][elapsed - 10 * steps_per_rev * dtCoast]) < 0 and minIPosition < -I_bounds:
-                        print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
+                        # print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
                         stepsToBackTrack = 5
                         if burn_duration - dtThrust * stepsToBackTrack in maneuverLog: 
                             stepsToBackTrack -=1
@@ -621,13 +644,13 @@ while elapsed < totalSecs:
 
                         restoreFromTime = burnEnds[-1] - burnEnds[-1] % dtCoast - (stepsToBackTrack * dtThrust // dtCoast) * dtCoast
                         tStep = t.index(restoreFromTime)
-                        tHistoryCOEs = t[-(steps_to_avg + tStep):-tStep]
+                        tHistoryCOEs = t[(tStep - steps_to_avg):tStep]
                         for j in COEs_keys:
-                            [diffCOEs_buffer[j].append(k) for k in tHistoryCOEs]
+                            [diffCOEs_buffer[j].append(diffCOEs_dict[j][k]) for k in tHistoryCOEs]
 
-                        tHistoryRIC = t[-int(1.5 * steps_per_rev + tStep):-tStep]
+                        tHistoryRIC = t[int(tStep - 1.5 * steps_per_rev):tStep]
                         for j in RIC_keys:
-                            [RIC_Amp_Buffer[j].append(k) for k in tHistoryRIC]
+                            [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
                         burnEnds.pop()
                         
                         # Propagate spacecraft
@@ -662,7 +685,8 @@ while elapsed < totalSecs:
                             burnStarts.pop()
                             break
                 else: 
-                    continue
+                    RuntimeError("Invalid logic condition during I-axis deadband control")
+                    exit
                     
         case "C burn":
             burn_duration += dt
@@ -678,10 +702,10 @@ while elapsed < totalSecs:
             
             if burn_duration >= maxDutyTime or not in_cross_track_pass:
                 if terminal_Completed_Firings:
-                    terminalStr = f"t = {(t[burnStarts[-1][0]] / 86400):2.2f} days | " if (t[burnStarts[-1][0]] / 86400) >= 10 else f"t = {(t[burnStarts[-1][0]]) / 86400:1.3f} days | "
+                    terminalStr = f"t = {(burnStarts[-1][0] / 86400):2.2f} days | " if (burnStarts[-1][0] / 86400) >= 10 else f"t = {(burnStarts[-1][0]) / 86400:1.3f} days | "
                     terminalStr += f"{thrusterAxis} burn duration (min) = "
                     terminalStr += f"{(burn_duration / 60):2.2f} | " if (burn_duration / 60) >= 10 else f"{(burn_duration / 60):1.3f} | "
-                    terminalStr += f"C-axis Amplitude = {RIC_Amp_History['C'][elapsed]:0.6f} km         | "
+                    terminalStr += f"C-axis Amplitude = {RIC_Amp_History['C'][elapsed - elapsed % dtCoast]:0.6f} km         | "
                     
                     accel = 0.2 / truth_Sat_wrapper.mass # m/s
                     deltaV = accel * burn_duration
@@ -728,9 +752,9 @@ while elapsed < totalSecs:
         case _:
             continue
 print(state)
-
+print(f"Current time: T+{(elapsed / 86400)} days")
 # -----------plots---------------------------------------------------
-timings =  [burnEnds, burnStarts, t, revs_to_avg]
+timings =  [burnEnds, burnStarts, t, revs_to_avg, dtCoast]
 coes = [COEs_keys, diffCOEs_dict, diffCOEs_avg]
 ric = [RIC_keys, RIC_History, RIC_Amp_History]
 outputPlots(timings, coes, ric)
