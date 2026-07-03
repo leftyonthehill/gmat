@@ -12,7 +12,7 @@ import numpy as np
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 11
+maxDays = 231
 
 # Simulation step size while coasting
 dtCoast = 20.0 
@@ -31,7 +31,7 @@ orbitParam = [
 ]
 
 # Operational bounds (+/-) to keep the truth satellite within
-R_bounds = 2
+R_bounds = 4
 I_bounds = 20
 C_bounds = 2
 
@@ -41,7 +41,7 @@ maxDutyTime = 3600
 I_deadband_min = 0.85
 
 # 
-maneuverArcHalfAngle = 20
+maneuverArcHalfAngle = 40
 
 # -----------create variables----------------------------------------
 """Additional variables used in the script that SHOULD NOT BE CHANGED"""
@@ -173,14 +173,14 @@ while elapsed < totalSecs:
             RIC_Amp_History[RIC_keys[j]][elapsed] = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 \
                 if len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev else max(RIC_Amp_Buffer[RIC_keys[j]])
             
-            if RIC_keys[j] == "C" and RIC_Amp_History[RIC_keys[j]][elapsed] > 1:
-                max(RIC_Amp_Buffer[RIC_keys[j]])
-                min(RIC_Amp_Buffer[RIC_keys[j]])
+            """if RIC_keys[j] == "C" and RIC_Amp_History[RIC_keys[j]][elapsed] > 1:
+                print(max(RIC_Amp_Buffer[RIC_keys[j]]))
+                print(min(RIC_Amp_Buffer[RIC_keys[j]]))
                 
-                len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev
+                print(len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev)
                 max(RIC_Amp_Buffer[RIC_keys[j]])
-                print("woah")
-                break
+                print("woah: bad RIC")
+                exit() """
 
             diffCOEs_dict[COEs_keys[j]][elapsed] = diff_COE + quad_Correction
             diffCOEs_buffer[COEs_keys[j]].append(diff_COE + quad_Correction)
@@ -188,11 +188,11 @@ while elapsed < totalSecs:
                 if len(diffCOEs_buffer[COEs_keys[j]]) == steps_to_avg else diff_COE + quad_Correction
             
             if COEs_keys[j] == "del_e" and diffCOEs_avg[COEs_keys[j]][elapsed] > 1:
-                print("woah")
+                print("woah: bad COE")
                 print(f"AVG Diff = {diffCOEs_avg[COEs_keys[j]][elapsed]}")
                 for k in range(6):
                     print(f"truth = {truthCOE[k]} | ref = {refCOE[k]}")
-                break
+                exit()
 
         interpruptManeuver = {
             "R": RIC_Amp_History["R"][elapsed] > R_bounds,
@@ -272,6 +272,7 @@ while elapsed < totalSecs:
     match state:
         # -----------waiting for maneuver opoprtunties------------------------
         case "wait for R burn":
+            break
             # Increase number of steps waited
             numStepsWaiting += 1
             
@@ -345,9 +346,17 @@ while elapsed < totalSecs:
             numStepsWaiting += 1
 
             # Collect the current True Anomaly value to see if the spacecraft is in the appropriate window for a maneuver
-            f = truthCOE[-1]
-            trueLat = (f + truthCOE[-2]) % 360
-            in_burn_window = f >= 340 # 160 < trueLat <= 180 #  # 160 < f <= 180
+            fTrue = truthCOE[-1]
+            wTrue = truthCOE[-2]
+            wRef = refCOE[-2]
+            # trueLat = (f + w) % 360
+            #in_burn_window = fTrue >= 340 # 160 < trueLat <= 180 #  # 160 < f <= 180
+            
+            if diffCOEs_avg["del_e"][elapsed] < 0:
+                in_burn_window = (340 < fTrue - (wTrue - wRef)) % 360 <= 360
+            else:
+                in_burn_window = (160 < fTrue - (wTrue - wRef)) % 360 <= 180
+            
             del_a_target = max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][elapsed]))
 
             # Possibility for controller to trigger a maneuver when spacecraft is within user-defined bounds, this check prevents that
@@ -595,7 +604,7 @@ while elapsed < totalSecs:
                         # Update the the elpased time
 
                         thrusterAxis = "I+"
-                        estimateSteps = 1 # np.ceil((minIPosition + I_deadband_min * I_bounds) / 0.4) if (0 >= minIPosition) else 1
+                        estimateSteps = np.ceil((minIPosition + I_deadband_min * I_bounds) / 0.8) if (0 >= minIPosition) else 1
                         dt = dtThrust * estimateSteps
                         if burn_duration + dt in maneuverLog: 
                             estimateSteps -=1
@@ -739,13 +748,14 @@ while elapsed < totalSecs:
                 state = "wait for R burn"
                 break
         case "returning to nominal from C burn":
-            break
-            dt = dtCoast
-            C_amp_recovering = RIC_Amp_History["C"][elapsed] <= RIC_Amp_History["C"][t[-2]]
-            if diffCOEs_avg["del_raan"][-1] < 0: # C_amp <= 1 /3 * C_bounds:
+            if elapsed % dtCoast != 0:
+                continue
+
+            C_amp_recovering = RIC_Amp_History["C"][elapsed] <= RIC_Amp_History["C"][elapsed - dtCoast]
+            if diffCOEs_avg["del_raan"][elapsed] > 0: # C_amp <= 1 /3 * C_bounds:
                 state = interpruptedState
                 interpruptedState = "nominal"
-            elif (elapsed - t[burnEnds[-1]] > .75 * period_sec): # not C_amp_recovering or
+            elif (elapsed - burnEnds[-1] > .75 * period_sec): # not C_amp_recovering or
                 state = "wait for C burn"      
             else:
                 continue 
