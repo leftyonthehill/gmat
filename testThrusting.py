@@ -7,12 +7,13 @@ from plotting import terminal_Completed_Firings, outputPlots
 from xyz2ric import xyz2ric
 
 import numpy as np
+import datetime
 
 # -----------user defined variables----------------------------------
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 231
+maxDays = 12
 
 # Simulation step size while coasting
 dtCoast = 20.0 
@@ -27,11 +28,31 @@ orbitParam = [
     65,     # INC
     0,      # RAAN
     0,      # AOP
-    0       # TA
+    0,      # TA
+    datetime.datetime.today() # Epoch
+]
+# +120 days from 4 July
+refOrbitParam = [
+    6862.290588490198,
+    0.0014430060633217085,
+    64.8961646804553,
+    330.8344685925567,
+    112.96375337279474,
+    158.81679259963713,
+    "01 Nov 2026 00:00:00.000",
 ]
 
+truthOrbitParam = [
+    6862.250668062557,
+    0.0016164014216829444,
+    64.89516766752625,
+    330.8207947770128,
+    104.82084618112651,
+    166.85999851706052,
+    "01 Nov 2026 00:00:00.000",
+]
 # Operational bounds (+/-) to keep the truth satellite within
-R_bounds = 4
+R_bounds = 2
 I_bounds = 20
 C_bounds = 2
 
@@ -48,7 +69,8 @@ maneuverArcHalfAngle = 40
 mu = 398600  # Earth’s mu in km^3/s^2
 burn_duration = 0 # timer to track maneuver duration
 coast_duration = 0
-mean_motion = np.sqrt(mu / orbitParam[0]**3) # mean motion of intitial orbital parameters
+# mean_motion = np.sqrt(mu / orbitParam[0]**3) # mean motion of intitial orbital parameters
+mean_motion = np.sqrt(mu / refOrbitParam[0]**3)
 period_sec = 2 * np.pi / mean_motion # initial orbital period in seconds
 
 steps_per_rev = int(np.ceil(period_sec / dtCoast)) # number of simulation steps in 1 orbit around Earth
@@ -94,11 +116,13 @@ interpruptedState = "nominal"
 """Generate the necessary GMAT objects and Python wrappers"""
 # Reference Objectes
 refObjs = StationKeepingObjects("reference")
-refObjs.setSatCOEs(orbitParam)
+# refObjs.setSatCOEs(orbitParam)
+refObjs.setSatCOEs(refOrbitParam)
 
 # Truth Objects
 truthObjs = StationKeepingObjects("truth")
-truthObjs.setSatCOEs(orbitParam)
+# truthObjs.setSatCOEs(orbitParam)
+truthObjs.setSatCOEs(truthOrbitParam)
 truthObjs.setManeuverable()
 
 # Initialize the scenario
@@ -272,21 +296,21 @@ while elapsed < totalSecs:
     match state:
         # -----------waiting for maneuver opoprtunties------------------------
         case "wait for R burn":
-            break
+            # break
             # Increase number of steps waited
             numStepsWaiting += 1
             
             f = truthCOE[-1]
-            in_node_window = not(
-                                maneuverArcHalfAngle < f <= 180 - maneuverArcHalfAngle) and \
-                            not(
-                                180 + maneuverArcHalfAngle < f <= 360 - maneuverArcHalfAngle)
+            in_node_window = not( # 0 < f <= 180 - maneuverArcHalfAngle) and \
+                                0 < f <= 90 - maneuverArcHalfAngle) and \
+                             not(
+                                90 < f <= 270 - maneuverArcHalfAngle)
             
-            if -0.2 <= rvRIC[0] < 0.2:
-                tempStr = f"t = {(t[burnStarts[-1][0]]):2.2f} days | " if (t[burnStarts[-1][0]]) >= 10 else f"t = {(t[burnStarts[-1][0]]):1.3f} days | "
+            """if -0.2 <= rvRIC[0] < 0.2:
+                tempStr = f"t = {(burnStarts[-1][0]):2.2f} days | " if (burnStarts[-1][0]) >= 10 else f"t = {(burnStarts[-1][0]):1.3f} days | "
                 tempStr += f"Y-AXIS Cross: R = {rvRIC[0]:1.3f} km | True lat = {(truthCOE[-2] + truthCOE[-1]) % 360} deg | "
                 tempStr += f"omega = {truthCOE[-2]} deg | f = {truthCOE[-1]} deg"
-                print(tempStr)
+                print(tempStr)"""
             # Target thrust window has a phase angle of 15 -> 0 -> -20 deg
             if in_node_window:
                 n = mean_motion
@@ -310,13 +334,13 @@ while elapsed < totalSecs:
                 
                 # Based on the current speed in the R direction, fire the opposite direction thrusters
                 if f <= 180 and deltaVa > 0:
-                    thrusterAxis = "R+"
+                    thrusterAxis = "R-"
                 elif f <= 180 and deltaVa < 0:
-                    thrusterAxis = "R-"
-                elif f > 180 and deltaVp > 0:
                     thrusterAxis = "R+"
-                elif f > 180 and deltaVp < 0:
+                elif f > 180 and deltaVp > 0:
                     thrusterAxis = "R-"
+                elif f > 180 and deltaVp < 0:
+                    thrusterAxis = "R+"
                 # thrusterAxis = "R+" if vRIC[0] < 0 else "R-"
                 
                 gator_truth = truthObjs.satEnginesOn(thrusterAxis)
@@ -437,11 +461,11 @@ while elapsed < totalSecs:
         # -----------maneuvering----------------------------------------------
         case "R burn":
             
-            if -0.2 <= rvRIC[0] < 0.2:
-                tempStr = f"t = {(t[burnStarts[-1][0]] / 86400):2.2f} days | " if (t[burnStarts[-1][0]] / 86400) >= 10 else f"t = {(t[burnStarts[-1][0]] / 86400):1.3f} days | "
+            """if -0.2 <= rvRIC[0] < 0.2:
+                tempStr = f"t = {(burnStarts[-1][0] / 86400):2.2f} days | " if (burnStarts[-1][0] / 86400) >= 10 else f"t = {(burnStarts[-1][0] / 86400):1.3f} days | "
                 tempStr += f"Y-AXIS Cross: R = {rvRIC[0]:1.3f} km | True lat = {(truthCOE[-2] + truthCOE[-1]) % 360} deg | "
                 tempStr += f"omega = {truthCOE[-2]} deg | f = {truthCOE[-1]} deg"
-                print(tempStr)
+                print(tempStr)"""
 
             burn_duration += dt
             velo_phase = np.arctan2(rvRIC[3], rvRIC[4])
@@ -451,8 +475,8 @@ while elapsed < totalSecs:
             a = truthObjs.sat_wrap.getSMAFromEnergy()
             eTruth = truthCOE[1]
             eta = np.sqrt(1 - truthCOE[1])
-            deltaAOP = np.deg2rad(diffCOEs_avg["del_aop"][elapsed])
-            deltaRAAN = np.deg2rad(diffCOEs_avg["del_raan"][elapsed])
+            deltaAOP = np.deg2rad(diffCOEs_avg["del_aop"][elapsed - elapsed % dtCoast])
+            deltaRAAN = np.deg2rad(diffCOEs_avg["del_raan"][elapsed - elapsed % dtCoast])
             i = np.deg2rad(truthCOE[2])
 
             fTruth = np.deg2rad(truthCOE[5])
@@ -465,18 +489,23 @@ while elapsed < totalSecs:
             deltaM = MTruth - MRef
             deltaVp = -n * a / 4 * ((1 + eTruth)**2 / eta**2) * (deltaAOP + deltaRAAN * np.cos(i) + deltaM)
             deltaVa = -n * a / 4 * ((1 - eTruth)**2 / eta**2) * (deltaAOP + deltaRAAN * np.cos(i) + deltaM)
-            
-            in_node_window = not(
+
+
+            in_node_window = not( # 0 < f <= 180 - maneuverArcHalfAngle) and \
+                                0 < f <= 90 - maneuverArcHalfAngle) and \
+                             not(
+                                90 < f <= 270 - maneuverArcHalfAngle)
+            """in_node_window = not(
                                 maneuverArcHalfAngle < f <= 180 - maneuverArcHalfAngle) and \
                             not(
-                                180 + maneuverArcHalfAngle < f <= 360 - maneuverArcHalfAngle)
+                                180 + maneuverArcHalfAngle < f <= 360 - maneuverArcHalfAngle)"""
             
             if burn_duration >= maxDutyTime or not in_node_window:
                 if terminal_Completed_Firings:
-                    terminalStr = f"t = {(t[burnStarts[-1][0]] / 86400):2.2f} days | " if (t[burnStarts[-1][0]] / 86400) >= 10 else f"t = {(t[burnStarts[-1][0]] / 86400):1.3f} days | "
+                    terminalStr = f"t = {(burnStarts[-1][0] / 86400):2.2f} days | " if (burnStarts[-1][0] / 86400) >= 10 else f"t = {(burnStarts[-1][0] / 86400):1.3f} days | "
                     terminalStr += f"{thrusterAxis} burn duration (min) = "
                     terminalStr += f"{(burn_duration / 60):2.2f} | " if (burn_duration / 60) >= 10 else f"{(burn_duration / 60):1.3f} | "
-                    terminalStr += f"R-axis Amplitude = {RIC_Amp_History['R'][elapsed]:0.6f} km         | "
+                    terminalStr += f"R-axis Amplitude = {RIC_Amp_History['R'][elapsed - elapsed % dtCoast]:0.6f} km         | "
                     
                     accel = 0.2 / truth_Sat_wrapper.mass # m/s
                     deltaV = accel * burn_duration
@@ -734,19 +763,18 @@ while elapsed < totalSecs:
         
         # -----------verifying recovery---------------------------------------
         case "returning to nominal from R burn":
-            R_amp_recovering = (RIC_Amp_History["R"][elapsed] < RIC_Amp_History["R"][t[-2]]) and (len(RIC_Amp_History["R"]) > 2)
+            R_amp_recovering = (RIC_Amp_History["R"][elapsed] < RIC_Amp_History["R"][elapsed - dtCoast]) and (len(RIC_Amp_History["R"]) > 2)
             
             if -0.2 <= rvRIC[0] < 0.2:
-                tempStr = f"t = {(t[burnStarts[-1][0]]):2.2f} days | " if (t[burnStarts[-1][0]]) >= 10 else f"t = {(t[burnStarts[-1][0]]):1.3f} days | "
+                tempStr = f"t = {(burnStarts[-1][0]):2.2f} days | " if (burnStarts[-1][0]) >= 10 else f"t = {(burnStarts[-1][0]):1.3f} days | "
                 tempStr += f"Y-AXIS Cross: R = {rvRIC[0]:1.3f} km | True lat = {(truthCOE[-2] + truthCOE[-1]) % 360} deg"
                 tempStr += f"omega = {truthCOE[-2]} deg | f = {truthCOE[-1]} deg"
                 print(tempStr)
             if RIC_Amp_History["R"][elapsed] <= 1 /2 * R_bounds:
                 state = interpruptedState
                 interpruptedState = "nominal"
-            elif not R_amp_recovering and (elapsed - t[burnEnds[-1]] > 0.25*period_sec):
+            elif not R_amp_recovering and (elapsed - burnEnds[-1] > 0.25*period_sec):
                 state = "wait for R burn"
-                break
         case "returning to nominal from C burn":
             if elapsed % dtCoast != 0:
                 continue
@@ -763,69 +791,16 @@ while elapsed < totalSecs:
             continue
 print(state)
 print(f"Current time: T+{(elapsed / 86400)} days")
+
+terminalTime = refObjs.sat_wrap.getEpoch_datetime() + datetime.timedelta(seconds=elapsed)
+print(refObjs.sat_wrap.getEpoch_ITC(terminalTime))
+print("\nReference COEs:")
+[print(f"{i},") for i in [*refObjs.sat_wrap.getKeplerianState(), refObjs.sat_wrap.getEpoch_ddmmmyyyy(terminalTime)]]
+print("\nTruth COEs:")
+[print(f"{i},") for i in [*truthObjs.sat_wrap.getKeplerianState(), truthObjs.sat_wrap.getEpoch_ddmmmyyyy(terminalTime)]]
+
 # -----------plots---------------------------------------------------
 timings =  [burnEnds, burnStarts, t, revs_to_avg, dtCoast]
 coes = [COEs_keys, diffCOEs_dict, diffCOEs_avg]
 ric = [RIC_keys, RIC_History, RIC_Amp_History]
 outputPlots(timings, coes, ric)
-
-def compute_I_Burn_Time(
-        truthSat: StationKeepingObjects, 
-        refSat: StationKeepingObjects, 
-        dtArray: list, 
-        minBurn: float, 
-        maxBurn: float,
-        minIBounds: float,
-        maxIBounds: float):
-
-    dtBurn = dtArray[0]
-    dtCoast = dtArray[1]    
-    if minBurn % dtCoast != 0:
-        raise ValueError("Invalid initial burn duration. minBurn must be a multiple of dtCoast (dtArray[1])")
-    
-    coastTime = 0
-    burnTime = minBurn
-    elapsedTime = minBurn
-
-
-    solving = True
-
-    axis = truthSat.getEngineAxis()
-    gator_ref = refSat.prop_wrap[axis].getIntegrator()
-    gator_truth = truthSat.prop_wrap[axis].getIntegrator()
-
-    # Propagate spacecraft
-    gator_ref.Step(minBurn)
-    gator_truth.Step(minBurn)
-
-    # Update numerical integrator references
-    gator_ref.UpdateSpaceObject()
-    gator_truth.UpdateSpaceObject()
-
-    gator_truth = truthSat.satEnginesOff(axis)
-
-    # Get the updated cartesian states for each spacecraft from the ECI frame
-    rv_ref = gator_ref.GetState()
-    rv_truth = gator_truth.GetState()
-
-    # Get the corresponding cartesian state from the RIC frame
-    rvRIC, rotMatrix = xyz2ric(rv_ref, rv_truth)
-
-    maxI = rvRIC[1]
-
-    while solving:
-        gator_ref.Step(dtCoast)
-        gator_truth.Step(dtCoast)
-
-        # Update numerical integrator references
-        gator_ref.UpdateSpaceObject()
-        gator_truth.UpdateSpaceObject()
-
-        # Get the updated cartesian states for each spacecraft from the ECI frame
-        rv_ref = gator_ref.GetState()
-        rv_truth = gator_truth.GetState()
-
-        # Get the corresponding cartesian state from the RIC frame
-        rvRIC, rotMatrix = xyz2ric(rv_ref, rv_truth)
-
-        maxI = rvRIC[1] if rvRIC[1] < maxI else maxI

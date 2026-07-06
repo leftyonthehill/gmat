@@ -33,7 +33,7 @@ class Satellite:
         """
 
         self.sat = None
-        self.epoch = None
+        self.epoch = ""
         self.thrusters = {}
         self.etank = None
         self.powerSystem = None
@@ -65,10 +65,6 @@ class Satellite:
         self.mass += 900
 
         # Spacecraft time reference
-        today = dt.datetime.today()
-        self.epoch = today.strftime("%d %b %Y 12:00:00.000")
-        self.sat.SetField("DateFormat", "UTCGregorian")
-        self.sat.SetField("Epoch", self.epoch)
         self.sat.SetField("CoordinateSystem", "EarthMJ2000Eq")
         self.sat.SetField("DisplayStateType", "Keplerian")
 
@@ -77,19 +73,19 @@ class Satellite:
         return self.sat
     
     
-    def getCartesianState(self):
+    def getCartesianState(self) -> list[float]:
         """Returns the cartesian state vector of the spacecraft"""
         state = self.sat.GetCartesianState()
         x = [float(state[i]) for i in range(6)]
         return x
     
-    def getKeplerianState(self):
+    def getKeplerianState(self) -> list[float]:
         """Return the keplerian state vector of the satellite"""
         state = self.sat.GetKeplerianState()
         x = [float(state[i]) for i in range(6)]
         return x
     
-    def getSMAFromEnergy(self):
+    def getSMAFromEnergy(self) -> float:
         """Returns the semi-major axis based on the current position and velocity vectors"""
         rv = self.getCartesianState()
         r = np.linalg.norm(rv[:3])
@@ -97,7 +93,19 @@ class Satellite:
 
         specificEnergy = v**2 / 2 - self.mu / r
         sma = -self.mu / (2 * specificEnergy)
-        return sma
+        return float(sma)
+
+    def getEpoch_datetime(self) -> dt.datetime:
+        epoch = dt.datetime.strptime(str(self.epoch), "%d %b %Y %H:%M:%S.%f")
+        return epoch
+    
+    def getEpoch_ddmmmyyyy(self, date: dt.datetime) -> str:
+        epoch = date.strftime("%d %b %Y %H:%M:%S.%f")
+        return epoch[:-3]
+    
+    def getEpoch_ITC(self, date: dt.datetime) -> str:
+        epoch = date.strftime("%Y%j%H%M%S.%f")
+        return epoch[:-3]
 
     def setOrbitElements(self, coes: list):
         """Provided a 6-element list of classical orbit elements, assign the keplerian state vector to the spacecraft
@@ -109,16 +117,17 @@ class Satellite:
                             Inclination, 
                             Right Ascension of the Ascending Node, 
                             Argument of Periapsis, 
-                            True Anomaly
+                            True Anomaly,
+                            State Vector Epoch ("dd mmm yyyy HH:MM:SS")
                             ]
 
         Raises:
             - ValueError: If the provided list is not exactly 6 elements long.
         """
-        if len(coes) != 6:
+        if len(coes) < 6 or len(coes) > 7:
             raise ValueError("Incorrect amount of orbital elements passed. There needs to be exactly 6")
         
-        a, e, i, raan, aop, f = coes
+        a, e, i, raan, aop, f = coes[:6]
 
         self.sat.SetField("SMA", a)
         self.sat.SetField("ECC", e)
@@ -126,6 +135,21 @@ class Satellite:
         self.sat.SetField("RAAN", raan)
         self.sat.SetField("AOP", aop)
         self.sat.SetField("TA", f) 
+        
+        if len(coes) == 6:
+            epoch = dt.datetime.today()
+        else:
+            epoch = coes[-1]
+
+        if type(epoch) == dt.datetime:
+            self.epoch = epoch.strftime("%d %b %Y 00:00:00.000")
+        elif type(epoch == str):
+            self.epoch = epoch
+        else:
+            raise TypeError("Invalid date type. The epoch must be either a datetime.datetime object or a string")
+        
+        self.sat.SetField("DateFormat", "UTCGregorian")
+        self.sat.SetField("Epoch", self.epoch)
     
     def setCartesianState(self, xyz: list):
         """Provided a 6-element list of cartesian elements, assign the state vector to the spacecraft
@@ -137,7 +161,8 @@ class Satellite:
                             Z, 
                             X_dot, 
                             Y_dot, 
-                            Z_dot
+                            Z_dot,
+                            State Vector Epoch ("dd mmm yyyy HH:MM:SS")
                             ]
 
         Raises:
@@ -146,7 +171,7 @@ class Satellite:
         if len(xyz) != 6:
             raise ValueError("Incorrect amount of cartesian elements passed. There needs to be exactly 6")
         
-        x, y, z, xdot, ydot, zdot = xyz
+        x, y, z, xdot, ydot, zdot, epoch = xyz
 
         self.sat.SetField("X", x)
         self.sat.SetField("Y", y)
@@ -154,6 +179,10 @@ class Satellite:
         self.sat.SetField("VX", xdot)
         self.sat.SetField("VY", ydot)
         self.sat.SetField("VZ", zdot)
+        
+        self.epoch = epoch.strftime("%d %b %Y 12:00:00.000")
+        self.sat.SetField("DateFormat", "UTCGregorian")
+        self.sat.SetField("Epoch", self.epoch)
         
         self.sat.SetField("DisplayStateType", "Cartesian")
         self.sat.SetField("DisplayStateType", "Keplerian") 

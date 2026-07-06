@@ -58,7 +58,8 @@ class StationKeepingObjects:
                             Inclination, 
                             Right Ascension of the Ascending Node, 
                             Argument of Periapsis, 
-                            True Anomaly
+                            True Anomaly,
+                            State Vector Epoch ("dd mmm yyyy HH:MM:SS")
                             ]
         """
         self.coes = coes
