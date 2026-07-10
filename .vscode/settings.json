@@ -1,5 +1,11 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:venv",
     "python.envFile": "${workspaceFolder}/.gmat_venv/Scripts/python.exe",
-    "python.analysis.extraPaths": ["C:/gmat-win-R2025a/GMAT_R2025a/bin"]
+    "python.analysis.extraPaths": [
+        "C:/gmat-win-R2025a/GMAT_R2025a/bin", 
+        "C:/gmat-win-R2026a/GMAT_R2025a/bin/gmatpy/_py312/__init__.py",
+        "C:/gmat-win-R2026a/GMAT_R2025a/bin/gmatpy/_py312/gmat_py.py",
+        "C:/gmat-win-R2026a/GMAT_R2025a/bin/gmatpy/_py312/navigation_py.py",
+        "C:/gmat-win-R2026a/GMAT_R2025a/bin/gmatpy/_py312/station_py.py", 
+        "C:/gmat-win-R2026a/GMAT_R2025a/bin/gmatpy/_py314/__init__.py"]
 }

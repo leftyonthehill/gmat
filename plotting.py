@@ -30,10 +30,10 @@ plot_vRIC_v_Time = False
 plot_vRIC_Amp_v_Time = False
 
 plot_COE_diffs = {
-    "del_a": False,
+    "del_a": True,
     "del_e": True,
     "del_i": False  ,
-    "del_raan": False,
+    "del_raan": True,
     "del_aop": True,
     "del_f": False
 }

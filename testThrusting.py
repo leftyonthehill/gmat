@@ -13,15 +13,16 @@ import datetime
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 12
+maxDays = 366
 
 # Simulation step size while coasting
-dtCoast = 20.0 
+dtCoast = 60.0 
 
 # Simulation step size while thrusting
-dtThrust = 5
+dtThrust = 5.0
 
 # Orbital element set shared by the initial reference and truth satellites
+stateVector = "new" # "new"
 orbitParam = [
     6878,   # SMA, avg alt of 500 km
     1e-3,   # ECC
@@ -31,46 +32,50 @@ orbitParam = [
     0,      # TA
     datetime.datetime.today() # Epoch
 ]
-# +120 days from 4 July
+# +70 days from 6 July
 refOrbitParam = [
-    6862.290588490198,
-    0.0014430060633217085,
-    64.8961646804553,
-    330.8344685925567,
-    112.96375337279474,
-    158.81679259963713,
-    "01 Nov 2026 00:00:00.000",
+    6862.398123976534,
+    0.001222655234762756,
+    65.08465834964612,
+    132.8799247164418,
+    103.33767643107548,
+    169.9596201609888,
+    "14 Sep 2026 00:00:00.000"
 ]
 
 truthOrbitParam = [
-    6862.250668062557,
-    0.0016164014216829444,
-    64.89516766752625,
-    330.8207947770128,
-    104.82084618112651,
-    166.85999851706052,
-    "01 Nov 2026 00:00:00.000",
+    6862.354299657057,
+    0.0012109994471725667,
+    65.08194601412482,
+    132.8802573958094,
+    105.53210688316561,
+    167.6482406337395,
+    "14 Sep 2026 00:00:00.000"
 ]
 # Operational bounds (+/-) to keep the truth satellite within
-R_bounds = 2
+R_bounds = 1
 I_bounds = 20
 C_bounds = 2
 
 # Maximum thruster duty time in seconds
+minDutyTime = 300
 maxDutyTime = 3600
 
 I_deadband_min = 0.85
 
 # 
-maneuverArcHalfAngle = 40
+maneuverArcHalfAngle = 20
 
 # -----------create variables----------------------------------------
 """Additional variables used in the script that SHOULD NOT BE CHANGED"""
 mu = 398600  # Earth’s mu in km^3/s^2
 burn_duration = 0 # timer to track maneuver duration
 coast_duration = 0
-# mean_motion = np.sqrt(mu / orbitParam[0]**3) # mean motion of intitial orbital parameters
-mean_motion = np.sqrt(mu / refOrbitParam[0]**3)
+
+if stateVector == "new":
+    mean_motion = np.sqrt(mu / orbitParam[0]**3) # mean motion of intitial orbital parameters
+else:
+    mean_motion = np.sqrt(mu / refOrbitParam[0]**3)
 period_sec = 2 * np.pi / mean_motion # initial orbital period in seconds
 
 steps_per_rev = int(np.ceil(period_sec / dtCoast)) # number of simulation steps in 1 orbit around Earth
@@ -116,13 +121,17 @@ interpruptedState = "nominal"
 """Generate the necessary GMAT objects and Python wrappers"""
 # Reference Objectes
 refObjs = StationKeepingObjects("reference")
-# refObjs.setSatCOEs(orbitParam)
-refObjs.setSatCOEs(refOrbitParam)
+if stateVector == "new":
+    refObjs.setSatCOEs(orbitParam)
+else:
+    refObjs.setSatCOEs(refOrbitParam)
 
 # Truth Objects
 truthObjs = StationKeepingObjects("truth")
-# truthObjs.setSatCOEs(orbitParam)
-truthObjs.setSatCOEs(truthOrbitParam)
+if stateVector == "new":
+    truthObjs.setSatCOEs(orbitParam)
+else:
+    truthObjs.setSatCOEs(truthOrbitParam)
 truthObjs.setManeuverable()
 
 # Initialize the scenario
@@ -193,9 +202,18 @@ while elapsed < totalSecs:
 
 
             RIC_History[RIC_keys[j]][elapsed] = rvRIC[j]
-            RIC_Amp_Buffer[RIC_keys[j]].append(rvRIC[j]) 
-            RIC_Amp_History[RIC_keys[j]][elapsed] = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 \
-                if len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev else max(RIC_Amp_Buffer[RIC_keys[j]])
+
+            if state not in ["R burn", "I burn", "C burn"]:
+                RIC_Amp_Buffer[RIC_keys[j]].append(rvRIC[j]) 
+                amp = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 \
+                    if len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev else max(RIC_Amp_Buffer[RIC_keys[j]])
+                RIC_Amp_History[RIC_keys[j]][elapsed] = amp
+            else:
+                RIC_Amp_Buffer[RIC_keys[j]].append(RIC_History[RIC_keys[j]][burnStarts[-1][0]])
+                amp = (max(RIC_Amp_Buffer[RIC_keys[j]]) - min(RIC_Amp_Buffer[RIC_keys[j]])) / 2 \
+                    if len(RIC_Amp_Buffer[RIC_keys[j]]) == 1.5 * steps_per_rev else max(RIC_Amp_Buffer[RIC_keys[j]])
+                RIC_Amp_History[RIC_keys[j]][elapsed] = amp
+
             
             """if RIC_keys[j] == "C" and RIC_Amp_History[RIC_keys[j]][elapsed] > 1:
                 print(max(RIC_Amp_Buffer[RIC_keys[j]]))
@@ -306,19 +324,26 @@ while elapsed < totalSecs:
                              not(
                                 90 < f <= 270 - maneuverArcHalfAngle)
             
+            if diffCOEs_avg["del_e"][elapsed] > 0:
+                in_node_window = 90 - maneuverArcHalfAngle < f < 90
+            else:
+                in_node_window = 270 - maneuverArcHalfAngle < f < 270
+
+            minDelAOP = (-10 <= diffCOEs_dict["del_aop"][elapsed - elapsed % dtCoast] < 10)
+
             """if -0.2 <= rvRIC[0] < 0.2:
                 tempStr = f"t = {(burnStarts[-1][0]):2.2f} days | " if (burnStarts[-1][0]) >= 10 else f"t = {(burnStarts[-1][0]):1.3f} days | "
                 tempStr += f"Y-AXIS Cross: R = {rvRIC[0]:1.3f} km | True lat = {(truthCOE[-2] + truthCOE[-1]) % 360} deg | "
                 tempStr += f"omega = {truthCOE[-2]} deg | f = {truthCOE[-1]} deg"
                 print(tempStr)"""
             # Target thrust window has a phase angle of 15 -> 0 -> -20 deg
-            if in_node_window:
+            if in_node_window and minDelAOP:
                 n = mean_motion
                 a = truthObjs.sat_wrap.getSMAFromEnergy()
                 eTruth = truthCOE[1]
                 eta = np.sqrt(1 - truthCOE[1])
-                deltaAOP = np.deg2rad(diffCOEs_avg["del_aop"][elapsed])
-                deltaRAAN = np.deg2rad(diffCOEs_avg["del_raan"][elapsed])
+                deltaAOP = np.deg2rad(diffCOEs_avg["del_aop"][elapsed - elapsed % dtCoast])
+                deltaRAAN = np.deg2rad(diffCOEs_avg["del_raan"][elapsed - elapsed % dtCoast])
                 i = np.deg2rad(truthCOE[2])
 
                 fTruth = np.deg2rad(truthCOE[5])
@@ -334,15 +359,15 @@ while elapsed < totalSecs:
                 
                 # Based on the current speed in the R direction, fire the opposite direction thrusters
                 if f <= 180 and deltaVa > 0:
-                    thrusterAxis = "R-"
+                    thrusterAxis = "R+"
                 elif f <= 180 and deltaVa < 0:
-                    thrusterAxis = "R+"
-                elif f > 180 and deltaVp > 0:
                     thrusterAxis = "R-"
-                elif f > 180 and deltaVp < 0:
+                elif f > 180 and deltaVp > 0:
                     thrusterAxis = "R+"
+                elif f > 180 and deltaVp < 0:
+                    thrusterAxis = "R-"
                 # thrusterAxis = "R+" if vRIC[0] < 0 else "R-"
-                
+                thrusterAxis = "R+"
                 gator_truth = truthObjs.satEnginesOn(thrusterAxis)
                 state = "R burn"
                 
@@ -376,11 +401,13 @@ while elapsed < totalSecs:
             # trueLat = (f + w) % 360
             #in_burn_window = fTrue >= 340 # 160 < trueLat <= 180 #  # 160 < f <= 180
             
-            if diffCOEs_avg["del_e"][elapsed] < 0:
-                in_burn_window = (340 < fTrue - (wTrue - wRef)) % 360 <= 360
+            if rvRIC[1] / I_bounds < 0.95:
+                if diffCOEs_avg["del_e"][elapsed] <= 0:
+                    in_burn_window = 360 - maneuverArcHalfAngle < (fTrue - diffCOEs_avg["del_aop"][elapsed]) % 360 <= 360
+                else:
+                    in_burn_window = 180 - maneuverArcHalfAngle < (fTrue - diffCOEs_avg["del_aop"][elapsed]) % 360 <= 180
             else:
-                in_burn_window = (160 < fTrue - (wTrue - wRef)) % 360 <= 180
-            
+                in_burn_window = (360 - maneuverArcHalfAngle < fTrue - diffCOEs_avg["del_aop"][elapsed] <= 360) or (180 - maneuverArcHalfAngle < fTrue - diffCOEs_avg["del_aop"][elapsed] <= 180)
             del_a_target = max(abs(del_a_energy), abs(diffCOEs_avg["del_a"][elapsed]))
 
             # Possibility for controller to trigger a maneuver when spacecraft is within user-defined bounds, this check prevents that
@@ -412,6 +439,8 @@ while elapsed < totalSecs:
 
                 # Add to the list of when burns start the corresponding color for this maneuver
                 burnStarts.append((elapsed, "r"))
+                # print(f"f_truth = {truthCOE[-2]} deg | aop_truth = {truthCOE[-1]} deg")
+                # print(f"f_ref   = {refCOE[-2]} deg | aop_ref   = {refCOE[-1]} deg")
 
                 # Establish recovery criteria for I-axis maneuver
                 del_a_recovered = False
@@ -436,10 +465,10 @@ while elapsed < totalSecs:
             true_lat = (truthCOE[4] + truthCOE[5]) % 360
             critAngle = np.rad2deg(np.arctan(diffCOEs_avg["del_raan"][elapsed] / diffCOEs_avg["del_i"][elapsed] * refCOE[2]))
             critAngle += 360 if critAngle < 0 else 0
-            if critAngle + maneuverArcHalfAngle > 360:
-                in_node_window = critAngle - maneuverArcHalfAngle < true_lat or true_lat <= (critAngle + maneuverArcHalfAngle) % 360
+            if critAngle + maneuverArcHalfAngle * 2 > 360:
+                in_node_window = critAngle - maneuverArcHalfAngle * 2 < true_lat or true_lat <= (critAngle + maneuverArcHalfAngle * 2) % 360
             else:
-                in_node_window = critAngle - maneuverArcHalfAngle < true_lat < critAngle + maneuverArcHalfAngle
+                in_node_window = critAngle - maneuverArcHalfAngle * 2 < true_lat < critAngle + maneuverArcHalfAngle * 2
             if in_node_window:
                 thrusterAxis = "C-" if critAngle > 180 else "C+"
                 
@@ -495,12 +524,15 @@ while elapsed < totalSecs:
                                 0 < f <= 90 - maneuverArcHalfAngle) and \
                              not(
                                 90 < f <= 270 - maneuverArcHalfAngle)
+            
+            in_node_window = (-10 <= diffCOEs_dict["del_aop"][elapsed - elapsed % dtCoast] < 10) and 90 - maneuverArcHalfAngle < truthCOE[-1] < 90
+            
             """in_node_window = not(
                                 maneuverArcHalfAngle < f <= 180 - maneuverArcHalfAngle) and \
                             not(
                                 180 + maneuverArcHalfAngle < f <= 360 - maneuverArcHalfAngle)"""
             
-            if burn_duration >= maxDutyTime or not in_node_window:
+            if (burn_duration >= maxDutyTime or not in_node_window) and burn_duration >= minDutyTime * 2:
                 if terminal_Completed_Firings:
                     terminalStr = f"t = {(burnStarts[-1][0] / 86400):2.2f} days | " if (burnStarts[-1][0] / 86400) >= 10 else f"t = {(burnStarts[-1][0] / 86400):1.3f} days | "
                     terminalStr += f"{thrusterAxis} burn duration (min) = "
@@ -518,14 +550,24 @@ while elapsed < totalSecs:
                 burnEnds.append(elapsed)
                 dt = dtCoast - round(elapsed % dtCoast)
 
-                burn_duration = 0
-                
+                burn_duration = 0              
         case "I burn":
-            
+            """burn_duration += dt
+            if burn_duration == minDutyTime:
+                print(f"f_truth = {truthCOE[-2]} deg | aop_truth = {truthCOE[-1]} deg")
+                print(f"f_ref   = {refCOE[-2]} deg | aop_ref   = {refCOE[-1]} deg")
+
+                gator_truth = truthObjs.satEnginesOff(thrusterAxis)
+                thrusterAxis = ""
+
+                dt = dtCoast - round(elapsed % dtCoast)
+                maneuverAttempts += 1
+            elif thrusterAxis == "":
+                break"""
             if thrusterAxis != "":
                 burn_duration += dt
 
-                if (burn_duration >= 600 and maneuverAttempts == 0) or maneuverAttempts > 0:
+                if (burn_duration >= minDutyTime and maneuverAttempts == 0) or maneuverAttempts > 0:
                     burnEnds.append(elapsed)
                     del_a_energy_maneuver = del_a_energy
 
@@ -581,8 +623,10 @@ while elapsed < totalSecs:
                             [diffCOEs_buffer[j].append(diffCOEs_dict[j][k]) for k in tHistoryCOEs]
 
                         tHistoryRIC = t[int(tStep - 1.5 * steps_per_rev):tStep]
-                        for j in RIC_keys:
-                            [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
+                        # for j in RIC_keys:
+                            # [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
+                            # if j =="I":
+                                # [print(k) for k in RIC_Amp_Buffer[j]]
 
                         gator_ref.Step(-coast_duration)
                         gator_truth.Step(-coast_duration)
@@ -616,8 +660,8 @@ while elapsed < totalSecs:
                             [diffCOEs_buffer[j].append(diffCOEs_dict[j][k]) for k in tHistoryCOEs]
 
                         tHistoryRIC = t[int(tStep - 1.5 * steps_per_rev):tStep]
-                        for j in RIC_keys:
-                            [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
+                        # for j in RIC_keys:
+                            # [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
 
                         # Propagate spacecraft
                         gator_ref.Step(-coast_duration)
@@ -633,7 +677,7 @@ while elapsed < totalSecs:
                         # Update the the elpased time
 
                         thrusterAxis = "I+"
-                        estimateSteps = np.ceil((minIPosition + I_deadband_min * I_bounds) / 0.8) if (0 >= minIPosition) else 1
+                        estimateSteps = np.ceil((minIPosition + I_deadband_min * I_bounds) / 0.75) # if (0 >= minIPosition) else 1
                         dt = dtThrust * estimateSteps
                         if burn_duration + dt in maneuverLog: 
                             estimateSteps -=1
@@ -687,8 +731,8 @@ while elapsed < totalSecs:
                             [diffCOEs_buffer[j].append(diffCOEs_dict[j][k]) for k in tHistoryCOEs]
 
                         tHistoryRIC = t[int(tStep - 1.5 * steps_per_rev):tStep]
-                        for j in RIC_keys:
-                            [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
+                        # for j in RIC_keys:
+                            # [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
                         burnEnds.pop()
                         
                         # Propagate spacecraft
@@ -724,19 +768,18 @@ while elapsed < totalSecs:
                             break
                 else: 
                     RuntimeError("Invalid logic condition during I-axis deadband control")
-                    exit
-                    
+                    exit         
         case "C burn":
             burn_duration += dt
             velo_phase = np.arctan2(rvRIC[1], rvRIC[2])
             
             true_lat = (truthCOE[4] + truthCOE[5]) % 360
-            if critAngle + maneuverArcHalfAngle > 360:
-                in_cross_track_pass = critAngle - maneuverArcHalfAngle < true_lat or true_lat <= (critAngle + maneuverArcHalfAngle) % 360
-            elif critAngle - maneuverArcHalfAngle < 0:
-                in_cross_track_pass = (critAngle - maneuverArcHalfAngle + 360) < true_lat or true_lat <= (critAngle + maneuverArcHalfAngle) % 360
+            if critAngle + maneuverArcHalfAngle * 2 > 360:
+                in_cross_track_pass = critAngle - maneuverArcHalfAngle * 2 < true_lat or true_lat <= (critAngle + maneuverArcHalfAngle * 2) % 360
+            elif critAngle - maneuverArcHalfAngle * 2 < 0:
+                in_cross_track_pass = (critAngle - maneuverArcHalfAngle * 2 + 360) < true_lat or true_lat <= (critAngle + maneuverArcHalfAngle * 2) % 360
             else:
-                in_cross_track_pass = critAngle - maneuverArcHalfAngle < true_lat < critAngle + maneuverArcHalfAngle
+                in_cross_track_pass = critAngle - maneuverArcHalfAngle * 2 < true_lat < critAngle + maneuverArcHalfAngle * 2
             
             if burn_duration >= maxDutyTime or not in_cross_track_pass:
                 if terminal_Completed_Firings:
@@ -763,13 +806,13 @@ while elapsed < totalSecs:
         
         # -----------verifying recovery---------------------------------------
         case "returning to nominal from R burn":
-            R_amp_recovering = (RIC_Amp_History["R"][elapsed] < RIC_Amp_History["R"][elapsed - dtCoast]) and (len(RIC_Amp_History["R"]) > 2)
+            R_amp_recovering = (RIC_Amp_History["R"][elapsed - elapsed % dtCoast] < RIC_Amp_History["R"][elapsed - elapsed % dtCoast - dtCoast]) and (len(RIC_Amp_History["R"]) > 2)
             
             if -0.2 <= rvRIC[0] < 0.2:
                 tempStr = f"t = {(burnStarts[-1][0]):2.2f} days | " if (burnStarts[-1][0]) >= 10 else f"t = {(burnStarts[-1][0]):1.3f} days | "
-                tempStr += f"Y-AXIS Cross: R = {rvRIC[0]:1.3f} km | True lat = {(truthCOE[-2] + truthCOE[-1]) % 360} deg"
+                tempStr += f"Y-AXIS Cross: R = {rvRIC[0]:1.3f} km | True lat = {(truthCOE[-2] + truthCOE[-1]) % 360} deg | "
                 tempStr += f"omega = {truthCOE[-2]} deg | f = {truthCOE[-1]} deg"
-                print(tempStr)
+                # print(tempStr)
             if RIC_Amp_History["R"][elapsed] <= 1 /2 * R_bounds:
                 state = interpruptedState
                 interpruptedState = "nominal"
@@ -795,9 +838,11 @@ print(f"Current time: T+{(elapsed / 86400)} days")
 terminalTime = refObjs.sat_wrap.getEpoch_datetime() + datetime.timedelta(seconds=elapsed)
 print(refObjs.sat_wrap.getEpoch_ITC(terminalTime))
 print("\nReference COEs:")
-[print(f"{i},") for i in [*refObjs.sat_wrap.getKeplerianState(), refObjs.sat_wrap.getEpoch_ddmmmyyyy(terminalTime)]]
+[print(" " * 4 + f"{i},") for i in [*refObjs.sat_wrap.getKeplerianState()]]
+print(" " * 4 + f'"{refObjs.sat_wrap.getEpoch_ddmmmyyyy(terminalTime)}"')
 print("\nTruth COEs:")
-[print(f"{i},") for i in [*truthObjs.sat_wrap.getKeplerianState(), truthObjs.sat_wrap.getEpoch_ddmmmyyyy(terminalTime)]]
+[print(" " * 4 + f"{i},") for i in [*truthObjs.sat_wrap.getKeplerianState()]]
+print(" " * 4 + f'"{truthObjs.sat_wrap.getEpoch_ddmmmyyyy(terminalTime)}"')
 
 # -----------plots---------------------------------------------------
 timings =  [burnEnds, burnStarts, t, revs_to_avg, dtCoast]
