@@ -13,7 +13,7 @@ import datetime
 """Please change the following variables as necessary to shape your scenario"""
 
 # Duration of the scenario in days
-maxDays = 366
+maxDays = 370
 
 # Simulation step size while coasting
 dtCoast = 60.0 
@@ -24,7 +24,7 @@ dtThrust = 5.0
 # Orbital element set shared by the initial reference and truth satellites
 stateVector = "new" # "new"
 orbitParam = [
-    6878,   # SMA, avg alt of 500 km
+    6928,   # SMA, avg alt of 500 km (6878, 6903)
     1e-3,   # ECC
     65,     # INC
     0,      # RAAN
@@ -53,9 +53,9 @@ truthOrbitParam = [
     "14 Sep 2026 00:00:00.000"
 ]
 # Operational bounds (+/-) to keep the truth satellite within
-R_bounds = 1
+R_bounds = 2
 I_bounds = 20
-C_bounds = 2
+C_bounds = 4
 
 # Maximum thruster duty time in seconds
 minDutyTime = 300
@@ -136,7 +136,7 @@ truthObjs.setManeuverable()
 
 # Initialize the scenario
 gmat.Initialize()
-
+sat_T0 = truthObjs.sat_wrap.getEpoch_GMAT()
 # ------------build out thruster forces------------------------------
 
 # Reference Objectes
@@ -161,6 +161,10 @@ while elapsed < totalSecs:
 
     if state not in ["R burn", "I burn", "C burn"] and elapsed % dtCoast != 0:
         dt -= elapsed % dtCoast
+
+    # Get the updated cartesian states for each spacecraft from the ECI frame
+    rv_ref = gator_ref.GetState()
+    rv_truth = gator_truth.GetState()
 
     # Propagate spacecraft
     gator_ref.Step(dt)
@@ -677,7 +681,7 @@ while elapsed < totalSecs:
                         # Update the the elpased time
 
                         thrusterAxis = "I+"
-                        estimateSteps = np.ceil((minIPosition + I_deadband_min * I_bounds) / 0.75) # if (0 >= minIPosition) else 1
+                        estimateSteps = np.ceil((minIPosition + I_deadband_min * I_bounds) / 0.75) if (0 >= minIPosition) else 1
                         dt = dtThrust * estimateSteps
                         if burn_duration + dt in maneuverLog: 
                             estimateSteps -=1
@@ -697,6 +701,15 @@ while elapsed < totalSecs:
                     # overshoots deadband target (less thrusting)
                     elif diffCOEs_avg["del_a"][elapsed] < 0 and (diffCOEs_avg["del_a"][elapsed] - diffCOEs_avg["del_a"][elapsed - 10 * steps_per_rev * dtCoast]) < 0 and minIPosition < -I_bounds:
                         # print(f"Maneuver #{maneuverAttempts}: I-position = {minIPosition:1.4}km | burn time = {burn_duration} sec")
+                        truth_Tdiff = (truthObjs.sat_wrap.getEpoch_GMAT() - sat_T0) * 86400
+                        ref_Tdiff = (refObjs.sat_wrap.getEpoch_GMAT() - sat_T0) * 86400
+
+                        
+                        """print(f"truth Time Elapsed = {(truth_Tdiff)}")
+                        print(f"ref Time Elapsed   = {(ref_Tdiff)}")
+                        print(f"truth Time Diff = {(truth_Tdiff - elapsed)}")
+                        print(f"ref Time Diff   = {(ref_Tdiff - elapsed)}")
+                        break"""
                         stepsToBackTrack = 5
                         if burn_duration - dtThrust * stepsToBackTrack in maneuverLog: 
                             stepsToBackTrack -=1
@@ -735,16 +748,38 @@ while elapsed < totalSecs:
                             # [RIC_Amp_Buffer[j].append(RIC_Amp_History[j][k]) for k in tHistoryRIC]
                         burnEnds.pop()
                         
+                        # Get the updated cartesian states for each spacecraft from the ECI frame
+                        rv_ref = gator_ref.GetState()
+                        rv_truth = gator_truth.GetState()
+                        # Get the updated keplerian states for each spacecraft
+                        refCOE = refObjs.sat_wrap.getKeplerianState()
+                        truthCOE = truthObjs.sat_wrap.getKeplerianState()
+                        
                         # Propagate spacecraft
-                        gator_ref.Step(-coast_duration)
-                        gator_truth.Step(-coast_duration)
+                        # gator_ref.Step(-coast_duration)
+                        # gator_truth.Step(-coast_duration)
+                        backPropStepSize = coast_duration // 300
+                        for i in range(300):
+                            gator_ref.Step(-backPropStepSize)
+                            gator_truth.Step(-backPropStepSize)
+
+                        backStepRemainder = coast_duration % 300
+                        gator_ref.Step(-backStepRemainder)
+                        gator_truth.Step(-backStepRemainder)
+
                         elapsed = elapsed - coast_duration
                         coast_duration = 0
 
                         # Update numerical integrator references
                         gator_ref.UpdateSpaceObject()
                         gator_truth.UpdateSpaceObject()
-                        
+
+                        # Get the updated cartesian states for each spacecraft from the ECI frame
+                        rv_ref = gator_ref.GetState()
+                        rv_truth = gator_truth.GetState()
+                        # Get the updated keplerian states for each spacecraft
+                        refCOE = refObjs.sat_wrap.getKeplerianState()
+                        truthCOE = truthObjs.sat_wrap.getKeplerianState()
                         # Update the the elpased time
 
                         thrusterAxis = "I+"
@@ -758,6 +793,11 @@ while elapsed < totalSecs:
                         # Update numerical integrator references
                         gator_ref.UpdateSpaceObject()
                         gator_truth.UpdateSpaceObject()
+
+                        # Get the updated cartesian states for each spacecraft from the ECI frame
+                        rv_ref = gator_ref.GetState()
+                        rv_truth = gator_truth.GetState()
+
                         if burn_duration + dt <= 0:
                             print(f"Negative thrust time! Min I = {minIPosition}")
                             burnStarts.pop()
@@ -813,20 +853,20 @@ while elapsed < totalSecs:
                 tempStr += f"Y-AXIS Cross: R = {rvRIC[0]:1.3f} km | True lat = {(truthCOE[-2] + truthCOE[-1]) % 360} deg | "
                 tempStr += f"omega = {truthCOE[-2]} deg | f = {truthCOE[-1]} deg"
                 # print(tempStr)
-            if RIC_Amp_History["R"][elapsed] <= 1 /2 * R_bounds:
+            if RIC_Amp_History["R"][elapsed - elapsed % dtCoast] <= 1 /2 * R_bounds:
                 state = interpruptedState
                 interpruptedState = "nominal"
-            elif not R_amp_recovering and (elapsed - burnEnds[-1] > 0.25*period_sec):
+            elif not R_amp_recovering and (elapsed - elapsed % dtCoast - burnEnds[-1] > 0.25*period_sec):
                 state = "wait for R burn"
         case "returning to nominal from C burn":
             if elapsed % dtCoast != 0:
                 continue
 
-            C_amp_recovering = RIC_Amp_History["C"][elapsed] <= RIC_Amp_History["C"][elapsed - dtCoast]
-            if diffCOEs_avg["del_raan"][elapsed] > 0: # C_amp <= 1 /3 * C_bounds:
+            C_amp_recovering = RIC_Amp_History["C"][elapsed - elapsed % dtCoast] <= RIC_Amp_History["C"][elapsed - elapsed % dtCoast - dtCoast]
+            if diffCOEs_avg["del_raan"][elapsed - elapsed % dtCoast] > 0: # C_amp <= 1 /3 * C_bounds:
                 state = interpruptedState
                 interpruptedState = "nominal"
-            elif (elapsed - burnEnds[-1] > .75 * period_sec): # not C_amp_recovering or
+            elif (elapsed - elapsed % dtCoast - burnEnds[-1] > .75 * period_sec): # not C_amp_recovering or
                 state = "wait for C burn"      
             else:
                 continue 
@@ -848,4 +888,4 @@ print(" " * 4 + f'"{truthObjs.sat_wrap.getEpoch_ddmmmyyyy(terminalTime)}"')
 timings =  [burnEnds, burnStarts, t, revs_to_avg, dtCoast]
 coes = [COEs_keys, diffCOEs_dict, diffCOEs_avg]
 ric = [RIC_keys, RIC_History, RIC_Amp_History]
-outputPlots(timings, coes, ric)
+# outputPlots(timings, coes, ric)

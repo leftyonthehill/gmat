@@ -103,6 +103,9 @@ class Satellite:
         epoch = date.strftime("%d %b %Y %H:%M:%S.%f")
         return epoch[:-3]
     
+    def getEpoch_GMAT(self):
+        return self.sat.GetEpoch()
+    
     def getEpoch_ITC(self, date: dt.datetime) -> str:
         epoch = date.strftime("%Y%j%H%M%S.%f")
         return epoch[:-3]
