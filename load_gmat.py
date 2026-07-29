@@ -1,9 +1,5 @@
-# GMAT Application Programmer's Interface Example
-#
-# Coded by D. Conway. Thinking Systems, Inc.
-#
-# This file is a template for files used run the GMAT API from a folder outside  
-# of the GMAT application folder.
+""" GMAT Application Programmer's Interface
+- Coded by D. Conway. Thinking Systems, Inc. """
 
 import sys
 from os import path
@@ -17,7 +13,7 @@ if path.exists(Startup):
 
 
    sys.path.insert(1, GmatBinPath)
-   
+
    import gmatpy as gmat
    gmat.Setup(Startup)
 

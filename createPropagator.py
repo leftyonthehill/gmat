@@ -1,82 +1,67 @@
-from load_gmat import *
+""" Support class that creates the propagators for the station keeping
+scenario. """
+
+from load_gmat import gmat
 
 class Propagator:
-    """
-    This class is a wrapper for a Propagator object in GMAT.
+    """ Wrapper for a Propagator object in GMAT.
     
-    This propagator wrapper is to support the propagation of the reference and truth satellites. Depending on the inputs,
-    this class will assign the corresponding propagator parameters. The main differences between the two modes are:
-        - Maximum step size
-        - Max step attemps
+    This wrapper supports the forwards and backwards propagation of
+    high-fidelity orbital dynamics.
 
-    Inputs during intiialization:
-        - propName: Name of the propagator to be created (does not need to include "reference" or "truth")
-
-    Variables:
-        - prop: GMAT Propagator object (object descibing what is being numerical integrated)
-        - integrator: GMAT RungeKutta89 object (object containing the numerical integration parameters)
+    Attributes
+    ----------
+    prop : gmat.Propagator
+        GMAT Propagator object (object descibing what is being
+        numerical integrated)
+    integrator : gmat.RungeKutta89
+        GMAT RungeKutta89 object (object containing the numerical
+        integration parameters)
     """
     
     def __init__(self, propName: str):
-        """Initialize the Propagator wrapper and create the underlying Propagator object"""
-        self.prop = gmat.Construct("Propagator", f"{propName}_Prop")
-        self.integrator = None
-  
-    def getPropagator(self):
-        """Returns the propagator
+        """ Initialize the Propagator wrapper.
         
-        Returns:
-            - GMAT Propagator object
+        Parameters
+        ----------
+        propName : str
+            A unique name to be recognized in GMAT for simulation
         """
-        return self.prop
-    
-    def getIntegrator(self):
-        """Return the numerical integrator
-        
-        Returns:
-            - GMAT RungeKutta89 object
-        """
-        return self.prop.GetPropagator()
 
-    def setIntegrator(self, propType: str  = ""):
-        """Creates numerical integrator
-        
-        Inputs:
-            - propType (str): The maneuverable satellite should request the "truth" parameters while all else can request 
-                              the "reference" or nothing specific parameters (default case if propType not provided at call)
-        """
+        self.prop_gmat = gmat.Construct("Propagator", f"{propName}_Prop")
+        self.integrator = None
+
+    def setIntegrator(self):
+        """ Creates numerical integrator. """
         
         # Create the numerical integrator and assign it to propagator
         self.integrator = gmat.Construct("RungeKutta89", "Gator")
-        self.prop.SetReference(self.integrator)
+        self.prop_gmat.SetReference(self.integrator)
         
         # Shared integratation parameters
-        self.prop.SetField("InitialStepSize", 5)
-        self.prop.SetField("MinStep", 1e-4)
-        self.prop.SetField("Accuracy", 1e-10)
+        self.prop_gmat.SetField("InitialStepSize", 5)
+        self.prop_gmat.SetField("MinStep", 1e-5)
+        self.prop_gmat.SetField("Accuracy", 1e-10)
 
-        self.prop.SetField("MaxStep", 60)
-        self.prop.SetField("MaxStepAttempts", 1e4)
+        self.prop_gmat.SetField("MaxStep", 120)
+        self.prop_gmat.SetField("MaxStepAttempts", 2.5e4)
     
-    def setFM(self, fm):
-        """Assign a ForceModel object to the propagator
+    def setFM(self, fm: gmat.ODEModel):
+        """ Assign a ForceModel object to the propagator.
         
-        Inputs:
-            - GMAT ForceModel object
+        Parameters
+        ----------
+        fm : gmat.ODEModel
         """
-        self.prop.SetReference(fm)
+
+        self.prop_gmat.SetReference(fm)
     
-    def setSat(self, sat):
-        """Assign the satellite to propagate to the propagator
+    def setSat(self, sat: gmat.Spacecraft):
+        """ Assign a satellite to the propagator.
         
-        Inputs:
-            - GMAT Spacecraft object
+        Parameters
+        ----------
+        sat : gmat.Spacecraft
         """
-        self.prop.AddPropObject(sat)
-        # self.prop.PrepareInternals()
-    
-    def prepareInternals(self):
-        """After any changes to the force model or updates to the satellite being propagated, prepare the propagator 
-        internals for future integratiom
-        """
-        self.prop.PrepareInternals()
+
+        self.prop_gmat.AddPropObject(sat)

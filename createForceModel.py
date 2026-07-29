@@ -1,121 +1,119 @@
+""" Support class that creates the dynamics and force model for the station
+keeping scenario. """
+
 from createSatellite import Satellite
-from load_gmat import *
+from load_gmat import gmat
 
 
 class ForceModel:
     """
-    This class is a wrapper for a ForceModel object in GMAT.
+    Wrapper for a ForceModel object in GMAT design to model the forces
+    experienced during a station keeping scenario.
 
-    This force model wrapper is to support the reference satellite object or the truth satellite. Depending on the inputs, this class will 
-    assign the corresponding forces and perturbations
-    - If a reference force model, only perturbations considered are a 2x0 Earth geopotential model
-    - If a truth force model, the following perturbations are considered:
-        - 4x4 Earth geopotential model
-        - Atmospheric drag
-        - 3rd body effects (Lunar and Solar)
-        - Solar radiation pressure
+    This wrapper supports two force modes:
+    - "Reference": Includes minimum perturbation load (4x4 Earth
+      geopotential model) for ideal reference trajectory.
+    - "Truth": High fidelity dynamics model to include atmospheric
+      drag, 3rd body effects (Sun/Moon), and solar radiation pressure.
 
-    Inputs during intialization:
-        - fmType (str): MUST BE EITHER "reference" or "truth" (non-case specific, determines the forces that need to be modeled)
-
-    Variables:
-        - fm: GMAT ForceModel Object (object containing all described forces)
-        - burn: GMAT FiniteBurn Object (object describing finite thrust along a corresponding RIC axis)
-        - burnforce: GMAT Force to be applied to a finite burn object (what gets added to the force model for propagation)
+    Attributes
+    ----------
+    fm : gmat.ODEModel 
+        GMAT object holding the list of forces that contribute to the
+        spacecraft's acceleration.
+    burn : {str: gmat.FiniteBurn}
+        dict of GMAT objects describing the configuration of the
+        thrusters and their axes.
+    burnforce : {str: gmat.FiniteThrust}
+        dict of GMAT forces to be applied to the gmat.PhysicalModel to
+        simulate continuous-thrust acceleration for each corresponding
+        thruster axis.
     """
 
     def __init__(self, fmType: str):
-        """Initialize the ForceModel wrapper.
+        """ Initialize the ForceModel wrapper.
         
-        Inputs:
-            - fmType (str): Type of ForceModel to produce (must be either "reference" or "truth")
-        
+        Parameters
+        ----------
+        fmType : str
+            ForceModel mode to produced.      
         """
+
         self.fm = gmat.Construct("ForceModel", f"{fmType}_Forces")
         self.burn = {}
         self.burnForce = {}
 
-    def getBurnForce(self, axis:str):
-        """Returns the GMAT BurnForce object
-        
-        Inputs:
-            - axis (str): Desired BurnForce axis
-        
-        Returns:
-            - GMAT BurnForce object
-        """
-        return self.burnForce[axis]
-
-    def getFM(self):
-        """Returns the force model
-        
-        Retuns:
-            - GMAT ForceModel object
-        """
-        return self.fm
-
     def setForcesToPropagate(self, propType: str):
-        """Assign the corresponding forces to the ForceModel
+        """ Assign the corresponding forces for a given force mode.
         
-        Inputs:
-            - propType (str): Defines which set for forces to model (must be either "reference" or "truth")
+        Parameters
+        ----------
+        propType : str
+            Defines which set for forces to model.
         
-        Raises:
-            - ValueError: If the provided propType is not one of the two allowed values
+        Raises
+        ------
+        ValueError
+            If 'propType' is not one of allowed values ("Reference" or
+            "Truth").
         """
         
-        # ForceModel type must be either "reference" or "truth" otherwise an error is rasied
         if propType.lower() != "reference" and propType.lower() != "truth":
-            raise ValueError(f"Incorrect propagation type was chosen (Provided: {propType}). The propagator type must only be 'reference' or 'truth'.")
+            raise ValueError(
+                "Incorrect propagation type was chosen (Provided: " 
+                + propType + "). The propagator type must only be "
+                + "'reference' or 'truth'.")
         
-        # Assigning the forces for the reference ForceModel
         if propType.lower() == "reference":
             self._setForces(
                 degree=4,
                 order=4
             )
-        # Assigning the forces for the truth ForceModel
         else:
             self._setForces(
-                degree=4,
                 order=4,
-                thirdBodyEffects=True, # If it is desired to remove any additional forces, simply delete the kwarg(s)
+                degree=4,
+                thirdBodyEffects=True,
                 atmDrag=True,
                 srp=True
             )
+       
+    def _setForces(self, order: int, degree: int, **kwargs):
+        """ Assign the desired forces to the ForceModel.
 
-    def _setForces(self, **kwargs):
-        """ **Internal function**
-        Based on the ForceModel type, assign the corresponding forces to the ForceModel
-
-        Inputs:
-            - **kwargs: 
-                Must have: degree (int), order (int)
-                Optional: thirdBodyEffects (boolean), atmDrag (boolean), srp(boolean)
+        Parameters
+        ----------
+        degree : float
+        order : float
+        thirdBodyEffects : bool, optional
+        atmDrag : bool, optional
+        srp : bool, optional
         """
         
-        # Earth's Geopotential model
+        # Assign Earth's Geopotential model
         self.fm.SetField("CentralBody", "Earth")
-        earthGrav = gmat.Construct("GravityField", f"{self.fm.GetName()}_Earth_Geopotential")
+        earthGrav = gmat.Construct("GravityField",
+                                   f"{self.fm.GetName()}_Earth_Geopotential")
         earthGrav.SetField("BodyName", "Earth")
-        earthGrav.SetField("Degree", kwargs["degree"])
-        earthGrav.SetField("Order", kwargs["order"]) # 4
+        earthGrav.SetField("Order", order) # 4
+        earthGrav.SetField("Degree", degree)
         earthGrav.SetField("PotentialFile", "JGM2.cof")
         earthGrav.SetField("StmLimit", 100)
         earthGrav.SetField("TideModel", "None")
         self.fm.AddForce(earthGrav)
         
-        # To know the popsition and velocity vectors of the Moon and Sun
-        solar = gmat.GetSolarSystem()
-        self.fm.SetSolarSystem(solar)
-
         # Adding third body effects
         if "thirdBodyEffects" in kwargs.keys() and kwargs["thirdBodyEffects"]:
-            moonGrav = gmat.Construct("PointMassForce", f"{self.fm.GetName()}_Lunar_Grav")  
+            solar = gmat.GetSolarSystem()
+            self.fm.SetSolarSystem(solar)
+            
+            moonGrav = gmat.Construct("PointMassForce",
+                                      f"{self.fm.GetName()}_Lunar_Grav")  
             moonGrav.SetField("BodyName", "Luna")
             self.fm.AddForce(moonGrav)
 
-            sunGrav = gmat.Construct("PointMassForce", f"{self.fm.GetName()}_Solar_Grav")
+            sunGrav = gmat.Construct("PointMassForce",
+                                     f"{self.fm.GetName()}_Solar_Grav")
             sunGrav.SetField("BodyName", "Sun")
             self.fm.AddForce(sunGrav)
 
@@ -126,9 +124,9 @@ class ForceModel:
             atmosphere = gmat.Construct("JacchiaRoberts")
             drag.SetReference(atmosphere)
 
-            drag.SetField("F107", 105.0)
-            drag.SetField("F107A", 120.0)
-            drag.SetField("MagneticIndex", 2.6)
+            drag.SetField("F107", 130.0)
+            drag.SetField("F107A", 131.0)
+            drag.SetField("MagneticIndex", 8)
 
             self.fm.AddForce(drag)
 
@@ -138,28 +136,35 @@ class ForceModel:
             self.fm.AddForce(srp)
 
     def createBurnForces(self, satObj:Satellite, ax:str):
-        """For a particular thruster axis on the given satObj, create a BurnForce object to be added to the Propagator later
+        """
+        For a given thruster axis, add its dynamics to the scenario's
+        physical model.
         
-        Inputs:
-            - satObj (Satellite): Satellite wrapper that contains thrusters that need to have their corresponding forces created
-            - ax (str): Thruster axis to create a BurnForce for
+        Parameters
+        ----------
+        satObj : Satellite
+            Contains the thrusters to be added to the physics model.
+        ax : str
+            Thruster axis to create a BurnForce for.
 
-        Raises:
-            - TypeError: A FiniteBurn and BurnForce objects were attempted to be created when they already exist
+        Raises
+        ------
+        RuntimeError
+            FiniteBurn and BurnForce objects were attempted to be
+            created a second time.
         """
 
-        # Quick check to see if burn has already been created
+        # Check to see if burn has already been created
         if ax in self.burn:
-            raise TypeError("Thrust profiles have already been produced")
-            
-        thr = satObj.thrusters[ax]
+            raise RuntimeError("Thrust profiles have already been produced")
 
         # Create the FiniteBurn for the thruster
+        thr = satObj.thrusters[ax]
         self.burn[ax] = gmat.Construct("FiniteBurn", f"{self.fm.GetName()}_{ax}_Burn")
         self.burn[ax].SetField("Thrusters", thr.GetName())
         self.burn[ax].SetRefObject(thr, gmat.THRUSTER, thr.GetName())
         self.burn[ax].SetSolarSystem(gmat.GetSolarSystem())
-        self.burn[ax].SetSpacecraftToManeuver(satObj.getSat())
+        self.burn[ax].SetSpacecraftToManeuver(satObj.getGMATSat())
         self.burn[ax].SetRefObject(satObj.sat, gmat.SPACECRAFT, satObj.sat.GetName())
 
         # Create the BurnForce for the FiniteBurn

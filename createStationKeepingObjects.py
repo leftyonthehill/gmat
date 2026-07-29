@@ -1,172 +1,206 @@
+""" Support class that combines the satellite, force model, and propagator
+objects to support the study of a station keeping scenario. """
+
 from createForceModel import ForceModel
 from createPropagator import Propagator
 from createSatellite import Satellite
-from load_gmat import *
+from load_gmat import gmat
 
 class StationKeepingObjects:
-    """Creates the necesasary GMAT objects to support the modeling of either a reference or a truth spacecraft
+    """ Creates GMAT objects for a station keeping scenario.
     
-    Based on the provided objectType, this class will create the supporting force model, propagator, and spacecraft to be defined as the 
-    "coast" key. In the case of a maneuverable spacecraft this class will also create force models along each thruster axis and a 
-    propagator for each force model .
-    
-    Variables:
-        - objType (str): What type of objects are being created
-        - coes (list): List of the keplerian/cartesian state vector assign to the spacecraft
-        - sat_wrap (Satellite): GMAT Spacecraft wrapper
-        - fm_wrap (dict): dict containing the GMAT ForceModel wrapper for the coasting period and any axes with thrusters
-        - prop_wrap (dict): dict containing the GMAT Propagator wrapper for the coasting period and any axes with thrusters
+    Rather than only storing the information for one state at a time
+    (either coasting or thrusting along one of the spacecraft's
+    thruster directions), the necessary ForceModel and Propagator
+    wrappers are stored under their respective "coast" or thruster
+    axis keys (such as "R-", "I+", "C+" for example).
+
+    Attributes
+    ----------
+    objType : str
+        What type of objects to be created.
+    state : list
+        List of the Keplerian/Cartesian state vector assigned to the
+        spacecraft.
+    sat_wrap : Satellite
+        GMAT Spacecraft wrapper.
+    fm_wrap : dict
+        Dict containing the GMAT ForceModel wrappers for the coasting
+        period and any axes with thrusters.
+    prop_wrap : dict
+        Dict containing the GMAT Propagator wrapper for the coasting
+        period and any axes with thrusters.
     """
 
     def __init__(self, objectType: str):
-        """Initialize the StationKeepingObjects for a given objectType
+        """ Create GMAT objects for the provided object type.
         
-        Inputs:
-            - objectType (str): Describes what objects need to made
+        By default, a new satellite object is set to non-maneuverable. 
+
+        Parameters
+        ----------
+        objectType : str
+            Describes what objects need to made.
             
-        Raises:
-            ValueError: Checks to see if the provided objectType is either "truth" or "reference"
+        Raises
+        ------
+        ValueError
+            Checks to see if the provided objectType is either "truth"
+            or "reference".
         """
 
-        if objectType.lower() != "truth" and objectType.lower() != "reference":
-            raise ValueError("Object typing can only be 'Truth' or 'Reference'.")
+        if all([objectType.lower() != "truth",
+                objectType.lower() != "reference"]):
+            raise ValueError(
+                "Object typing can only be 'Truth' or 'Reference'.")
 
         self.objType = objectType
-        self.coes = []
         self.thrustAxis = "coast"
 
         # Create object wrappers
-        self.sat_wrap    = Satellite(f"{objectType}_Sat")
-        self.fm_wrap     = {self.thrustAxis: ForceModel(objectType)}
-        self.prop_wrap   = {self.thrustAxis: Propagator(objectType)}
+        self.sat_wrap = Satellite(f"{objectType}_Sat")
+        self.sat_gmat = self.sat_wrap.sat
+        self.fm_wrap = {self.thrustAxis: ForceModel(objectType)}
+        self.prop_wrap = {self.thrustAxis: Propagator(objectType)}
 
-        # For the coasting period, assign the corresponding forces and satellite to the propagator
+        # For the coasting period, assign the corresponding forces and
+        # satellite to the propagator
         self.fm_wrap[self.thrustAxis].setForcesToPropagate(objectType)
-        self.prop_wrap[self.thrustAxis].setIntegrator(objectType)
-
-        self.prop_wrap[self.thrustAxis].setFM(self.fm_wrap[self.thrustAxis].getFM())
-        
-        self.prop_wrap[self.thrustAxis].setSat(self.sat_wrap.getSat())
-
-    def setSatCOEs(self, coes: list):
-        """Provided a 6-element list of classical orbit elements, assign the keplerian state vector to the spacecraft
-        
-        Inputs:
-            - coes (list):  [
-                            Semi-major axis, 
-                            Eccentricity, 
-                            Inclination, 
-                            Right Ascension of the Ascending Node, 
-                            Argument of Periapsis, 
-                            True Anomaly,
-                            State Vector Epoch ("dd mmm yyyy HH:MM:SS")
-                            ]
-        """
-        self.coes = coes
-        self.sat_wrap.setOrbitElements(coes)
+        self.prop_wrap[self.thrustAxis].setIntegrator()
+        self.prop_wrap[self.thrustAxis].setFM(
+            self.fm_wrap[self.thrustAxis].fm)
+        self.prop_wrap[self.thrustAxis].setSat(self.sat_gmat)
     
     def setManeuverable(self):
-        """Whether a satellite has custom thrusters or the default want to be used, this function calls the sat_wrap's 
-        setManeuverable() function to associate its thrusters with the bus, fuel tank, and power supply.
-        
-        Additionally, this function will create a ForceModel and a Propagator to be able to properly model the thruster's 
-        effects during simulation.
         """
+        If a satellite is determined to be maneuverable, this function
+        calls the 'sat_wrap' function, setManeuverable(), and creates
+        ForceModels and Propagators for each thruster attached to the
+        vehicle.
+        """
+
         self.sat_wrap.setManeuverable()
         
-        # For each thruster key in sat_wrap's thruster dict, create its own Propagator and ForceModel
+        # For each thruster key in sat_wrap's thruster dict, create its own
+        # Propagator and ForceModel.
         for ax in self.sat_wrap.thrusters.keys():
-            self.fm_wrap[ax]     = ForceModel(f"{self.objType}_{ax}")
+            self.fm_wrap[ax] = ForceModel(f"{self.objType}_{ax}")
             self.fm_wrap[ax].setForcesToPropagate(self.objType)
+            fm_gmat = self.fm_wrap[ax].fm
 
-            self.prop_wrap[ax]   = Propagator(f"{self.objType}_{ax}")
-            self.prop_wrap[ax].setIntegrator(self.objType)
-            self.prop_wrap[ax].setFM(self.fm_wrap[ax].getFM())
-            self.prop_wrap[ax].setSat(self.sat_wrap.getSat())
+            self.prop_wrap[ax] = Propagator(f"{self.objType}_{ax}")
+            self.prop_wrap[ax].setIntegrator()
+            self.prop_wrap[ax].setFM(fm_gmat)
+            self.prop_wrap[ax].setSat(self.sat_gmat)
     
     def setBurnForces(self):
-        """After initializing the GMAT scenario, call this function to assign the ForceModels to a GMAT BurnForce object"""
+        """
+        After initializing the GMAT scenario, call this function to
+        assign the ForceModels to a GMAT BurnForce object.
+        """
         for ax in self.sat_wrap.thrusters.keys():
             self.fm_wrap[ax].createBurnForces(self.sat_wrap, ax)
-            self.prop_wrap[ax].prepareInternals()
+            self.prop_wrap[ax].prop_gmat.PrepareInternals()
 
     def preparePropInternal(self):
-        """Shortcut to prepare the internals of all associated propagators, not just the current one"""
+        """
+        Prepare the internals of all associated propagators with this
+        Satellite.
+        """
         for prop in self.prop_wrap.values():
-            prop.prepareInternals()
+            prop.prop_gmat.PrepareInternals()
 
-    def satEnginesOn(self, axis:str):
-        """During the scenario when it is time to maneuver, this function changes which propagator is used to account for the 
-        corresponding firing thruster and updates the satellite reference in the new propagator.
+    def satEnginesOn(self, axis:str) -> gmat.RungeKutta89:
+        """ Turn the thrusters on of the given axis.
+
+        For the provided value of 'axis', update the corresponding
+        Propagator with the latest Satellite state and the thruster's
+        force.
         
-        Inputs:
-            - axis (str): The corresponding axis in which the thrusters will fire"""
+        Parameters
+        ----------
+        axis : str
+            The corresponding axis in which the thrusters fire.
+
+        Returns
+        -------
+        gmat.RungeKutta90
+            The gmat object representing the numerical integrator which
+            contains all the forces to be modeled.
+        """
         
-        self.thrustAxis = axis
+        
         # Collect the Propagator and ForceModel for the new axis
+        self.thrustAxis = axis
         prop = self.prop_wrap[self.thrustAxis]
         fm = self.fm_wrap[self.thrustAxis]
 
         # Update the latest internal values for the propagator
-        prop.prepareInternals()
+        prop.prop_gmat.PrepareInternals()
 
         # Collect the thruster we want to fire
         thr_name = self.sat_wrap.thrusters[self.thrustAxis].GetName()
-        thruster = self.sat_wrap.getSat().GetRefObject(gmat.THRUSTER, thr_name)
+        thruster = self.sat_gmat.GetRefObject(
+            gmat.THRUSTER, thr_name)
         
         # Turn on thruster and set Spacecraft to maneuverable
         thruster.SetField("IsFiring", True)
-        self.sat_wrap.getSat().IsManeuvering(True)
+        self.sat_wrap.getGMATSat().IsManeuvering(True)
 
         # Add the thruster's force to the Propagator
-        prop.getPropagator().AddForce(fm.getBurnForce(self.thrustAxis))
+        prop.prop_gmat.AddForce(fm.burnForce[self.thrustAxis])
 
         # Update the Propagator's satellite reference
-        prop.getPropagator().AddPropObject(self.sat_wrap.getSat())
+        prop.prop_gmat.AddPropObject(self.sat_gmat)
 
         # Update the latest internal values for the propagator
-        prop.prepareInternals()
+        prop.prop_gmat.PrepareInternals()
         
         # Collect new numerical integrator and ForceModel for modeling
-        gator = prop.getIntegrator()
+        gator = prop.prop_gmat.GetPropagator()
         return gator
 
-    def satEnginesOff(self, axis:str = "coast"):
-        """During the scenario when it is time to turn off the thrusters, this function turns off the corresponding thruster 
-        and returns the satellite object to a "coast" mode. """
-        
-        self.thrustAxis = axis
-        # Only at the beginning of the scenario should no axis be given. This sets the scene for the upcoming propagation
-        if self.thrustAxis == "coast":
-            gator = self.prop_wrap[self.thrustAxis].getIntegrator()
-            return gator
-        
-        # Otherwise should any axis be given, perform the following:
+    def satEnginesOff(self, axis:str) -> gmat.RungeKutta89:
+        """ Turn off any active thrusters on the Satellite.
 
+        Based on the provided axis, turn off the corresponding
+        thrusters.
+
+        Parameters
+        ----------
+        axis : str
+            The thruster axis we want to turn off.
+        
+        Returns
+        -------
+        gmat.RungeKutta90
+            The gmat object representing the numerical integrator which
+            contains all the forces to be modeled.
+        """
 
         # Collect the Propagator and ForceModel for coast period
+        self.thrustAxis = axis
         prop = self.prop_wrap["coast"]
 
+        if self.thrustAxis != "coast":
+            # Update the latest internal values for the propagator
+            prop.prop_gmat.PrepareInternals()
+            
+            # Collect the thruster we want to turn off
+            thr_name = self.sat_wrap.thrusters[self.thrustAxis].GetName()
+            thruster = self.sat_gmat.GetRefObject(gmat.THRUSTER, thr_name)
+
+            # Turn off the thruster and set the spacecraft to be no longer
+            # maneuverable.
+            thruster.SetField("IsFiring", False)
+            self.sat_gmat.IsManeuvering(False)
+
+            # Update the spacecraft reference in the propagator
+            prop.prop_gmat.AddPropObject(self.sat_gmat)
+
         # Update the latest internal values for the propagator
-        prop.prepareInternals()
-        
-        # Collect the thruster we want to turn off
-        thr_name = self.sat_wrap.thrusters[self.thrustAxis].GetName()
-        thruster = self.sat_wrap.getSat().GetRefObject(gmat.THRUSTER, thr_name)
-
-        # Turn off the thruster and set the spacecraft to be no longer maneuverable
-        thruster.SetField("IsFiring", False)
-        self.sat_wrap.getSat().IsManeuvering(False)
-
-        # Update the spacecraft reference in the propagator
-        prop.getPropagator().AddPropObject(self.sat_wrap.getSat())
-
-        # Update the latest internal values for the propagator
-        prop.prepareInternals()
+        prop.prop_gmat.PrepareInternals()
 
         # Collect the new numerical integrator and ForceModel for simulation
-        gator = prop.getIntegrator()
+        gator = prop.prop_gmat.GetPropagator()
         return gator
-    
-    def getEngineAxis(self):
-        return self.thrustAxis
