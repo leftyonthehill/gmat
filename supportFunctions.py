@@ -2,6 +2,10 @@ import datetime as dt
 import numpy as np
 
 from load_gmat import gmat
+from simulationParameters import DT_COAST
+
+def round_to_time_step(t):
+    return t - t % DT_COAST
 
 def xyz2ric(
         refState: list[float], 
@@ -124,13 +128,13 @@ def get_r_axis_maneuver_print(
     ):
     terminal_output = "t = "
     if (burn_start) >= 1000:
-        terminal_output += f"{burn_start:4.0f} days | "
+        terminal_output += f"{burn_start:4.2f} days | "
     elif burn_start >= 100:
-        terminal_output += f"{burn_start:3.1f} days | "
+        terminal_output += f"{burn_start:3.2f} days  | "
     elif burn_start >= 10:
-        terminal_output += f"{burn_start:2.2f} days | "
+        terminal_output += f"{burn_start:2.2f} days   | "
     else:
-        terminal_output += f"{burn_start:1.3f} days | "
+        terminal_output += f"{burn_start:1.2f} days    | "
     terminal_output += f"{thruster_axis} burn duration (min) = "
 
     if (burn_duration) >= 10:
@@ -138,8 +142,79 @@ def get_r_axis_maneuver_print(
     else:
         terminal_output += f"{(burn_duration):1.3f} | "
 
-    terminal_output += f"R-axis Amplitude = {r_amp:0.6f} km         | "
-    terminal_output += f"deltaV = {delta_v:1.3f} m/s | " 
+    terminal_output += f"R-axis Amplitude = {r_amp:0.3f} km        | "
+    terminal_output += f"deltaV = {delta_v:1.3f} m/s | "
     terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
     print(terminal_output)
 
+def get_i_axis_print(
+        burn_start,
+        burn_duration,
+        del_a_energy_maneuver,
+        del_a_target,
+        delta_v,
+        total_delta_v,
+):
+    terminal_output = "t = "
+    if (burn_start) >= 1000:
+        terminal_output += f"{burn_start:4.2f} days | "
+    elif burn_start >= 100:
+        terminal_output += f"{burn_start:3.2f} days  | "
+    elif burn_start >= 10:
+        terminal_output += f"{burn_start:2.2f} days   | "
+    else:
+        terminal_output += f"{burn_start:1.2f} days    | "
+
+    terminal_output += "I+ burn duration (min) = "
+
+    if (burn_duration) >= 10:
+        terminal_output += f"{(burn_duration):2.2f} | "
+    else:
+        terminal_output += f"{(burn_duration):1.3f} | "
+
+    terminal_output += f"Recovered del_a = {(del_a_energy_maneuver):0.3f} / {(del_a_target):0.3f} km | "
+
+    terminal_output += f"deltaV = {delta_v:1.3f} m/s | "
+    terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
+    print(terminal_output)
+
+def get_c_axis_print(
+        burn_start,
+        burn_duration,
+        thruster_axis,
+        c_amp,
+        delta_v,
+        total_delta_v
+):
+    terminal_output = "t = "
+    if (burn_start) >= 1000:
+        terminal_output += f"{burn_start:4.2f} days | "
+    elif burn_start >= 100:
+        terminal_output += f"{burn_start:3.2f} days  | "
+    elif burn_start >= 10:
+        terminal_output += f"{burn_start:2.2f} days   | "
+    else:
+        terminal_output += f"{burn_start:1.2f} days    | "
+
+    terminal_output += f"{thruster_axis} burn duration (min) = "
+
+    if (burn_duration) >= 10:
+        terminal_output += f"{(burn_duration):2.2f} | "
+    else:
+        terminal_output += f"{(burn_duration):1.3f} | "
+
+    terminal_output += f"C-axis Amplitude = {c_amp:0.3f} km       | "
+
+    terminal_output += f"deltaV = {delta_v:1.3f} m/s | "
+    terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
+    print(terminal_output)
+
+def i_axis_maneuver_attempt_message(
+        maneuver_attempts : int,
+        min_i_pos : float,
+        burn_duration : float
+):
+    maneuver_count_str = f"Maneuver #{maneuver_attempts}:"
+    min_i_position_str = f"I-position = {min_i_pos:1.4}km | "
+    burn_time_str = f"Burn time = {burn_duration} sec"
+    print(maneuver_count_str + min_i_position_str + burn_time_str)

@@ -31,6 +31,9 @@ class Satellite:
     thrusters : {str: gmat_py.ElectricThruster}
         Dict containing any and all of the thrusters assigned to this 
         spacecraft associated with the corresponding thruster axis.
+    accelerations : {str: flaot}
+        Dict containing the acceleration of the spacecraft while
+        thrusting with the corresponding thruster axis.
     """
     
     def __init__(self, sat_name: str):
@@ -44,6 +47,7 @@ class Satellite:
 
         self.epoch = ""
         self.thrusters = {}
+        self.accelerations = {}
 
         # Spacecraft creation and assigning its physical parameters
         #
@@ -58,8 +62,8 @@ class Satellite:
         self.sat.SetField("DisplayStateType", "Keplerian")
         self.sat.SetField("SRPArea", 6)
         self.sat.SetField("Cr", 1.8)
-        self.sat.SetField("DragArea", 10)
-        self.sat.SetField("Cd", 2.2)
+        self.sat.SetField("DragArea", 5)
+        self.sat.SetField("Cd", 1.5)
         self.sat.SetField("DryMass", 900)
         self.mass = 900
 
@@ -268,7 +272,7 @@ class Satellite:
         # Assign the tank to the spacecraft
         self.sat.SetField("Tanks", etank.GetName())
     
-    def setEThruster(self, axis:str = "I+", 
+    def setEThruster(self, axis:str = "I+",
                      engineSpecs: tuple = (0.2, 3000)):
         """ Creates a thruster on the spacecraft.
         
@@ -305,6 +309,7 @@ class Satellite:
 
         # Add to the wrapper's dict of thrusters
         self.thrusters[axis] = ethruster
+        self.accelerations[axis] = thrust / self.mass
 
         # Based on the thruster axis, assign its thrust direction
         self._setEThrusterDirection(axis)

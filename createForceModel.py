@@ -95,7 +95,7 @@ class ForceModel:
         earthGrav = gmat.Construct("GravityField",
                                    f"{self.fm.GetName()}_Earth_Geopotential")
         earthGrav.SetField("BodyName", "Earth")
-        earthGrav.SetField("Order", order) # 4
+        earthGrav.SetField("Order", order)
         earthGrav.SetField("Degree", degree)
         earthGrav.SetField("PotentialFile", "JGM2.cof")
         earthGrav.SetField("StmLimit", 100)
@@ -124,8 +124,8 @@ class ForceModel:
             atmosphere = gmat.Construct("JacchiaRoberts")
             drag.SetReference(atmosphere)
 
-            drag.SetField("F107", 130.0)
-            drag.SetField("F107A", 131.0)
+            drag.SetField("F107", 120.0)
+            drag.SetField("F107A", 120.0)
             drag.SetField("MagneticIndex", 8)
 
             self.fm.AddForce(drag)

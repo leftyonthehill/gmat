@@ -1,20 +1,48 @@
 """ Support script to plot and visualize station keeping data. """
 
+import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 
+from createSatellite import Satellite
+
 from simulationParameters import (
-    plot_3D_RIC,
-    plot_rRIC_v_Time,
-    plot_rRIC_Amp_v_Time,
-    plot_vRIC_v_Time,
-    plot_vRIC_Amp_v_Time,
-    plot_COE_diffs,
-    plot_True_Lat_diff,
-    plot_Show_Firings)
+    PLOT_3D_RIC,
+    PLOT_RIC_POS,
+    PLOT_RIC_POS_AMP,
+    PLOT_RIC_VELO,
+    PLOT_RIC_VELO_AMP,
+    PLOT_COE_DIFFS,
+    PLOT_PHASE_DIFF,
+    PLOT_MANEUVER_MARKERS,
+)
 
+from supportFunctions import *
 
-def outputPlots(
+def output_terminal(
+        elapsed_time : float,
+        sat_t0 : float,
+        ref_sat : Satellite,
+        truth_sat : Satellite,
+):
+    print(f"Current time: T+{(elapsed_time / 86400)} days")
+
+    terminal_time = sat_t0 + datetime.timedelta(seconds=elapsed_time)
+    print(getEpoch_As_ModITC(terminal_time))
+    print("\nReference COEs:")
+    output_state = ""
+    for i in ref_sat.getKeplerianState():
+        output_state += " " * 4 + str(i) + ",\n"
+    print(output_state)
+    print(" " * 4 + f'"{getEpoch_As_Str(terminal_time)}"')
+    print("\nTruth COEs:")
+    output_state = ""
+    for i in truth_sat.getKeplerianState():
+        output_state += " " * 4 + str(i) + ",\n"
+    print(output_state)
+    print(" " * 4 + f'"{getEpoch_As_Str(terminal_time)}"')
+
+def output_plots(
         timings: list[list | float],
         coes: list[dict],
         ric: list[dict]):
@@ -22,14 +50,14 @@ def outputPlots(
 
     Measuring the differences as (Truth - Reference), there are 9
     graphs available to plot. Each plot can include a point for when
-    each thruster fired, if desired (plot_Show_Firings).
-    - 3D trajectory in RIC frame (plot_3D_RIC)
+    each thruster fired, if desired (PLOT_MANEUVER_MARKERS).
+    - 3D trajectory in RIC frame (PLOT_3D_RIC)
     - Position in each RIC axis over time (plot_RIC_v_Time)
     - Amplitude of the oscillation in RIC position over time
-      (plot_rRIC_Amp_v_Time)
-    - Velocity in each RIC axis over time (plot_vRIC_v_Time)
+      (PLOT_RIC_POS_AMP)
+    - Velocity in each RIC axis over time (PLOT_RIC_VELO)
     - Amplitude of the oscillation in RIC frame velocity over time 
-      (plot_vRIC_Amp_v_Time)
+      (PLOT_RIC_VELO_AMP)
     - Differences in the instantaneous and averaged values for each
       orbital element over time:
         - Semi-major Axis (del_a)
@@ -76,7 +104,7 @@ def outputPlots(
     """
 
     # Separting out the components of the inputs
-    burnEnds, burnStarts, t, revs_to_avg, dtCoast = timings
+    burnEnds, burnStarts, t, revs_to_avg, dtCoast, STEPS_PER_AVG_ORBIT = timings
     diffCOEs_dict, diffCOEs_avg = coes
     RIC_History, RIC_Amp_History = ric
 
@@ -89,31 +117,40 @@ def outputPlots(
             k / 86400: v for k, v in sorted(diffCOEs_avg[i].items())}
 
     for i in RIC_History.keys():
+        if i in {"R_dot", "I_dot", "C_dot"}:
+            factor = 1000
+        else:
+            factor = 1
+
         RIC_History[i] = {
-            k / 86400: v for k, v in sorted(RIC_History[i].items())}
+            k / 86400: v * factor
+            for k, v in sorted(RIC_History[i].items())
+        }
         RIC_Amp_History[i] = {
-            k / 86400: v for k, v in sorted(RIC_Amp_History[i].items())}
+            k / 86400: v * factor
+            for k, v in sorted(RIC_Amp_History[i].items())
+        }
 
     # ------------------------- RIC Frame Plots -------------------------------
 
     # If enabled plot the 3D visualization of the trajectory.
-    if plot_3D_RIC:
+    if PLOT_3D_RIC:
         ax_ric_traj = plt.figure().add_subplot(projection='3d')
 
         if len(burnStarts) > 0:
             # If there any maneuvers in the simulation, separate the maneuver
             # windows by the associated with each maneuver type.
             burnEnds.append(0)
-            for i in range(len(burnStarts)):
+            for i, burn_time in enumerate(burnStarts):
                 # If the stored time 'k' falls between maneuvers in burnEnds
                 # and the start of one in burnStarts, plot the segment in blue
                 # to visualize the coasting period.
                 R = {k:v for k, v in RIC_History["R"].items()
-                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burnStarts[i][0] / 86400}
+                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burn_time[0] / 86400}
                 I = {k:v for k, v in RIC_History["I"].items()
-                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burnStarts[i][0] / 86400}
+                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burn_time[0] / 86400}
                 C = {k:v for k, v in RIC_History["C"].items()
-                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burnStarts[i][0] / 86400}
+                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burn_time[0] / 86400}
 
                 ax_ric_traj.plot(
                     [*R.values()],
@@ -124,17 +161,17 @@ def outputPlots(
                 # If the stored time 'k' falls during a maneuver, plot the
                 # segment in the color corresponding to that maneuver type.
                 R = {k:v for k, v in RIC_History["R"].items()
-                     if burnStarts[i][0] / 86400 <= k <= burnEnds[i] / 86400}
+                     if burn_time[0] / 86400 <= k <= burnEnds[i] / 86400}
                 I = {k:v for k, v in RIC_History["I"].items()
-                     if burnStarts[i][0] / 86400 <= k <= burnEnds[i] / 86400}
+                     if burn_time[0] / 86400 <= k <= burnEnds[i] / 86400}
                 C = {k:v for k, v in RIC_History["C"].items()
-                     if burnStarts[i][0] / 86400 <= k <= burnEnds[i] / 86400}
+                     if burn_time[0] / 86400 <= k <= burnEnds[i] / 86400}
                 ax_ric_traj.plot(
                     [*R.values()],
                     [*I.values()],
                     [*C.values()],
-                    burnStarts[i][1])
-                
+                    burn_time[1])
+
                 # if burnStarts and burnEnds are of the same length, then the
                 # scenario ended during a maneuver. This sets the final time
                 # step of the maneuver to be the end time of the last maneuver.
@@ -159,9 +196,9 @@ def outputPlots(
         else:
             # If there are no maneuvers in the duration of the scenario, simply
             # plot the trajectory.
-            R = {k:v for k, v in RIC_History["R"].items()}
-            I = {k:v for k, v in RIC_History["I"].items()}
-            C = {k:v for k, v in RIC_History["C"].items()}
+            R = RIC_History["R"].items()
+            I = RIC_History["I"].items()
+            C = RIC_History["C"].items()
             ax_ric_traj.plot([*R.values()], [*I.values()], [*C.values()], 'b')
 
         # Plot title and labels
@@ -181,23 +218,23 @@ def outputPlots(
         # ignition time could occur outside of the reported time steps. If this
         # is the case, then grab the next available time after the maneuver has
         # started.
-        burnTime = (i[0] + i[0] % dtCoast) / 86400
+        burn_time = round_to_time_step(i[0]) / 86400
 
         # Maneuver codes:
         # "m" = R-axis burns
         # "r" = I-axis burns
         # "c" = C-axis burns
         if i[1] == "m":
-            r_burns.append(burnTime)
+            r_burns.append(burn_time)
         elif i[1] == "r":
-            i_burns.append(burnTime)
+            i_burns.append(burn_time)
         elif i[1] == "c":
-            c_burns.append(burnTime)
+            c_burns.append(burn_time)
 
-    def plotManeuverMarkers(
+    def plot_maneuver_markers(
             ax: plt.Axes,
-            dataToPlotOn: list,
-            dataToScreen: dict) -> None:
+            data_to_plot_on: list,
+            data_to_screen: dict) -> None:
         """
         Highlight where each maneuver begins on each of the enabled
         plots.
@@ -218,52 +255,52 @@ def outputPlots(
         if len(r_burns) > 0:
             ax.plot(
                 r_burns,
-                [float(dataToScreen[dataToPlotOn[0]][i]) for i in r_burns],
+                [float(data_to_screen[data_to_plot_on[0]][i]) for i in r_burns],
                 "*",
                 c="m",
                 label="R-axis maneuver")
 
         # If there are at least 1 I-axis maneuver, place a marker when the
-        # maneuver began.    
-        if plot_Show_Firings and len(i_burns) > 0:
+        # maneuver began.
+        if PLOT_MANEUVER_MARKERS and len(i_burns) > 0:
             ax.plot(
                 i_burns,
-                [float(dataToScreen[dataToPlotOn[1]][i]) for i in i_burns],
+                [float(data_to_screen[data_to_plot_on[1]][i]) for i in i_burns],
                 "*",
                 c="r",
                 label="I-axis maneuver")
 
         # If there are at least 1 R-axis maneuver, place a marker when the
         # maneuver began.
-        if plot_Show_Firings and len(c_burns) > 0:
+        if PLOT_MANEUVER_MARKERS and len(c_burns) > 0:
             ax.plot(
                 c_burns,
-                [float(dataToScreen[dataToPlotOn[2]][i]) for i in c_burns],
+                [float(data_to_screen[data_to_plot_on[2]][i]) for i in c_burns],
                 "*",
                 c="c",
                 label="C-axis maneuver")
 
     # If enabled, plot the RIC positions over time.
-    if plot_rRIC_v_Time:
+    if PLOT_RIC_POS:
         ax = plt.figure().add_subplot()
 
         # Plot the position in each axis as its own line.
         ax.plot(
-            [i for i in RIC_History["R"].keys()],
-            [i for i in RIC_History["R"].values()],
+            RIC_History["R"].keys(),
+            RIC_History["R"].values(),
             label="R")
         ax.plot(
-            [i for i in RIC_History["I"].keys()],
-            [i for i in RIC_History["I"].values()],
+            RIC_History["I"].keys(),
+            RIC_History["I"].values(),
             label="I")
         ax.plot(
-            [i for i in RIC_History["C"].keys()],
-            [i for i in RIC_History["C"].values()],
+            RIC_History["C"].keys(),
+            RIC_History["C"].values(),
             label="C")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["R", "I", "C"],
                 RIC_History)
@@ -275,26 +312,26 @@ def outputPlots(
         ax.legend()
 
     # If enabled, plot the RIC position oscillation amplitudes over time
-    if plot_rRIC_Amp_v_Time:
+    if PLOT_RIC_POS_AMP:
         ax = plt.figure().add_subplot()
 
         # Plot the amplitudes in each axis as its own line.
         ax.plot(
-            [i for i in RIC_Amp_History["R"].keys()],
-            [i for i in RIC_Amp_History["R"].values()],
+            RIC_Amp_History["R"].keys(),
+            RIC_Amp_History["R"].values(),
             label="R")
         ax.plot(
-            [i for i in RIC_Amp_History["I"].keys()],
-            [i for i in RIC_Amp_History["I"].values()],
+            RIC_Amp_History["I"].keys(),
+            RIC_Amp_History["I"].values(),
             label="I")
         ax.plot(
-            [i for i in RIC_Amp_History["C"].keys()],
-            [i for i in RIC_Amp_History["C"].values()],
+            RIC_Amp_History["C"].keys(),
+            RIC_Amp_History["C"].values(),
             label="C")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["R", "I", "C"],
                 RIC_Amp_History)
@@ -306,26 +343,26 @@ def outputPlots(
         ax.legend()
 
     # If enabled, plot the RIC frame velocity over time
-    if plot_vRIC_v_Time:
+    if PLOT_RIC_VELO:
         ax = plt.figure().add_subplot()
 
         # Plot the velocity in each axis as its own line.
         ax.plot(
-            [i for i in RIC_History["R_dot"].keys()],
-            [i * 1000 for i in RIC_History["R_dot"].values()],
+            RIC_History["R_dot"].keys(),
+            RIC_History["R_dot"].values(),
             label="R_dot")
         ax.plot(
-            [i for i in RIC_History["I_dot"].keys()],
-            [i * 1000 for i in RIC_History["I_dot"].values()],
+            RIC_History["I_dot"].keys(),
+            RIC_History["I_dot"].values(),
             label="I_dot")
         ax.plot(
-            [i for i in RIC_History["C_dot"].keys()],
-            [i * 1000 for i in RIC_History["C_dot"].values()],
+            RIC_History["C_dot"].keys(),
+            RIC_History["C_dot"].values(),
             label="C_dot")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["R_dot", "I_dot", "C_dot"],
                 RIC_History)
@@ -337,30 +374,30 @@ def outputPlots(
         ax.legend()
 
     # If enabled, plot the RIC frame velocity oscillation amplitudes over time
-    if plot_vRIC_Amp_v_Time:
+    if PLOT_RIC_VELO_AMP:
         ax = plt.figure().add_subplot()
 
         # Plot the amplitudes in each axis as its own line.
         ax.plot(
-            [i for i in RIC_Amp_History["R_dot"].keys()],
-            [i * 1000 for i in RIC_Amp_History["R_dot"].values()],
+            RIC_Amp_History["R_dot"].keys(),
+            RIC_Amp_History["R_dot"].values(),
             label="R_dot")
         ax.plot(
-            [i for i in RIC_Amp_History["I_dot"].keys()],
-            [i * 1000 for i in RIC_Amp_History["I_dot"].values()],
+            RIC_Amp_History["I_dot"].keys(),
+            RIC_Amp_History["I_dot"].values(),
             label="I_dot")
         ax.plot(
-            [i for i in RIC_Amp_History["C_dot"].keys()],
-            [i * 1000 for i in RIC_Amp_History["C_dot"].values()],
+            RIC_Amp_History["C_dot"].keys(),
+            RIC_Amp_History["C_dot"].values(),
             label="C_dot")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["R_dot", "I_dot", "C_dot"],
                 RIC_Amp_History)
-        
+
         # Plot title, labels, and legend
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (m/sec)')
@@ -369,10 +406,10 @@ def outputPlots(
         ax.legend()
 
     # -------------------- Differences in COE Plots ---------------------------
-    
+    #
     # If enabled, plot the difference in semi-major axis between the truth and
     # reference states compared to the average value over 'revs_to_avg' orbits.
-    if plot_COE_diffs["del_a"]:
+    if PLOT_COE_DIFFS["del_a"]:
         ax = plt.figure().add_subplot()
         ax.plot(
             [*diffCOEs_dict["del_a"].keys()],
@@ -385,8 +422,8 @@ def outputPlots(
             label=f"{revs_to_avg} orbit average")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["del_a", "del_a", "del_a"],
                 diffCOEs_avg)
@@ -396,10 +433,10 @@ def outputPlots(
         ax.set_ylabel('Offset (km)')
         ax.set_title("Truth-Reference Differences in SMA vs Time")
         ax.legend()
-    
+
     # If enabled, plot the difference in eccentricity between the truth and
     # reference states compared to the average value over 'revs_to_avg' orbits.
-    if plot_COE_diffs["del_e"]:
+    if PLOT_COE_DIFFS["del_e"]:
         ax = plt.figure().add_subplot()
         ax.plot(
             [i for i in diffCOEs_dict["del_e"].keys()],
@@ -412,8 +449,8 @@ def outputPlots(
             label=f"{revs_to_avg} orbit average")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["del_e", "del_e", "del_e"],
                 diffCOEs_avg)
@@ -426,7 +463,7 @@ def outputPlots(
 
     # If enabled, plot the difference in inclination between the truth and
     # reference states compared to the average value over 'revs_to_avg' orbits.
-    if plot_COE_diffs["del_i"]:
+    if PLOT_COE_DIFFS["del_i"]:
         ax = plt.figure().add_subplot()
         ax.plot(
             [i for i in diffCOEs_dict["del_i"].keys()],
@@ -439,8 +476,8 @@ def outputPlots(
             label=f"{revs_to_avg} orbit average")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["del_i", "del_i", "del_i"],
                 diffCOEs_avg)
@@ -454,7 +491,7 @@ def outputPlots(
     # If enabled, plot the difference in right ascension of the ascending node
     # between the truth and reference states compared to the average value over
     # 'revs_to_avg' orbits.
-    if plot_COE_diffs["del_raan"]:
+    if PLOT_COE_DIFFS["del_raan"]:
         ax = plt.figure().add_subplot()
         ax.plot(
             [i for i in diffCOEs_dict["del_raan"].keys()],
@@ -467,8 +504,8 @@ def outputPlots(
             label=f"{revs_to_avg} orbit average")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["del_raan", "del_raan", "del_raan"],
                 diffCOEs_avg)
@@ -482,7 +519,7 @@ def outputPlots(
     # If enabled, plot the difference in argument of periapsis between the
     # truth and reference states compared to the average value over
     # 'revs_to_avg' orbits.
-    if plot_COE_diffs["del_aop"]:
+    if PLOT_COE_DIFFS["del_aop"]:
         ax = plt.figure().add_subplot()
         ax.plot(
             [i for i in diffCOEs_dict["del_aop"].keys()],
@@ -495,8 +532,8 @@ def outputPlots(
             label=f"{revs_to_avg} orbit average")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["del_aop", "del_aop", "del_aop"],
                 diffCOEs_avg)
@@ -510,7 +547,7 @@ def outputPlots(
 
     # If enabled, plot the difference in true anomaly between the truth and
     # reference states compared to the average value over 'revs_to_avg' orbits.
-    if plot_COE_diffs["del_f"]:
+    if PLOT_COE_DIFFS["del_f"]:
         ax = plt.figure().add_subplot()
         ax.plot(
             [i for i in diffCOEs_dict["del_f"].keys()],
@@ -523,8 +560,8 @@ def outputPlots(
             label=f"{revs_to_avg} orbit average")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
-            plotManeuverMarkers(
+        if PLOT_MANEUVER_MARKERS:
+            plot_maneuver_markers(
                 ax,
                 ["del_f", "del_f", "del_f"],
                 diffCOEs_avg)
@@ -537,25 +574,33 @@ def outputPlots(
 
     # If enabled, plot the difference in true latitude between the truth and
     # reference states compared to the average value over 'revs_to_avg' orbits.
-    if plot_True_Lat_diff:
+    if PLOT_PHASE_DIFF:
         del_f = np.array([*diffCOEs_dict["del_f"].values()])
         del_f_avg = np.array([*diffCOEs_avg["del_f"].values()])
         del_aop = np.array([*diffCOEs_dict["del_aop"].values()])
         del_aop_avg = np.array([*diffCOEs_avg["del_aop"].values()])
 
-        del_theta = (del_f + del_aop) % 360
-        del_theta_avg = (del_f_avg + del_aop_avg) % 360
+        del_theta = del_f + del_aop
+        del_theta_avg = del_f_avg + del_aop_avg
+        for i, tau in enumerate(del_theta):
+            if -180 > tau > 180:
+                del_theta[i] = (360 - tau if tau > 180 else 360 + tau)
+                tau_to_avg = (
+                                    del_theta[i - STEPS_PER_AVG_ORBIT:i]
+                                    if i >= STEPS_PER_AVG_ORBIT else del_theta[:i]
+                                )
+                del_theta_avg[i] = np.mean(tau_to_avg)
 
         ax = plt.figure().add_subplot()
         ax.plot(t, del_theta, label="del_theta")
         ax.plot(t, del_theta_avg, "--", label=f"{revs_to_avg} orbit average")
 
         # If enabled, plot the maneuver markers
-        if plot_Show_Firings:
+        if PLOT_MANEUVER_MARKERS:
             del_theta_avg_dict = {t[i]: del_theta_avg[i] 
                                   for i in range(len(del_theta_avg))}
             diffCOEs_avg["del_theta"] = del_theta_avg_dict
-            plotManeuverMarkers(
+            plot_maneuver_markers(
                 ax,
                 ["del_theta", "del_theta", "del_theta"],
                 diffCOEs_avg)
@@ -568,10 +613,10 @@ def outputPlots(
 
     # If any plots are enabled, show the plots.
     if any([
-        plot_3D_RIC,
-        plot_rRIC_v_Time,
-        plot_vRIC_v_Time,
-        plot_COE_diffs.items()
+        PLOT_3D_RIC,
+        PLOT_RIC_POS,
+        PLOT_RIC_VELO,
+        PLOT_COE_DIFFS.items()
         ]):
-        
+
         plt.show()
