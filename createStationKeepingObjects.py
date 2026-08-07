@@ -185,7 +185,7 @@ class StationKeepingObjects:
         if self.thrustAxis != "coast":
             # Update the latest internal values for the propagator
             prop.prop_gmat.PrepareInternals()
-            
+
             # Collect the thruster we want to turn off
             thr_name = self.sat_wrap.thrusters[self.thrustAxis].GetName()
             thruster = self.sat_gmat.GetRefObject(gmat.THRUSTER, thr_name)

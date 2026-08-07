@@ -9,7 +9,7 @@ import datetime as dt
 
 # ----------------- Scenario Control ------------------------------------------
 # Duration of the scenario in days
-MAX_DAYS = 100
+MAX_DAYS = 30
 
 # Simulation step size while coasting
 DT_COAST = 120.0
@@ -19,7 +19,7 @@ DT_THRUST = 5.0
 
 # Number of orbits used to average out the oscillations of the perturbed
 # orbital solutions
-REVOLUTIONS_TO_AVERAGE = 3.0
+REVOLUTIONS_TO_AVG = 3.0
 
 # ----------------- Satellite Characterisitcs ---------------------------------
 STATE_VECT_SOURCE = "new" # "existing"
@@ -58,7 +58,6 @@ TRUTH_ORBIT_STATE = [
 MIN_DUTY_TIME = 900
 MAX_DUTY_TIME = 3600
 
-# 
 MANEUVER_ARC_HALF_ANGLE = 20
 
 # ----------------- Station Keeping Parameters --------------------------------
@@ -95,4 +94,4 @@ PLOT_MANEUVER_MARKERS = True
 PRINT_MANEUVER_MESSAGE = True
 
 # ----------------- Debugging -------------------------------------------------
-PRINT_I_AXIS_MANEUVER_ATTEMPS = False
+PRINT_I_AXIS_MANEUVER_ATTEMPTS = False
