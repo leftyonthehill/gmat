@@ -10,7 +10,7 @@ def round_to_time_step(t):
 def xyz2ric(
         refState: list[float], 
         offsetState: list[float]
-        ) -> (list[float] | np.ndarray[np.float64]):
+        ) -> tuple[list[float], np.ndarray]:
     """
     Given the reference state, 'refState', compute the offset vector in
     the RIC frame.
@@ -20,7 +20,7 @@ def xyz2ric(
     - list[float]
         Contains the rotated, RIC frame state vector of the original
         'offsetState'.
-    - np.NDArray[np.float64]
+    - np.ndarray
         Contains the 3x3 rotation matrix to rotate the ECI frame to RIC.
     """
 
@@ -49,7 +49,7 @@ def xyz2ric(
 
     # Combine the position and velocity vectors
     rv_RIC = list(r_RIC) + list(v_RIC)
-    return rv_RIC, rotMatrix
+    return (rv_RIC, rotMatrix)
 
 def getEpoch_As_Datetime(dateStr: str) -> dt.datetime:
     """ Converts a given date string into a datetime object.
