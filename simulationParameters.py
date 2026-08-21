@@ -9,7 +9,7 @@ import datetime as dt
 
 # ----------------- Scenario Control ------------------------------------------
 # Duration of the scenario in days
-MAX_DAYS = 25
+MAX_DAYS = 1850
 
 # Simulation step size while coasting
 DT_COAST = 120.0
@@ -68,7 +68,7 @@ C_BOUNDS = 15
 
 DEADBAND_TRIGGER_RATIO = 0.85
 # ----------------- Plotting --------------------------------------------------
-PLOT_3D_RIC = True
+PLOT_3D_RIC = False
 
 PLOT_RIC_POS = True
 
@@ -80,11 +80,11 @@ PLOT_RIC_VELO_AMP = False
 
 PLOT_COE_DIFFS = {
     "del_a": True,
-    "del_e": False,
+    "del_e": True,
     "del_i": True  ,
     "del_raan": True,
-    "del_aop": False,
-    "del_f": False
+    "del_aop": True,
+    "del_f": True
 }
 
 PLOT_PHASE_DIFF = False
@@ -94,4 +94,4 @@ PLOT_MANEUVER_MARKERS = True
 PRINT_MANEUVER_MESSAGE = True
 
 # ----------------- Debugging -------------------------------------------------
-PRINT_I_AXIS_MANEUVER_ATTEMPTS = True
+PRINT_I_AXIS_MANEUVER_ATTEMPTS = False

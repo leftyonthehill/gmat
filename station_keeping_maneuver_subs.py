@@ -65,6 +65,7 @@ from collections import deque
 # 3rd party libraries
 import numpy as np
 from createStationKeepingObjects import StationKeepingObjects
+from leo_station_keeping_controller import StationKeepingController
 from load_gmat import gmat
 from data_outputs import output_plots
 from simulationParameters import (
@@ -108,18 +109,6 @@ t = [DT_COAST * i
 
 # Time keeping
 elapsed_time = 0.0
-burn_duration = 0.0
-coast_duration = 0.0
-steps_waiting_for_maneuver = 0.0
-
-# Maneuver bookkeeping
-maneuver_start_times = []
-estimated_steps = 0.0
-maneuver_attempt_log = []
-maneuver_end_times = []
-maneuver_attempts = 0.0
-total_delta_v = 0.0
-recent_maneuver = False
 
 # Stores the RIC history of the truth spacecraft about the reference spacecraft
 RIC_KEYS = ["R", "I", "C", "R_dot", "I_dot", "C_dot"]
@@ -139,28 +128,9 @@ diffCOEs_avg = {key: {0.0:0.0}
 diffCOEs_buffer = {key: deque([0.0], maxlen=int(STEPS_TO_AVERAGE))
                    for key in COE_KEYS}
 
-# Used in "wait for I burn" and "I burn" blocks to estimate and track the
-# necessary increase in orbital energy to overcome atmospheric drag.
-# These values are not consulted for maneuver termination, but as a way for the
-# user to monitor the actual increases in orbital energy.
-del_a_estimated = 0.0 # Expected increase to cross I-axis deadband
-del_a_current = 0.0 # Instantaneous "del_a"
-del_a_recovered = 0.0 # Achieved "del_a" post maneuver
-
-# Tracks the minimum I-position during each maneuver attempt
-min_i_pos = 0.0
-
-# Informs C-axis maneuvers
-crit_angle = 0.0
-del_raan_is_neg = False
-
 state = "nominal"
 interrupted_state = "nominal"
-
-# States that take priority over the corresponding maneuver axis
-I_OVERRIDE = {"wait for I burn", "R burn", "I burn", "C burn"}
-C_OVERRIDE = I_OVERRIDE | {"wait for C burn", "returning from C burn"}
-R_OVERRIDE = C_OVERRIDE | {"wait for R burn", "returning from R burn"}
+thruster_axis = ""
 
 # ----------------- Configure Object Preliminaries ----------------------------
 # Reference Objects
@@ -186,6 +156,7 @@ gmat.Initialize()
 t0 = ORBIT_STATE[-1] if STATE_VECT_SOURCE == "new" \
     else getEpoch_As_Datetime(TRUTH_ORBIT_STATE[-1])
 dt = DT_COAST
+
 # ----------------- Build Out Thruster Forces ---------------------------------
 # Reference Objects
 REF_OBJ.preparePropInternal()
@@ -196,11 +167,43 @@ TRUTH_OBJ.setBurnForces()
 TRUTH_OBJ.preparePropInternal()
 propagator_truth = TRUTH_OBJ.prop_wrap["coast"].prop_gmat.GetPropagator()
 
-# ----------------- Maneuver Handling Methods ---------------------------------
+# ----------------- I-axis Maneuver Support Functions -------------------------
+def _back_prop(time, time_to_back_prop: float) -> None:
+    time_to_back_prop = abs(time_to_back_prop)
+
+    t_step = time_to_back_prop // 300
+    for i in range(300):
+        propagator_ref.Step(-t_step)
+        propagator_truth.Step(-t_step)
+
+    # Back propagate the time remaining
+    remaining_time = time_to_back_prop % 300
+    propagator_ref.Step(-remaining_time)
+    propagator_truth.Step(-remaining_time)
+    propagator_ref.UpdateSpaceObject()
+    propagator_truth.UpdateSpaceObject()
+
+    time = time - time_to_back_prop
+    return time
+
+def _reload_diff_buffers(reload_from_time: float) -> None:
+    t_step = t.index(reload_from_time)
+    t_history = t[(t_step - STEPS_TO_AVERAGE):t_step]
+
+    # Reload the average diff_coe buffers with data leading
+    # up to the timestamp the thruster turned off
+    for key in COE_KEYS:
+        for time in t_history:
+            diffCOEs_buffer[key].append(diffCOEs[key][time])
+
+    for key in RIC_KEYS:
+        for time in t_history:
+            RIC_Amp_Buffer[key].append(RIC_History[key][time])
 
 # ----------------- Run Simulation---------------------------------------------
-while elapsed_time < TOTALSECONDS:
+ctrl = StationKeepingController()
 
+while elapsed_time < TOTALSECONDS:
     # If not maneuvering and `elapsed_time` is not aligned with `DT_COAST`,
     # temporarily change `dt` so that the next step is a major time step.
     if (state not in ["R burn", "I burn", "C burn"]
@@ -218,7 +221,7 @@ while elapsed_time < TOTALSECONDS:
     prev_major_time_step = round_to_time_step(elapsed_time)
 
     # If in between maneuvers, verify `dt` is equal to `DT_COAST`
-    if state not in ["R burn", "I burn", "C burn"] and dt != DT_COAST:
+    if thruster_axis == "" and dt != DT_COAST:
         dt = DT_COAST
 
     rv_ref = propagator_ref.GetState()
@@ -228,7 +231,6 @@ while elapsed_time < TOTALSECONDS:
     truthCOE = TRUTH_SAT.getKeplerianState()
 
     rv_ric, _ = xyz2ric(rv_ref, rv_truth)
-    del_a_current = truthCOE[0] - refCOE[0]
 
     # If `elapsed_time` is a multiple of `DT_COAST`, collect telemetry
     if elapsed_time % DT_COAST == 0:
@@ -246,6 +248,12 @@ while elapsed_time < TOTALSECONDS:
                 amp = max(RIC_Amp_Buffer[RIC_KEYS[j]])
 
             RIC_Amp_History[RIC_KEYS[j]][elapsed_time] = amp
+
+            if j == 1 and amp > 10:
+                amp
+                temp2 = (
+                    1.5 * STEPS_PER_ORBIT == len(RIC_Amp_Buffer[RIC_KEYS[j]]))
+                vbn = 1
 
             diff_coe = truthCOE[j] - refCOE[j]
 
@@ -271,263 +279,132 @@ while elapsed_time < TOTALSECONDS:
 
             diffCOEs_avg[COE_KEYS[j]][elapsed_time] = avg_value
 
-        # At each major time step, evaluate if there have been any boundary
-        # violations.
-        boundary_violations = {
-            "R": RIC_Amp_History["R"][elapsed_time] > R_BOUNDS,
-            "I": rv_ric[1] > DEADBAND_TRIGGER_RATIO * I_BOUNDS,
-            "C": RIC_Amp_History["C"][elapsed_time] > C_BOUNDS,
-        }
+    # Update internals of controller
+    ctrl.amp_ric = {key: value[prev_major_time_step] for key, value in RIC_Amp_History.items()}
+    ctrl.coes_instant_diff = {key: value[prev_major_time_step] for key, value in diffCOEs.items()}
+    ctrl.coes_avg_diff = {key: value[prev_major_time_step] for key, value in diffCOEs_avg.items()}
+    ctrl.rv_ric = rv_ric
+    ctrl.truth_coes = truthCOE
+    ctrl.ref_coes = refCOE
 
-        # If a state change is necessary, verify no higher-priority state is
-        # currently selected.
-        if (boundary_violations["I"]
-            and state not in I_OVERRIDE
-        ):
-            interrupted_state = state
-            state = "wait for I burn"
+    result = ctrl.update(elapsed_time, ACCEL, thruster_axis)
+    match result.get("action","continue"):
+        case "start_burn":
+            state = result["new_state"]
+            thruster_axis = result["thruster_axis"]
+            dt = result["dt"]
 
-        elif (boundary_violations["C"]
-              and state not in C_OVERRIDE
-              and interrupted_state == "nominal"
-        ):
-            interrupted_state = state
-            state = "wait for C burn"
+            propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
 
-        elif (boundary_violations["R"]
-              and state not in R_OVERRIDE
-              and interrupted_state == "nominal"
-        ):
-            interrupted_state = state
-            state = "wait for R burn"
+        case "stop_waiting":
+            state = result["new_state"]
+            interrupted_state = result["interrupted_state"]
 
-    match state:
-        case "wait for R burn":
-            result = controller_wait_for_r(
-                elapsed_time,
-                truthCOE[-1],
-                diffCOEs["del_aop"][prev_major_time_step],
-                diffCOEs_avg["del_e"][prev_major_time_step],
-                steps_waiting_for_maneuver,
-                interrupted_state
-            )
+        case "stop_burn":
+            state = result["new_state"]
+            dt = result["dt"]
 
-            steps_waiting_for_maneuver = result["steps_waiting"]
-
-            if "dt" in result:
-                state = result["state"]
-                thruster_axis = result["thruster_axis"]
-                dt = result["dt"]
-                starting_time = result["starting_time"]
-
-                propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
-                maneuver_start_times.append(starting_time)
-            elif "interrupted_state" in result:
-                state = result["state"]
-                interrupted_state = result["interrupted_state"]
-
-        case "wait for I burn":
-            result = controller_wait_for_i(
-                elapsed_time,
-                truthCOE[-1],
-                diffCOEs_avg["del_e"][prev_major_time_step],
-                rv_ric[1],
-                steps_waiting_for_maneuver,
-                maneuver_start_times,
-                maneuver_end_times,
-                interrupted_state
-            )
-            
-            steps_waiting_for_maneuver = result["steps_waiting"]
-
-            if "dt" in result:
-                state = result["state"]
-                thruster_axis = result["thruster_axis"]
-                dt = result["dt"]
-                starting_time = result["starting_time"]
-
-                del_a_estimated = abs(diffCOEs_avg["del_a"][prev_major_time_step])
-                propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
-                maneuver_start_times.append(starting_time)
-                maneuver_attempts = 0
-            elif "interrupted_state" in result:
-                state = result["state"]
-                interrupted_state = result["interrupted_state"]
-
-        case "wait for C burn":
-            result = controller_wait_for_c(
-                elapsed_time,
-                truthCOE[4],
-                truthCOE[5],
-                refCOE[2],
-                diffCOEs_avg["del_raan"][prev_major_time_step],
-                diffCOEs_avg["del_i"][prev_major_time_step],
-                steps_waiting_for_maneuver,
-                interrupted_state
-            )
-
-            steps_waiting_for_maneuver = result["steps_waiting"]
-
-            if "dt" in result:
-                state = result["state"]
-                thruster_axis = result["thruster_axis"]
-                dt = result["dt"]
-                starting_time = result["starting_time"]
-
-                propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
-                maneuver_start_times.append(starting_time)
-                del_raan_is_neg = (
-                    diffCOEs_avg["del_raan"][prev_major_time_step] < 0)
-                crit_angle = result["crit_angle"]
-            elif "interrupted_state" in result:
-                state = result["state"]
-                interrupted_state = result["interrupted_state"]
-
-        # --------- Maneuvering -----------------------------------------------
-        case "R burn":
-            result = controller_r_burn(
-                elapsed_time,
-                dt,
-                burn_duration,
-                thruster_axis,
-                total_delta_v,
-                truthCOE[-1],
-                diffCOEs["del_aop"][prev_major_time_step],
-                maneuver_start_times,
-                RIC_Amp_History["R"][prev_major_time_step]
-            )
-
-            burn_duration = result["burn_duration"]
-            if "dt" in result:
-                state = result["state"]
+            if thruster_axis[0] == "R" or thruster_axis[0] == "C":
+                maneuver_duration = result["maneuver_duration"]
+                maneuver_delta_v = result["maneuver_delta_v"]
                 total_delta_v = result["total_delta_v"]
-                dt = result["dt"]
 
-                propagator_truth = TRUTH_OBJ.satEnginesOff(thruster_axis)
-                thruster_axis = result["thruster_axis"]
-                maneuver_end_times.append(elapsed_time)
+            if PRINT_MANEUVER_MESSAGE:
+                if thruster_axis[0] == "R":
+                    get_r_axis_print(
+                        ctrl.maneuver_starts[-1][0] / 86400,
+                        maneuver_duration / 60,
+                        thruster_axis,
+                        ctrl.amp_ric["R"],
+                        maneuver_delta_v,
+                        total_delta_v
+                    )
+                elif thruster_axis[0] == "C":
+                    get_c_axis_print(
+                        ctrl.maneuver_starts[-1][0] / 86400,
+                        maneuver_duration / 60,
+                        thruster_axis,
+                        ctrl.amp_ric["C"],
+                        maneuver_delta_v,
+                        total_delta_v
+                    )
 
-        case "I burn":
-            result = controller_i_burn(
-                elapsed_time,
-                estimated_steps,
-                maneuver_attempts,
-                min_i_pos,
-                rv_ric[1],
-                dt,
-                burn_duration,
-                thruster_axis,
-                total_delta_v,
-                maneuver_start_times,
-                maneuver_end_times,
-                del_a_current,
-                del_a_recovered,
-                del_a_estimated,
-                coast_duration,
-                interrupted_state,
-                t,
-                diffCOEs,
-                diffCOEs_buffer,
-                propagator_ref,
-                propagator_truth,
-                maneuver_attempt_log
-            )
+            propagator_truth = TRUTH_OBJ.satEnginesOff(thruster_axis)
+            thruster_axis = ""
 
-            elapsed_time = result["elapsed_time"]
+        case "successful_maneuver":
+            state = result["new_state"]
+            interrupted_state = result["interrupted_state"]
 
-            if "diff_coe_buffer" in result:
-                diffCOEs_buffer = result["diff_coe_buffer"]
-                propagator_ref = result["propagator_ref"]
-                propagator_truth = result["propagator_truth"]
-                maneuver_attempt_log = result["maneuver_attempt_log"]
+        case "maneuver_required":
+            state = result["new_state"]
 
-            if "burn_duration" in result:
-                burn_duration = result["burn_duration"]
-            if "coast_duration" in result:
-                coast_duration = result["coast_duration"]
-            if "estimated_steps" in result:                
-                estimated_steps = result["estimated_steps"]
-            if "maneuver_end_times" in result:
-                maneuver_end_times = result["maneuver_end_times"]
-            if "dt" in result:
-                dt = result["dt"]
-            if "maneuver_attempts" in result:
-                maneuver_attempts = result["maneuver_attempts"]
-            if "min_i_pos" in result:
-                min_i_pos = result["min_i_pos"]
-            if "del_a_recovered" in result:
-                del_a_recovered = result["del_a_recovered"]
+        case "successful_i_maneuver":
+            state = result["new_state"]
+            interrupted_state = result["interrupted_state"]
+            dt = result["dt"]
+            maneuver_duration = result["maneuver_duration"]
+            delta_v = result["maneuver_delta_v"]
+            total_delta_v = result["total_delta_v"]
+            back_prop_coast_time = result["backtrack_coast_time"]
 
-            if "state" in result:
-                state = result["state"]
-                interrupted_state = result["interrupted_state"]
-                total_delta_v = result["total_delta_v"]
-            if "thruster_axis" in result:
-                thruster_axis = result["thruster_axis"]
-            if "propagator_truth" in result:
-                propagator_truth = result["propagator_truth"]
+            if PRINT_MANEUVER_MESSAGE:
+                get_i_axis_print(
+                    ctrl.maneuver_starts[-1][0] / 86400,
+                    maneuver_duration / 60,
+                    ctrl.del_a_recovered,
+                    ctrl.del_a_estimated,
+                    delta_v,
+                    total_delta_v
+                )
 
-        case "C burn":
-            result = controller_c_burn(
-                elapsed_time,
-                dt,
-                burn_duration,
-                thruster_axis,
-                total_delta_v,
-                truthCOE[4],
-                truthCOE[5],
-                crit_angle,
-                maneuver_start_times,
-                RIC_Amp_History["C"][prev_major_time_step]
-            )
+            elapsed_time = _back_prop(elapsed_time, back_prop_coast_time)
+            _reload_diff_buffers(round_to_time_step(ctrl.maneuver_ends[-1]))
+            thruster_axis = ""
 
-            burn_duration = result["burn_duration"]
+        case "back_prop_coast":
+            dt = result["dt"]
+            burn_end_time = result["burn_end_time"]
+            back_prop_coast_time = result["back_track_coast_time"]
 
-            if "dt" in result:
-                state = result["state"]
-                total_delta_v = result["total_delta_v"]
-                dt = result["dt"]
+            elapsed_time = _back_prop(elapsed_time, back_prop_coast_time)
+            _reload_diff_buffers(round_to_time_step(burn_end_time))
 
-                propagator_truth = TRUTH_OBJ.satEnginesOff(thruster_axis)
-                thruster_axis = result["thruster_axis"]
-                maneuver_end_times.append(elapsed_time)
-            
-        # --------- Verifying Recovery ----------------------------------------
-        case "returning from R burn":
-            result = controller_return_from_r(
-                RIC_Amp_History["R"][prev_major_time_step],
-                prev_major_time_step,
-                maneuver_end_times[-1],
-                interrupted_state
-            )
+            thruster_axis = "I+"
+            propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
 
-            if result is None:
-                continue
+        case "back_prop_coast_and_burn":
+            dt = result["dt"]
+            burn_end_time = result["burn_end_time"]
+            back_prop_coast_time = result["back_track_coast_time"]
+            back_prop_burn_time = result["back_track_burn_time"]
 
-            state = result["state"]
-            if "interrupted_state" in result:
-                interrupted_state = result["interrutped_state"]
+            elapsed_time = _back_prop(elapsed_time, back_prop_coast_time)
+            _reload_diff_buffers(round_to_time_step(burn_end_time))
 
-        case "returning from C burn":
-            result = controller_return_from_c(
-                RIC_Amp_History["C"][prev_major_time_step],
-                prev_major_time_step,
-                maneuver_end_times[-1],
-                interrupted_state
-            )
-
-            if result is None:
-                continue
-            
-            state = result["state"]
-            if "interrupted_state" in result:
-                interrupted_state = result["interrupted_state"]
-
+            thruster_axis = "I+"
+            propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
+            elapsed_time = _back_prop(elapsed_time, back_prop_burn_time)
+        case "":
+            break
         case _:
             continue
 
 # ----------------- Outputs ---------------------------------------------------
-timings =  [maneuver_end_times, maneuver_start_times, t, REVOLUTIONS_TO_AVG, DT_COAST, STEPS_TO_AVERAGE]
-coes = [diffCOEs, diffCOEs_avg]
-ric = [RIC_History, RIC_Amp_History]
+timings =  [
+    ctrl.maneuver_ends,
+    ctrl.maneuver_starts,
+    t,
+    REVOLUTIONS_TO_AVG,
+    DT_COAST,
+    STEPS_TO_AVERAGE
+]
+coes = [
+    diffCOEs,
+    diffCOEs_avg
+]
+ric = [
+    RIC_History,
+    RIC_Amp_History
+]
 output_plots(timings, coes, ric)

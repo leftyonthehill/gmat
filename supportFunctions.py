@@ -118,7 +118,7 @@ def getEpoch_From_Satellite(sat: gmat.Spacecraft) -> float:
 
     return sat.GetEpoch()
 
-def get_r_axis_maneuver_print(
+def get_r_axis_print(
         burn_start,
         burn_duration,
         thruster_axis,
@@ -171,7 +171,7 @@ def get_i_axis_print(
         terminal_output += f"{(burn_duration):2.2f} | "
     else:
         terminal_output += f"{(burn_duration):1.3f} | "
-
+    #                   "I-axis extremes = 36.123 / -32.123 km | "
     terminal_output += f"Recovered del_a = {(del_a_energy_maneuver):0.3f} / {(del_a_target):0.3f} km | "
 
     terminal_output += f"deltaV = {delta_v:1.3f} m/s | "
@@ -214,7 +214,7 @@ def i_axis_maneuver_attempt_message(
         min_i_pos : float,
         burn_duration : float
 ):
-    maneuver_count_str = f"Maneuver #{maneuver_attempts}:"
+    maneuver_count_str = f"Maneuver #{(maneuver_attempts + 1)}: "
     min_i_position_str = f"I-position = {min_i_pos:1.4}km | "
     burn_time_str = f"Burn time = {burn_duration} sec"
     print(maneuver_count_str + min_i_position_str + burn_time_str)

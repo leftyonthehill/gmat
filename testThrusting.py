@@ -468,7 +468,7 @@ while elapsed_time < TOTALSECONDS:
                     this_burn_start = maneuver_start_times[-1][0] / 86400
                     this_burn_duration = burn_duration / 60
                     r_amp = RIC_Amp_History['R'][prev_major_time_step]
-                    get_r_axis_maneuver_print(
+                    get_r_axis_print(
                         this_burn_start,
                         this_burn_duration,
                         thruster_axis,
