@@ -6,28 +6,135 @@ from simulationParameters import *
 from supportFunctions import *
 
 class StationKeepingController:
-    """ Spacecraft actions to station keep in a LEO environment.
+    """
+    Determines a spacecraft's actions that are necessary to station
+    keep in a LEO environment.
 
     Spacecraft actions are received from update() during each time step
     to control the following:
-    - Begin looking for maneuver opportunities
-    - End looking for maneuver opportunities
-    - Begin thrusting along thruster axis (R+/-, I+, C+/-)
-    - Shut off thrusters
+    - Begin looking for maneuver opportunities.
+    - End looking for maneuver opportunities.
+    - Begin thrusting along specified axis (R+/-, I+, C+/-).
+    - Shut off specified thrusters.
     - *For I-axis maneuvers only*
-        - 
+        - Good maneuver, return to end of thrusting and resume
+          coasting.
+        - Maneuver undershoots target range, return to end of previous
+          maneuver and try again with a longer maneuver duration.
+        - Maneuver overshoots target range, return to the end of
+          previous maneuver and back propagate the maneuver to shorten
+          its duration.
+    
+    Attributes
+    ----------
+    MU : float
+        Earth's gravitational parameter (km^3/s^2)
+    PERIOD_IN_SECONDS : float
+        The orbital period of the initial truth spacecraft in seconds.
+    STEPS_PER_ORBIT : 
+        Based on the defined DT_COAST value, how many steps to complete
+        one orbital period.
+    COE_KEYS : dict
+        dict of the keys used to store the differences in orbital
+        elements between the truth and reference spacecraft.
+    RIC_KEYS : dict
+        dict of the keys used to store the RIC position and velocity
+        vectors of the truth spacecraft.
+    I_OVERRIDE : set
+        set of `state` values that cannot be interrupted to begin
+        looking for I-axis maneuver opportunities.
+    C_OVERRIDE : set
+        set of `state` values that cannot be interrupted to begin
+        looking for C-axis maneuver opportunities.
+    R_OVERRIDE : set
+        set of `state` values that cannot be interrupted to begin
+        looking for R-axis maneuver opportunities.
+    state : str
+        Determines which station keeping methods to follow.
+    interrupted_state : str
+        In case a state override is necessary, remembers what state to
+        return to upon completing the higher priority maneuver.
+    steps_waiting : int
+        Counts the number of steps while waiting to begin a maneuver.
+    amp_ric : dict
+        Updated each time step from the main loop with the oscillation
+        amplitudes of the truth spacecraft's RIC state.
+    coes_instant_diff : dict
+        Updated each time step from the main loop with the
+        instantaneous differences in Keplerian elements between the
+        truth and reference spacecraft.
+    coes_avg_diff : dict
+        Updated each time step from the main loop with the
+        average differences in Keplerian elements between the
+        truth and reference spacecraft.
+    rv_ric : list
+        Updated each time step from the main loop with the truth
+        spacecraft's RIC state vector.
+    truth_coes : list
+        Updated each time step from the main loop with the truth
+        spacecraft's Keplerian state vector.
+    ref_coes : list
+        Updated each time step from the main loop with the reference
+        spacecraft's Keplerian state vector.
+    maneuver_starts : lsit
+        Tracks the times of when every maneuver was initiated and what
+        type of maneuver it was.
+    maneuver_attempts : list
+        Specific to the I-axis maneuver algorithm, tracks the durations
+        of previously attempted maneuvers to prevent repeat attempts.
+    maneuver_ends : list
+        Tracks the times of when every maneuver was concluded.
+    burn_duration : float
+        Tracks the duration of the active maneuver.
+    total_delta_v : float
+        Tracks the sum of delta v consumed across all maneuvers
+        performed.
+    thruster_axis : str
+        Thruster axis of the active maneuver.
+    negative_time_correction_tries : int
+        Specific to the I-axis maneuver algorithm, the number of tries
+        the algo with a negative thrust time before terminating the
+        simulation.
+    estimated_steps : int
+        Specific to the I-axis maneuver algorithm, the number of
+        DT_THRUST steps for the truth spacecraft to add or remove from
+        `burn_duration` to achieve a nominal drag recovery.
+    coast_duration : float
+        Specific to the I-axis maneuver algorithm, tracks the time
+        since the conclusion of the maneuver for back propagation
+        purposes.
+    min_i_pos : float
+        Specific to the I-axis maneuver algorithm, tracks the greatest
+        negative I-axis position during each maneuver attempt.
+    del_a_estimated : float
+        Specific to the I-axis maneuver algorithm, used in the maneuver
+        notification print outs as the projected difference in SMA
+        between the truth and reference spacecraft needed to achieve a
+        nominal drag recovery (TO BE REMOVED).
+    del_a_recovered : float
+        Specific to the I-axis maneuver algorithm, used in the maneuver
+        notifcation print outs as the actual difference in SMA between
+        the truth and reference spacecraft after the termination of a
+        maneuver (TO BE REMOVED).
+    min_i_pos_timer : float
+        Specific to the I-axis maneuver algorithm, the time limit
+        `min_i_pos` must be updated by to ensure `min_i_pos` is still
+        decreasing.
+    
     """
     MU = 398600  # Earth’s gravitational parameter in km^3/s^2
 
+    # Compute the number of steps per orbit based on the source of the
+    # state vector.
     if STATE_VECT_SOURCE == "new":
-        MEAN_MOTION = np.sqrt(MU / ORBIT_STATE[0]**3)
+        _MEAN_MOTION = np.sqrt(MU / ORBIT_STATE[0]**3)
     else:
-        MEAN_MOTION = np.sqrt(MU / REF_ORBIT_STATE[0]**3)
+        _MEAN_MOTION = np.sqrt(MU / REF_ORBIT_STATE[0]**3)
 
-    PERIOD_IN_SECONDS = 2 * np.pi / MEAN_MOTION
+    PERIOD_IN_SECONDS = 2 * np.pi / _MEAN_MOTION
     STEPS_PER_ORBIT = int(np.ceil(PERIOD_IN_SECONDS / DT_COAST))
-    STEPS_TO_AVERAGE = int(REVOLUTIONS_TO_AVG * STEPS_PER_ORBIT)
 
+    # dict keys to access data provided from the main loop
     COE_KEYS = ["del_a", "del_e", "del_i", "del_raan", "del_aop", "del_f"]
     RIC_KEYS = ["R", "I", "C", "R_dot", "I_dot", "C_dot"]
 
@@ -38,6 +145,7 @@ class StationKeepingController:
 
     def __init__(self) -> None:
         """ Initialize the controller. """
+
         # State monitoring
         self.state = "nominal"
         self.interrupted_state = "nominal"
@@ -74,10 +182,25 @@ class StationKeepingController:
             ACCEL: dict,
             thruster_axis: str = ""
     ):
-        """Function to call each time step."""
+        """ Determine the station keeping action to take.
 
-        # At each major time step, evaluate if there have been any boundary
-        # violations.
+        After updating the necessary attributes, determine what the
+        necessary actions are to ensure station keeping within the
+        operations boundary.
+        
+        Parameters
+        ----------
+        elapsed_time : float
+            Time in seconds since the simulation started.
+        ACCEL : {str: float}
+            Assuming constant thrust and mass, the acceleration map for
+            each thruster axis.
+        thruster_axis : str, default = ""
+            Which axis has active thrusters.
+        """
+
+        # At each major time step, evaluate if there have been any operations  
+        # boundary violations.
         boundary_violations = {
             "R": self.amp_ric["R"] > R_BOUNDS,
             "I": self.rv_ric[1] > DEADBAND_TRIGGER_RATIO * I_BOUNDS,
@@ -132,9 +255,11 @@ class StationKeepingController:
                 return self._return_from_c(elapsed_time)
 
             case _:
+                # If `state` is "nominal" or any other non pre-defined terms,
+                # instruct the spacecraft to operate nominally.
                 return {"action": "continue"}
 
-    # Waiting for maneuvers
+    # ------------- Look For Maneuver Opportunities ---------------------------
     def _wait_for_r(
             self,
             elapsed_time: float,
@@ -143,16 +268,46 @@ class StationKeepingController:
         Evaluate if the truth spacecraft is in its ideal radial maneuver
         window.
 
-        Returns a dict of fields for the main loop to apply.
-        """
-        self.steps_waiting += 1
+        The ideal radial maneuver window will occur when the two
+        spacecrafts' eccentricity vectors are aligned
+        (|del_aop| < 3 deg) and the orbital radii for each spacecraft
+        are equal. If these two conditions are met, then alert the
+        spacecraft to begin thrusting along the R-axis. The direction
+        within the R-axis will be specified by the "del_e" and the
+        truth spacecraft true anomaly at the start of the maneuver
+        (> 180 deg or < 180 deg). If these conditions are not met
+        within one orbital period, quit looking for maneuver
+        opportunities.
+
+        Parameters
+        ----------
+        elapsed_time : float
+            Time in seconds since the simulation began.
         
+        Returns
+        -------
+        {str: str}
+            The dict will contain what the spacecraft's next action is
+            and if any values in the main loop need to be updated.
+        """
+
+        ## Maneuver window identification ##
+        self.steps_waiting += 1
+        # NEED TO CORRECT *IDEAL* WINDOWS
+        # - use polar equation to find TA such that altitudes between truth and
+        #   reference spacecraft are equal.
+        # - complementary angle is 360 - TA from step above
+        # FIX AFTER COMMENTING IS DONE
         approaching_90 = 90 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 90
         approaching_270 = 270 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 270
         in_node_window = approaching_90 or approaching_270
 
+        # Keeping the value of "del_aop" small means the eccentricity vectors
+        # are closely aligned and there is less work needed by the spacecraft
+        # to correct the oscillation.
         in_del_aop_range = abs(self.coes_instant_diff["del_aop"]) <= 3
 
+        ## Spacecraft action reporting ##
         if self.steps_waiting >= self.STEPS_PER_ORBIT:
             self.steps_waiting = 0
             self.state = self.interrupted_state
@@ -185,6 +340,8 @@ class StationKeepingController:
                 "dt": DT_THRUST
             }
 
+        # If no other action is required, then continue looking for maneuver
+        # opportunities.
         return {"action": "continue"}
 
     def _wait_for_i(
@@ -330,7 +487,7 @@ class StationKeepingController:
     def _r_burn(
             self,
             elapsed_time: float,
-            ACCEL: float
+            ACCEL: dict
     ) -> dict:
         """ Contains the termination criteria for the radial maneuvers. """
         

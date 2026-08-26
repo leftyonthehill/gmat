@@ -31,7 +31,7 @@ class Satellite:
     thrusters : {str: gmat_py.ElectricThruster}
         Dict containing any and all of the thrusters assigned to this 
         spacecraft associated with the corresponding thruster axis.
-    accelerations : {str: flaot}
+    accelerations : {str: float}
         Dict containing the acceleration of the spacecraft while
         thrusting with the corresponding thruster axis.
     """
@@ -42,7 +42,7 @@ class Satellite:
         Parameters
         ----------
         sat_name : str
-                   Name of the Satellite.
+            Name of the Satellite.
         """
 
         self.epoch = ""
