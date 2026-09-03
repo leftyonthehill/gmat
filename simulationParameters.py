@@ -9,7 +9,7 @@ import datetime as dt
 
 # ----------------- Scenario Control ------------------------------------------
 # Duration of the scenario in days
-MAX_DAYS = 12
+MAX_DAYS = 380
 
 # Simulation step size while coasting
 DT_COAST = 120.0
@@ -81,10 +81,10 @@ PLOT_RIC_VELO_AMP = False
 PLOT_COE_DIFFS = {
     "del_a": True,
     "del_e": True,
-    "del_i": True  ,
-    "del_raan": True,
-    "del_aop": True,
-    "del_f": True
+    "del_i": False  ,
+    "del_raan": False,
+    "del_aop": False,
+    "del_f": False
 }
 
 PLOT_PHASE_DIFF = False

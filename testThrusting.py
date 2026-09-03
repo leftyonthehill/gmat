@@ -86,7 +86,7 @@ from simulationParameters import (
     STATE_VECT_SOURCE,
     TRUTH_ORBIT_STATE,
 )
-from supportFunctions import *
+from support_functions import *
 
 # ----------------- Create Variables ------------------------------------------
 MU = 398600  # Earth’s gravitational parameter in km^3/s^2

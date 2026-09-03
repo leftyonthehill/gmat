@@ -87,7 +87,7 @@ from simulationParameters import (
     STATE_VECT_SOURCE,
     TRUTH_ORBIT_STATE,
 )
-from supportFunctions import *
+from support_functions import *
 
 # ----------------- Create Variables ------------------------------------------
 MU = 398600  # Earth’s gravitational parameter in km^3/s^2
@@ -154,7 +154,7 @@ ACCEL = TRUTH_SAT.accelerations
 # Initialize the GMAT scenario
 gmat.Initialize()
 t0 = ORBIT_STATE[-1] if STATE_VECT_SOURCE == "new" \
-    else getEpoch_As_Datetime(TRUTH_ORBIT_STATE[-1])
+    else get_epoch_as_datetime(TRUTH_ORBIT_STATE[-1])
 dt = DT_COAST
 
 # ----------------- Build Out Thruster Forces ---------------------------------
@@ -352,8 +352,8 @@ while elapsed_time < TOTALSECONDS:
                 get_i_axis_print(
                     ctrl.maneuver_starts[-1][0] / 86400,
                     maneuver_duration / 60,
-                    ctrl.del_a_recovered,
-                    ctrl.del_a_estimated,
+                    ctrl.max_i_pos,
+                    ctrl.min_i_pos,
                     delta_v,
                     total_delta_v
                 )

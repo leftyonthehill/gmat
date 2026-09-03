@@ -17,7 +17,7 @@ from simulationParameters import (
     PLOT_MANEUVER_MARKERS,
 )
 
-from supportFunctions import *
+from support_functions import *
 
 def output_terminal(
         elapsed_time : float,
@@ -28,19 +28,19 @@ def output_terminal(
     print(f"Current time: T+{(elapsed_time / 86400)} days")
 
     terminal_time = sat_t0 + datetime.timedelta(seconds=elapsed_time)
-    print(getEpoch_As_ModITC(terminal_time))
+    print(get_epoch_as_mod_itc(terminal_time))
     print("\nReference COEs:")
     output_state = ""
     for i in ref_sat.getKeplerianState():
         output_state += " " * 4 + str(i) + ",\n"
     print(output_state)
-    print(" " * 4 + f'"{getEpoch_As_Str(terminal_time)}"')
+    print(" " * 4 + f'"{get_epoch_as_str(terminal_time)}"')
     print("\nTruth COEs:")
     output_state = ""
     for i in truth_sat.getKeplerianState():
         output_state += " " * 4 + str(i) + ",\n"
     print(output_state)
-    print(" " * 4 + f'"{getEpoch_As_Str(terminal_time)}"')
+    print(" " * 4 + f'"{get_epoch_as_str(terminal_time)}"')
 
 def output_plots(
         timings: list[list | float],

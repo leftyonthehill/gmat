@@ -3,7 +3,7 @@
 import numpy as np
 
 from simulationParameters import *
-from supportFunctions import *
+from support_functions import *
 
 class StationKeepingController:
     """
@@ -172,6 +172,7 @@ class StationKeepingController:
         self.estimated_steps = 0
         self.coast_duration = 0
         self.min_i_pos = 0
+        self.max_i_pos = 0
         self.del_a_estimated = 0
         self.del_a_recovered = 0
         self.min_i_pos_timer = 0
@@ -312,7 +313,7 @@ class StationKeepingController:
             self.steps_waiting = 0
             self.state = self.interrupted_state
             self.interrupted_state = "nominal"
-            
+
             # Prevent permanent lock-up if the window never appears
             return {
                 "action": "stop_waiting",
@@ -553,14 +554,13 @@ class StationKeepingController:
     def _i_burn_undershoot(
             self,
     ):
+        self.maneuver_attempts.append(self.burn_duration)
         if PRINT_I_AXIS_MANEUVER_ATTEMPTS:
-            i_axis_maneuver_attempt_message(
+            i_axis_maneuver_attempt_debug_message(
                 len(self.maneuver_attempts),
                 self.min_i_pos,
                 self.burn_duration
             )
-
-        self.maneuver_attempts.append(self.burn_duration)
 
         # As an unsuccessful maneuver, remove its end time
         burn_end_time = self.maneuver_ends[-1]
@@ -599,8 +599,9 @@ class StationKeepingController:
     def _i_burn_overshoot(
             self
     ):
+        self.maneuver_attempts.append(self.burn_duration)
         if PRINT_I_AXIS_MANEUVER_ATTEMPTS:
-            i_axis_maneuver_attempt_message(
+            i_axis_maneuver_attempt_debug_message(
                 len(self.maneuver_attempts),
                 self.min_i_pos,
                 self.burn_duration
@@ -620,9 +621,6 @@ class StationKeepingController:
             in self.maneuver_attempts
         ):
             stepsToBackTrack -=1
-
-        self.maneuver_attempts.append(self.burn_duration)
-            
 
         backtrack_burn_time = stepsToBackTrack * DT_THRUST
         self.burn_duration -= backtrack_burn_time
@@ -712,6 +710,7 @@ class StationKeepingController:
                 # `elapsed_time` is aligned with `DT_COAST`
                 dt_to_maj_time_step = DT_COAST - round(elapsed_time % DT_COAST)
 
+                self.max_i_pos = self.rv_ric[1]
                 self.min_i_pos = self.rv_ric[1]
                 self.min_i_pos_timer = 2 * self.PERIOD_IN_SECONDS
 
@@ -726,14 +725,17 @@ class StationKeepingController:
             self.coast_duration += DT_COAST
             self.min_i_pos_timer -= DT_COAST
 
+            if self.rv_ric[1] > self.max_i_pos:
+                self.max_i_pos = self.rv_ric[1]
+
             if self.rv_ric[1] < self.min_i_pos:
                 self.min_i_pos = self.rv_ric[1]
                 self.min_i_pos_timer = 2 * self.PERIOD_IN_SECONDS
 
-            # Wait for at least 1 orbital period and "del_a" must be negative
+            # Wait for at least 4 orbital period and "del_a" must be negative
             # (signifies that the truth spacecraft is now drifting to the
             # reference) before evaluating the termination
-            if self.coast_duration > self.PERIOD_IN_SECONDS and self.coes_instant_diff["del_a"] < 0: # self.min_i_pos_timer <= 0:
+            if self.coast_duration > 4 * self.PERIOD_IN_SECONDS and self.coes_avg_diff["del_a"] < 0: # self.min_i_pos_timer <= 0:
                 # Termination conditions:
                 # - Achieves deadband target by the time SMA changes sign
                 #   (no change).
