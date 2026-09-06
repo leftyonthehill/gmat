@@ -1,8 +1,20 @@
-""" Station keeping scenario config file. 
+""" Station keeping scenario config file.
 
-In this file, the user can define the simulation parameters from
-the number of days to simulate, the orbital elements of the scenario
-spacecraft, the shape of the 
+User-editable knobs for the live driver
+(`station_keeping_maneuver_subs.py`) and controller:
+
+- Scenario control: `MAX_DAYS`, `DT_COAST`, `DT_THRUST`,
+  `REVOLUTIONS_TO_AVG`.
+- Satellite / orbit: `STATE_VECT_SOURCE`, `ORBIT_STATE`,
+  `REF_ORBIT_STATE`, `TRUTH_ORBIT_STATE`.
+- Thruster duty limits: `MIN_DUTY_TIME`, `MAX_DUTY_TIME`.
+- Maneuver arc half-angle: `MANEUVER_ARC_HALF_ANGLE` (deg).
+- RIC operational bounds: `R_BOUNDS`, `I_BOUNDS`, `C_BOUNDS` (km) and
+  `DEADBAND_TRIGGER_RATIO`.
+- Plot / print flags: `PLOT_*`, `PRINT_MANEUVER_MESSAGE`,
+  `PRINT_I_AXIS_MANEUVER_ATTEMPTS` (consumed by `data_outputs.py`).
+
+Do not change control-law math here without reviewing the controller.
 """
 
 import datetime as dt
