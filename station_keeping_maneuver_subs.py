@@ -1,10 +1,10 @@
-""" Station keeping scenario starting point. 
+""" Station keeping scenario starting point (live driver).
 
 This script drives a two-satellite (reference and truth) GMAT scenario
-and uses a state-machine controller to keep the truth spacecraft within
-a user-defined operational bounds of the reference spacecraft in the
-Radial/In-Track/Cross-Track (RIC) frame. The reference spacecraft is
-only perturbed by Earth's geopotential (4x4 model), while the truth
+and applies actions from `StationKeepingController` to keep the truth
+spacecraft within user-defined operational bounds of the reference in
+the Radial/In-Track/Cross-Track (RIC) frame. The reference spacecraft
+is only perturbed by Earth's geopotential (4x4 model), while the truth
 spacecraft carries electric thrusters in the +/-R, +/-I, +/-C
 directions to counter the same Earth geopotential model, atmospheric
 drag, solar radiation pressure, and third body effects (Sun and Moon).
@@ -23,40 +23,39 @@ Each iteration:
 4. At each `DT_COAST`-aligned time step, perform the following updates:
    - `RIC_History` / `diffCOEs`: instantaneous values
    - `RIC_Amp_History`: RIC position/velocity oscillation amplitudes
-     (via a rolling `RIC_amp_Buffer` containing one orbit's worth of
-     values).
+     (via a rolling `RIC_Amp_Buffer` with maxlen 1.5 orbits).
    - `diffCOEs_avg`: averaged diff_coe difference (via a rolling
      `diffCOEs_buffer` over `REVOLUTIONS_TO_AVG` orbits).
-5. Check for any R/I/C boundary violations and, if the controller is
-   not already performing a higher-priority correction, prepare for a
-   maneuver in the corresponding "wait for <axis> burn" state.
+5. Feed telemetry into `StationKeepingController.update()` and apply
+   the returned action (start/stop burn, back-prop, recover, etc.).
 
 State machine
 -------------
-States are tracked in `state` / `interrupted_state`. The maneuver
-axis priority is I > C > R and is enforced by the sets `I_OVERRIDE`,
-`C_OVERRIDE`, and `R_OVERRIDE`.
+Control decisions live in `StationKeepingController`
+(`leo_station_keeping_controller.py`), not in this script. Local
+`state` / `interrupted_state` / `thruster_axis` mirror the controller
+for integrator switching. Maneuver axis priority is I > C > R.
 
 Notes
 -----
-- `elapsed_time` and `t` are tracked in integer seconds. Time is only
-  converted to days at plot time and for any maneuver notifications in
-  the terminal.
-- Backwards propagation operations (<integrator>.Step(-<time>)) rely on
-  RK89 being numerically irreversible only to within simulation
-  tolerance. Small discontinuities at these seams are expected and
-  acceptable.
+- `elapsed_time` is a float (seconds). The coast time grid `t` is built
+  from multiples of `DT_COAST`. Time is converted to days only for
+  maneuver printouts / plots.
+- Backwards propagation (`integrator.Step(-time)`) is a **sim reset**
+  for the I-axis duration shooter; RK89 is only reversible within
+  numerical tolerance. Small discontinuities at these seams are
+  expected and acceptable.
 - Thruster, force model, and propagator setups are delegated to
-  `StationKeepingObjects`. This script only owns the control logic and
-  telemetry collection.
+  `StationKeepingObjects`. This script owns the main loop and
+  telemetry collection; control law lives in the controller.
 
 Outputs
 -------
-Prints the terminal state, elapsed time, terminal epoch, and final
-Keplerian elements for both spacecraft, then calls `outputPlots()` to
-render RIC position/velocity, oscillation-amplitude, and diff_coe-
-difference plots (see `simulationParameters.py` for which plots are
-enabled and `plotting.py` for details).
+Calls `output_plots()` in `data_outputs.py` to render RIC
+position/velocity, oscillation-amplitude, and COE-difference plots
+(see `simulationParameters.py` for which plots are enabled). There is
+no `output_terminal` helper today; maneuver lines go through
+`support_functions` print helpers when `PRINT_MANEUVER_MESSAGE` is set.
 """
 
 # Native libraries
@@ -248,12 +247,6 @@ while elapsed_time < TOTALSECONDS:
                 amp = max(RIC_Amp_Buffer[RIC_KEYS[j]])
 
             RIC_Amp_History[RIC_KEYS[j]][elapsed_time] = amp
-
-            if j == 1 and amp > 10:
-                amp
-                temp2 = (
-                    1.5 * STEPS_PER_ORBIT == len(RIC_Amp_Buffer[RIC_KEYS[j]]))
-                vbn = 1
 
             diff_coe = truthCOE[j] - refCOE[j]
 

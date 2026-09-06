@@ -1,55 +1,82 @@
-# Closed-Loop Station Keeping State Machine
-This repo was created to study techniques in **closed-loop station keeping** for satellites in proliferated 
-Low Earth Orbit (PLEO) satellite constellations. The underlying dynamics are computed using API calls to 
-NASA's **General Mission Analysis Tool (GMAT)**. 
+# PLEO Station Keeping via GMAT API
 
-The simulation models tight operational bounds typical of PLEO satellites. Station-keeping control logic
-(including the state machine) lives in `testThrusting.py`, which also serves as the main entry point for the
-project.
+This repo studies **station keeping** for satellites in proliferated Low Earth
+Orbit (PLEO) constellations. Dynamics come from NASA's **General Mission
+Analysis Tool (GMAT)** API.
 
-## Features
-- Full GMAT API integration for high-fidelity orbit propagation
-- Custom satellite, propagator, and force model creation
-- Closed-loop thrusting logic for station keeping
-- Coordinate transformations (ECI <-> RIC frame)
-- Data visualization with Matplotlib
+Live path: `station_keeping_maneuver_subs.py` (main loop) +
+`leo_station_keeping_controller.py` (RIC state machine). Scenario knobs
+(duration, step sizes, RIC bounds ±10 / ±40 / ±15 km, duty times, plot flags)
+are in `simulationParameters.py`. Maneuver priority is **I > C > R**.
+
+R- and C-axis corrections are **deadband** responses (wait for a geometric
+window, burn while the window is open, recover). The **I-axis** path is a
+**1D finite-burn duration shooter**: fire I+, coast, score on min I, then
+reverse-step RK89 to retry a longer/shorter burn. That reverse-step loop is a
+**sim reset / targeting aid**, not a flyable closed-loop ops sequence.
+
+`testThrusting.py` is **sunset / legacy** (pre-controller monolith with older
+1-rev I-score and 2× C-window assumptions). Do not run it as the live driver.
+
+## Architecture
+- `simulationParameters.py` — duration, step sizes, RIC bounds, plot/print flags
+- `createSatellite.py`, `createForceModel.py`, `createPropagator.py`, `createStationKeepingObjects.py` — GMAT object wrappers
+- `station_keeping_maneuver_subs.py` — main loop: propagate, collect telemetry, apply controller actions
+- `leo_station_keeping_controller.py` — detect bound violations, wait for a burn window, thrust, recover (priority I > C > R)
+- `data_outputs.py` — Matplotlib plots (not `plotting.py`)
+- `support_functions.py` — time grid, ECI→RIC, epoch helpers, maneuver printouts
+- `load_gmat.py` — GMAT API bootstrap; `GmatInstall` is hardcoded to `C:/gmat-win-R2026a` (no desktop/laptop path split)
+
+## Control notes (docs only)
+- **I-axis**: duration targeting with reverse-RK89 retries (coast ≥ 4 periods and mean Δa < 0, then score on min I). Free variable = burn duration. Not flyable closed-loop.
+- **R-axis**: deadband; live window is TA within `MANEUVER_ARC_HALF_ANGLE` of 90°/270° with instantaneous `|Δω| ≤ 3°`. Radial near 90/270 is e-control (Gauss cos f ≈ 0), not ω / line-of-apsides torque.
+- **C-axis**: deadband; live half-width is `4 * MANEUVER_ARC_HALF_ANGLE` (= 160° when half-angle = 20). Critical angle uses `arctan(ΔΩ / (Δi×10) * sin i)`, not `atan2`.
+- Default spacecraft power is **20 kW nuclear** (`Satellite.setPowerSystem`) so GMAT does not skip burns during eclipse (no battery model).
+
+## ECI → RIC
+`xyz2ric` returns relative **position** in the RIC frame built from the
+reference state. The “velocity” components are the **inertial Δv rotated**
+into that frame (`C @ (v_truth − v_ref)`); they omit the transport term
+`−ω × δr` and are **not** body-frame RIC rates.
+
+## Residual gotchas for readers
+1. Live entry path is `station_keeping_maneuver_subs.py`, not `testThrusting.py`.
+2. I-axis is a duration shooter with reverse-step sim resets — not ops closed-loop.
+3. Plant asymmetry: reference is drag-free 4×4 geopotential only; truth has drag, SRP, and 3rd-body.
+4. C-window is ±(4× half-angle) (160° at default 20°) plus the arctan×10 heuristic.
 
 ## Requirements
 - **Python** 3.10+
-- **NASA GMAT-2026**
-- The following **Python** libraries:
-   - Numpy
-   - Matplotlib
+- **NASA GMAT R2026a**
+- numpy, matplotlib
 
-## Instructions
-1. **Installing GMAT** - 
-   Download and install the latest version of GMAT from NASA's SourceForge page:
+## Setup
+1. **Install GMAT** from NASA's SourceForge page:
    https://sourceforge.net/projects/gmat/
-    
-2. **Create API Connection** - 
-   Navigate to `.../GMAT Install/application/api` and open BuildApiStartupFile.py. In the terminal enter:
+
+2. **Create the API connection.** Navigate to `.../GMAT Install/application/api` and run:
    ```bash
    python BuildApiStartupFile.py
+   ```
 
-3. **Clone Repository** - 
-   Add this repo to your coding environment:
+3. **Clone this repo:**
    ```bash
    git clone https://github.com/leftyonthehill/gmat.git
+   ```
 
-4. **Connect API to Repo** - 
-   Copy the path to `.../GMAT Install` and paste it in this repo's `load_gmat.py` script for
-   either the desktop path or the laptop path (this will change later, was intended to help me
-   switch between two of my computers while traveling)
+4. **Point the API at your GMAT install.** In `load_gmat.py`, set `GmatInstall`
+   to your GMAT directory (committed default: `C:/gmat-win-R2026a`).
 
-5. **Install libraries** - 
-   Install supporting **Python** libraries by running the following command:
+5. **Install Python libraries:**
    ```bash
    pip install numpy matplotlib
+   ```
 
-6.  **Test for correct install** - 
-   Run `testThrusting.py` and analyze the station keeping data!
+6. **Run the live driver:**
+   ```bash
+   python station_keeping_maneuver_subs.py
+   ```
 
 ## Contributing
-This is currently a personal research project, but feel free to open issues or pull requests if 
-you have suggestions for improving the station-keeping logic or modularity.
-    
+This is a personal research project. Issues and pull requests are welcome if
+they improve the station-keeping logic or modularity.

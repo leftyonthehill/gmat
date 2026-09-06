@@ -51,12 +51,12 @@ class Satellite:
 
         # Spacecraft creation and assigning its physical parameters
         #
-        # Default parameters:
+        # Default parameters (match SetField calls below):
         #   DisplayStateType = Keplerian
         #   Area effected by solar radiation pressure | SRPArea = 6 m^2
         #   Coeffecient of relfectivity | Cr = 1.8
-        #   Area effected by atmospheric drag | DragArea = 10 m^2
-        #   Coeffecient of drag | Cd = 2.2
+        #   Area effected by atmospheric drag | DragArea = 5 m^2
+        #   Coeffecient of drag | Cd = 1.5
         #   Satellite dry mass | DryMass = 900 kg
         self.sat = gmat.Construct("Spacecraft", sat_name)
         self.sat.SetField("DisplayStateType", "Keplerian")

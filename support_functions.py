@@ -43,6 +43,15 @@ def xyz2ric(
     Rotate the truth spacecraft's offset from the reference spacecraft
     out of the Earth-centered inertial frame and into the RIC frame.
 
+    Position: ``r_ric = C @ (r_truth - r_ref)`` with rows of ``C`` the
+    RIC unit vectors built from the reference state.
+
+    Velocity / rates: ``v_ric = C @ (v_truth - v_ref)`` — the relative
+    ECI velocity is only rotated. This does **not** subtract the
+    transport term ``ω × δr`` (relative velocity in a rotating RIC
+    frame). Treat the returned rates as ``C*(vt-vr)``, not full RIC
+    relative velocity.
+
     Parameters
     ----------
     ref_state : list[float]
@@ -63,7 +72,7 @@ def xyz2ric(
         - rot_matrix : np.ndarray
             Contains the 3x3 rotation matrix to rotate the ECI frame to
             RIC.
-    
+
     Raises
     ------
     RuntimeError
@@ -172,7 +181,12 @@ def get_epoch_from_satellite(sat: gmat.Spacecraft) -> float:
 
 
 def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
-    """ Format a datetime as a Modified ITC Format string.
+    """ Format a datetime as year + day-of-year + clock (not MJD/ITC).
+
+    Despite the historical ``mod_itc`` name, this is **not** Modified
+    Julian Date and not an ITC/TAI epoch. It is
+    ``strftime("%Y%j%H%M%S.%f")`` truncated to millisecond precision:
+    four-digit year, three-digit day-of-year, then HHMMSS.fff.
 
     Parameters
     ----------
@@ -181,11 +195,10 @@ def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
 
     Returns
     -------
-    str 
-        ``"yyyyDOYHHMMSS.fff"`` with millisecond precision.
-        ``strftime("%f")`` provides 6 millisecond digits, however the
-        last three decimal places are stripped to match GMAT's
-        millisecond field width.
+    str
+        ``"yyyyDOYHHMMSS.fff"`` (e.g. ``2026249150530.068``).
+        ``strftime("%f")`` provides 6 fractional digits; the last three
+        are stripped to match GMAT's millisecond field width.
     """
 
     epoch = date.strftime("%Y%j%H%M%S.%f")

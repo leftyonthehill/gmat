@@ -124,12 +124,12 @@ class StationKeepingObjects:
 
         Returns
         -------
-        gmat.RungeKutta90
+        gmat.RungeKutta89
             The gmat object representing the numerical integrator which
             contains all the forces to be modeled.
         """
-        
-        
+
+
         # Collect the Propagator and ForceModel for the new axis
         self.thrustAxis = axis
         prop = self.prop_wrap[self.thrustAxis]
@@ -173,7 +173,7 @@ class StationKeepingObjects:
         
         Returns
         -------
-        gmat.RungeKutta90
+        gmat.RungeKutta89
             The gmat object representing the numerical integrator which
             contains all the forces to be modeled.
         """
