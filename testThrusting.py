@@ -1,3 +1,13 @@
+# =============================================================================
+# LEGACY — DO NOT RUN AS THE LIVE DRIVER
+# Superseded by station_keeping_maneuver_subs.py + leo_station_keeping_controller.py.
+# Incomplete rename from the controller extraction. Still carries older control
+# assumptions that diverge from live code:
+#   - 1-rev I-axis coast score (live uses 4-rev + mean-Δa < 0)
+#   - 2× C-window half-angle (live uses 4×)
+# Control logic below is intentionally left as-is for comparison; only helper
+# import names are patched so this file can still import.
+# =============================================================================
 """ Station keeping scenario starting point. 
 
 This script drives a two-satellite (reference and truth) GMAT scenario
@@ -53,10 +63,12 @@ Notes
 Outputs
 -------
 Prints the terminal state, elapsed time, terminal epoch, and final
-Keplerian elements for both spacecraft, then calls `outputPlots()` to
+Keplerian elements for both spacecraft, then calls `output_plots()` to
 render RIC position/velocity, oscillation-amplitude, and diff_coe-
 difference plots (see `simulationParameters.py` for which plots are
-enabled and `plotting.py` for details).
+enabled and `data_outputs.py` for details).
+
+This file is LEGACY. Prefer `station_keeping_maneuver_subs.py`.
 """
 
 # Native libraries
@@ -183,7 +195,7 @@ ACCEL = TRUTH_SAT.accelerations
 # Initialize the GMAT scenario
 gmat.Initialize()
 t0 = ORBIT_STATE[-1] if STATE_VECT_SOURCE == "new" \
-    else getEpoch_As_Datetime(TRUTH_ORBIT_STATE[-1])
+    else get_epoch_as_datetime(TRUTH_ORBIT_STATE[-1])
 
 # ----------------- Build Out Thruster Forces ---------------------------------
 # Reference Objects
@@ -600,7 +612,7 @@ while elapsed_time < TOTALSECONDS:
 
                     elif termination_conditions[1]:
                         if PRINT_I_AXIS_MANEUVER_ATTEMPTS:
-                            i_axis_maneuver_attempt_message(
+                            i_axis_maneuver_attempt_debug_message(
                                 maneuver_attempts,
                                 min_i_pos,
                                 burn_duration
@@ -662,7 +674,7 @@ while elapsed_time < TOTALSECONDS:
 
                     elif termination_conditions[2]:
                         if PRINT_I_AXIS_MANEUVER_ATTEMPTS:
-                            i_axis_maneuver_attempt_message(
+                            i_axis_maneuver_attempt_debug_message(
                                 maneuver_attempts,
                                 min_i_pos,
                                 burn_duration
