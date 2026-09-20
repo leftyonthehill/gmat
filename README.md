@@ -4,7 +4,7 @@ Low Earth Orbit (PLEO) satellite constellations. The underlying dynamics are com
 NASA's **General Mission Analysis Tool (GMAT)**. 
 
 The simulation models tight operational bounds typical of PLEO satellites. Station-keeping control logic
-(including the state machine) lives in `testThrusting.py`, which also serves as the main entry point for the
+(including the state machine) lives in `station_keeping_simulation.py`, which also serves as the main entry point for the
 project.
 
 ## Features

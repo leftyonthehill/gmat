@@ -56,7 +56,7 @@ Prints the terminal state, elapsed time, terminal epoch, and final
 Keplerian elements for both spacecraft, then calls `outputPlots()` to
 render RIC position/velocity, oscillation-amplitude, and diff_coe-
 difference plots (see `simulationParameters.py` for which plots are
-enabled and `plotting.py` for details).
+enabled and `data_outputs.py` for details).
 """
 
 # Native libraries
@@ -246,12 +246,6 @@ while elapsed_time < TOTALSECONDS:
                 amp = max(RIC_Amp_Buffer[RIC_KEYS[j]])
 
             RIC_Amp_History[RIC_KEYS[j]][elapsed_time] = amp
-
-            if j == 1 and amp > 10:
-                amp
-                temp2 = (
-                    1.5 * STEPS_PER_ORBIT == len(RIC_Amp_Buffer[RIC_KEYS[j]]))
-                vbn = 1
 
             diff_coe = truthCOE[j] - refCOE[j]
 
