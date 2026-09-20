@@ -69,25 +69,23 @@ from leo_station_keeping_controller import StationKeepingController
 from load_gmat import gmat
 from data_outputs import output_plots
 from simulationParameters import (
-    C_BOUNDS,
-    DEADBAND_TRIGGER_RATIO,
     DT_COAST,
-    DT_THRUST,
-    I_BOUNDS,
-    MANEUVER_ARC_HALF_ANGLE,
     MAX_DAYS,
-    MAX_DUTY_TIME,
-    MIN_DUTY_TIME,
     ORBIT_STATE,
-    PRINT_I_AXIS_MANEUVER_ATTEMPTS,
     PRINT_MANEUVER_MESSAGE,
-    R_BOUNDS,
     REF_ORBIT_STATE,
     REVOLUTIONS_TO_AVG,
     STATE_VECT_SOURCE,
     TRUTH_ORBIT_STATE,
 )
-from support_functions import *
+from support_functions import (
+    get_epoch_as_datetime,
+    round_to_time_step,
+    xyz2ric,
+    get_r_axis_print,
+    get_c_axis_print,
+    get_i_axis_print,
+)
 
 # ----------------- Create Variables ------------------------------------------
 MU = 398600  # Earth’s gravitational parameter in km^3/s^2
@@ -287,7 +285,7 @@ while elapsed_time < TOTALSECONDS:
     ctrl.truth_coes = truthCOE
     ctrl.ref_coes = refCOE
 
-    result = ctrl.update(elapsed_time, ACCEL, thruster_axis)
+    result = ctrl.update(elapsed_time, ACCEL)
     match result.get("action","continue"):
         case "start_burn":
             state = result["new_state"]

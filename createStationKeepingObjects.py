@@ -70,7 +70,7 @@ class StationKeepingObjects:
         self.prop_wrap[self.thrustAxis].setFM(
             self.fm_wrap[self.thrustAxis].fm)
         self.prop_wrap[self.thrustAxis].setSat(self.sat_gmat)
-    
+
     def setManeuverable(self):
         """
         If a satellite is determined to be maneuverable, this function
@@ -80,7 +80,7 @@ class StationKeepingObjects:
         """
 
         self.sat_wrap.setManeuverable()
-        
+
         # For each thruster key in sat_wrap's thruster dict, create its own
         # Propagator and ForceModel.
         for ax in self.sat_wrap.thrusters.keys():
@@ -92,7 +92,7 @@ class StationKeepingObjects:
             self.prop_wrap[ax].setIntegrator()
             self.prop_wrap[ax].setFM(fm_gmat)
             self.prop_wrap[ax].setSat(self.sat_gmat)
-    
+
     def setBurnForces(self):
         """
         After initializing the GMAT scenario, call this function to
@@ -128,8 +128,7 @@ class StationKeepingObjects:
             The gmat object representing the numerical integrator which
             contains all the forces to be modeled.
         """
-        
-        
+
         # Collect the Propagator and ForceModel for the new axis
         self.thrustAxis = axis
         prop = self.prop_wrap[self.thrustAxis]
@@ -142,7 +141,7 @@ class StationKeepingObjects:
         thr_name = self.sat_wrap.thrusters[self.thrustAxis].GetName()
         thruster = self.sat_gmat.GetRefObject(
             gmat.THRUSTER, thr_name)
-        
+
         # Turn on thruster and set Spacecraft to maneuverable
         thruster.SetField("IsFiring", True)
         self.sat_wrap.getGMATSat().IsManeuvering(True)
@@ -155,7 +154,7 @@ class StationKeepingObjects:
 
         # Update the latest internal values for the propagator
         prop.prop_gmat.PrepareInternals()
-        
+
         # Collect new numerical integrator and ForceModel for modeling
         gator = prop.prop_gmat.GetPropagator()
         return gator

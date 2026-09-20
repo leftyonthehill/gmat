@@ -1,5 +1,5 @@
-""" Support class that creates the dynamics and force model for the station
-keeping scenario. """
+""" Support class that creates the dynamics and force model for the
+station keeping scenario. """
 
 from createSatellite import Satellite
 from load_gmat import gmat
@@ -77,7 +77,7 @@ class ForceModel:
                 atmDrag=True,
                 srp=True
             )
-       
+
     def _setForces(self, order: int, degree: int, **kwargs):
         """ Assign the desired forces to the ForceModel.
 
@@ -89,7 +89,7 @@ class ForceModel:
         atmDrag : bool, optional
         srp : bool, optional
         """
-        
+
         # Assign Earth's Geopotential model
         self.fm.SetField("CentralBody", "Earth")
         earthGrav = gmat.Construct("GravityField",
@@ -101,12 +101,12 @@ class ForceModel:
         earthGrav.SetField("StmLimit", 100)
         earthGrav.SetField("TideModel", "None")
         self.fm.AddForce(earthGrav)
-        
+
         # Adding third body effects
         if "thirdBodyEffects" in kwargs.keys() and kwargs["thirdBodyEffects"]:
             solar = gmat.GetSolarSystem()
             self.fm.SetSolarSystem(solar)
-            
+
             moonGrav = gmat.Construct("PointMassForce",
                                       f"{self.fm.GetName()}_Lunar_Grav")  
             moonGrav.SetField("BodyName", "Luna")
@@ -173,4 +173,4 @@ class ForceModel:
         self.burnForce[ax].SetReference(self.burn[ax])
 
         # Assign the BurnForce to the GMAT table of phyiscal models
-        gmat.ConfigManager.Instance().AddPhysicalModel(self.burnForce[ax])        
+        gmat.ConfigManager.Instance().AddPhysicalModel(self.burnForce[ax])

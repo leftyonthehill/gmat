@@ -30,12 +30,10 @@ project.
    Navigate to `.../GMAT Install/application/api` and open BuildApiStartupFile.py. In the terminal enter:
    ```bash
    python BuildApiStartupFile.py
-
 3. **Clone Repository** - 
    Add this repo to your coding environment:
    ```bash
    git clone https://github.com/leftyonthehill/gmat.git
-
 4. **Connect API to Repo** - 
    Copy the path to `.../GMAT Install` and paste it in this repo's `load_gmat.py` script for
    either the desktop path or the laptop path (this will change later, was intended to help me
@@ -45,7 +43,6 @@ project.
    Install supporting **Python** libraries by running the following command:
    ```bash
    pip install numpy matplotlib
-
 6.  **Test for correct install** - 
    Run `testThrusting.py` and analyze the station keeping data!
 

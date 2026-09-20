@@ -35,7 +35,7 @@ class Satellite:
         Dict containing the acceleration of the spacecraft while
         thrusting with the corresponding thruster axis.
     """
-    
+
     def __init__(self, sat_name: str):
         """ Initialize the Satellite wrapper.
         
@@ -69,7 +69,7 @@ class Satellite:
 
         # Spacecraft coordinate system reference
         self.sat.SetField("CoordinateSystem", "EarthMJ2000Eq")
-    
+
     def setSatParam(self, sat_physical_param: list[float]):
         """ Customize the physical parameters of the spacecraft.
 
@@ -125,7 +125,7 @@ class Satellite:
         state = self.sat.GetCartesianState()
         x = [float(state[i]) for i in range(6)]
         return x
-    
+
     def getKeplerianState(self) -> list[float]:
         """ Return the keplerian state vector of the spacecraft.
         
@@ -198,10 +198,10 @@ class Satellite:
         else:
             raise SyntaxError("Invalid date type. The epoch must be either a " \
                             "datetime.datetime object or a string")
-        
+
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
-    
+
     def setCartesianState(self, xyz: list):
         """ Set the spacecraft state vector using Cartesian elements.
                 
@@ -233,7 +233,7 @@ class Satellite:
             raise ValueError("Incorrect amount of elements passed. There "
                              + "needs to be either 6 elements. In this case "
                              + str(len(xyz)) + " elements were passed.")
-        
+
         x, y, z, xdot, ydot, zdot, epoch = xyz[:6]
 
         self.sat.SetField("X", x)
@@ -242,11 +242,11 @@ class Satellite:
         self.sat.SetField("VX", xdot)
         self.sat.SetField("VY", ydot)
         self.sat.SetField("VZ", zdot)
-        
+
         self.epoch = epoch.strftime("%d %b %Y 12:00:00.000")
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
-        
+
         self.sat.SetField("DisplayStateType", "Cartesian")
         self.sat.SetField("DisplayStateType", "Keplerian") 
 
@@ -268,10 +268,10 @@ class Satellite:
 
         # add the tank mass to the satellite's total mass
         self.mass += mass
-        
+
         # Assign the tank to the spacecraft
         self.sat.SetField("Tanks", etank.GetName())
-    
+
     def setEThruster(self, axis:str = "I+",
                      engineSpecs: tuple = (0.2, 3000)):
         """ Creates a thruster on the spacecraft.
@@ -355,17 +355,17 @@ class Satellite:
             "C+": [1e-5, 1, 1e-5],
             "C-": [-1e-5, -1, -1e-5],
             }
-        
+
         # Based on the provided axis, choose the correct mapping
         thrusterDirection = axisMap[axis]
-        
+
         # Assign the directions in the VNB frame
         v = thrusterDirection[0]
         self.thrusters[axis].SetField("ThrustDirection1", v)
 
         n = thrusterDirection[1]
         self.thrusters[axis].SetField("ThrustDirection2", n)
-        
+
         b = thrusterDirection[2]
         self.thrusters[axis].SetField("ThrustDirection3", b)
 
@@ -396,7 +396,7 @@ class Satellite:
             Check to make sure 1 of the 2 acceptable power supply types
             is provided.
         """
-        
+
         if powerSystemType != "Nuclear" and powerSystemType != "Solar":
             raise ValueError(powerSystemType + " is not a valid power system"
                              + "type in GMAT. Please select from either "
@@ -404,12 +404,12 @@ class Satellite:
         powerSystem = gmat.Construct(powerSystemType + "PowerSystem",
                                           self.sat.GetName() + "_" 
                                           + powerSystemType + "Power")
-        
+
         powerSystem.SetField("InitialMaxPower", kw)
         powerSystem.SetField("InitialEpoch", self.epoch)
 
         self.sat.SetField("PowerSystem", powerSystem.GetName())
-    
+
     def setManeuverable(self):
         """ 
         Prepare the components needed to make the spacecraft
@@ -426,11 +426,11 @@ class Satellite:
 
         # Name of fuel tank for thrusters
         etankName = self.sat.GetField("Tanks")[1:-1]
-    
+
         # Check for missing power supply
         if self.sat.GetField("PowerSystem") == "":
             self.setPowerSystem()
-    
+
         # Check for missing thrusters
         if self.thrusters == {}:
             thrusterAxes = {
@@ -440,7 +440,7 @@ class Satellite:
                 "I-": (0.2, 3000), 
                 "C+": (0.2, 3000), 
                 "C-": (0.2, 3000)}
-            
+
             # Create a thruster for each thruster direction 
             for ax, thrParam in thrusterAxes.items():
                 self.setEThruster(ax, thrParam)

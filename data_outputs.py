@@ -17,7 +17,11 @@ from simulationParameters import (
     PLOT_MANEUVER_MARKERS,
 )
 
-from support_functions import *
+from support_functions import (
+    round_to_time_step,
+    get_epoch_as_mod_itc,
+    get_epoch_as_str
+)
 
 def output_terminal(
         elapsed_time : float,

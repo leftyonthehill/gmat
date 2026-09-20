@@ -18,7 +18,7 @@ class Propagator:
         GMAT RungeKutta89 object (object containing the numerical
         integration parameters)
     """
-    
+
     def __init__(self, propName: str):
         """ Initialize the Propagator wrapper.
         
@@ -33,11 +33,11 @@ class Propagator:
 
     def setIntegrator(self):
         """ Creates numerical integrator. """
-        
+
         # Create the numerical integrator and assign it to propagator
         self.integrator = gmat.Construct("RungeKutta89", "Gator")
         self.prop_gmat.SetReference(self.integrator)
-        
+
         # Shared integratation parameters
         self.prop_gmat.SetField("InitialStepSize", 5)
         self.prop_gmat.SetField("MinStep", 1e-5)
@@ -45,7 +45,7 @@ class Propagator:
 
         self.prop_gmat.SetField("MaxStep", 120)
         self.prop_gmat.SetField("MaxStepAttempts", 2.5e4)
-    
+
     def setFM(self, fm: gmat.ODEModel):
         """ Assign a ForceModel object to the propagator.
         
@@ -55,7 +55,7 @@ class Propagator:
         """
 
         self.prop_gmat.SetReference(fm)
-    
+
     def setSat(self, sat: gmat.Spacecraft):
         """ Assign a satellite to the propagator.
         
