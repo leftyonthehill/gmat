@@ -9,7 +9,7 @@ import datetime as dt
 
 # ----------------- Scenario Control ------------------------------------------
 # Duration of the scenario in days
-MAX_DAYS = 380
+MAX_DAYS = 60
 
 # Simulation step size while coasting
 DT_COAST = 120.0

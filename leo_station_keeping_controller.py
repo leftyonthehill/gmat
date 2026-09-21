@@ -91,7 +91,7 @@ class StationKeepingController:
         performed.
     thrusting : bool
         Thrusters firing flag during I-axis maneuvers.
-    thrust_axis : str
+    thruster_axis : str
         Thruster axis and direction during R/C-axis maneuvers.
     negative_time_correction_tries : int
         Specific to the I-axis maneuver algorithm, the number of tries
@@ -257,17 +257,25 @@ class StationKeepingController:
             elapsed_time: float,
         ) -> dict:
         """
-        Evaluate if the truth spacecraft is in its ideal radial
+        Evaluate if the truth spacecraft is in its radial
         maneuver window.
 
-        The ideal radial maneuver window will occur when the two
-        spacecrafts' eccentricity vectors are aligned
-        (|del_aop| < 3 deg) and the orbital radii for each spacecraft
-        are equal. If these two conditions are met, then alert the
-        spacecraft to begin thrusting along the R-axis. The direction
-        within the R-axis will be specified by the "del_e" and the
-        truth spacecraft true anomaly at the start of the maneuver
-        (> 180 deg or < 180 deg). If these conditions are not met
+        The maneuver window will occur when:
+        - The eccentricity vectors are aligned ``|del_aop| <= 3``
+        - The true anomaly is approaching within `MANEUVER_HALF_ANGLE`
+          of 90 deg or 270 deg
+            - With the eccentiricty vectors of the truth and reference
+              state nearly aligned, the driving radial deviation comes
+              from the difference in eccentricity. By performing a
+              maneuver near a true anomaly value of 90 deg or 270 deg,
+              the corrective action can be focused on minimizing
+              ``del_e``.
+        
+        The direction of the maneuver, either "R+" or "R-", will be
+        specified by ``del_e`` and the angle of the true anomaly prior
+        to the start of the maneuver (> 180 deg or < 180 deg). When
+        these two conditions are met, then alert the spacecraft to
+        begin thrusting along the R-axis. Otherwise of they are not met
         within one orbital period, quit looking for maneuver
         opportunities.
 
@@ -285,11 +293,7 @@ class StationKeepingController:
 
         ## Maneuver window identification ##
         self.steps_waiting += 1
-        # NEED TO CORRECT *IDEAL* WINDOWS
-        # - use polar equation to find TA such that altitudes between truth and
-        #   reference spacecraft are equal.
-        # - complementary angle is 360 - TA from step above
-        # FIX AFTER COMMENTING IS DONE
+
         approaching_90 = 90 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 90
         approaching_270 = 270 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 270
         in_node_window = approaching_90 or approaching_270
@@ -347,7 +351,7 @@ class StationKeepingController:
         The ideal in-track maneuver window will open when the truth
         spacecraft is within `MANEUVER_ARC_HALF_ANGLE` degrees of
         either its perigee or apogee. The location of the maneuver will
-        decided by one of two conditions:
+        be decided by one of two conditions:
         - The sign of "del_e"
             - "del_e" < 0 for a maneuver at perigee
                 - The reference apogee is higher than the truth and the
@@ -438,7 +442,7 @@ class StationKeepingController:
         """
         Compute the ideal angle to correct both inclination and RAAN.
         
-        This computation uses a modified verion of the heuristic by H.
+        This computation uses a modified version of the heuristic by H.
         Schaub and J. Junkins in 'Analytical Mechanics of Space
         Systems', 4th Ed. This version multiplies the value of "del_i"
         by 10 so that "del_i" and "del_raan" have comparable
@@ -453,8 +457,8 @@ class StationKeepingController:
         """
 
         crit_angle = np.rad2deg(np.arctan(
-                10 * self.coes_avg_diff["del_raan"]
-                / self.coes_avg_diff["del_i"]
+                self.coes_avg_diff["del_raan"]
+                / self.coes_avg_diff["del_i"] / 10
                 * np.sin(np.deg2rad(self.ref_coes[2]))
             )
         )
@@ -550,8 +554,8 @@ class StationKeepingController:
             accel: dict
     ) -> dict:
         """
-        Terminates the radial maneuver when the window maneuver window
-        closes or the maneuver reaches its maximum duration.
+        Terminates the radial maneuver when the maneuver window closes
+        or the maneuver reaches its maximum duration.
         
         During each time step the R-axis maneuver is active, check to
         see if any of the following termination criteria have been met:
@@ -831,21 +835,23 @@ class StationKeepingController:
         The algorithm to determine the "perfect" maneuver length is as
         follows:
         - Upon entering "I burn" for the first time, fire the thrusters
-        for `MIN_DUTY_TIME`
-        - Turn off the thrusters and coast until "del_a_avg" drops
-          below 0 (this condition signifies that the truth spacecraft
-          is no longer coasting away from the reference spacecraft but
-          rather beginning its approach back)
+          for `MIN_DUTY_TIME`
+            - Corrects for atmospheric drag and sends the spacecraft
+              drifting into I- direction
+        - Coast for a minimum of 4 orbits and wait until ``del_a_avg``
+        drops below 0
+            - Signifies that the truth spacecraft has begin to drift
+              in I+ direction
         - If the maximum negative I-axis position is not greater than
-        `DEADBAND_TRIGGER_RATIO`% of `I_BOUNDS`, backwards propagate to
-        the end of the maneuver and increase the burn duration
+          `DEADBAND_TRIGGER_RATIO`% of `I_BOUNDS`, backwards propagate to
+          the end of the maneuver and increase the burn duration
         - If the maximum negative I-axis position is greater than
-        `I_BOUNDS`, backwards propagate to the end of the maneuver and
-        backwards propagate into the maneuver to reduce the maneuver's
-        burn duration
+          `I_BOUNDS`, backwards propagate to the end of the maneuver and
+          backwards propagate into the maneuver to reduce the maneuver's
+          burn duration
         - If the burn duration is commanded to be negative or the
-        amount of maneuver corrections exceeds 100 attempts, the
-        simulation is ended.
+          amount of maneuver corrections exceeds 100 attempts, the
+          simulation is ended.
         
         Parameters
         ----------
@@ -860,6 +866,13 @@ class StationKeepingController:
         {str: str}
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
+        
+        Notes
+        -----
+        - Backwards propagation operations (<integrator>.Step(-<time>)) rely on
+        RK89 being numerically irreversible only to within simulation
+        tolerance. Small discontinuities at these seams are expected and
+        acceptable.
         """
         if self.thrusting:
             self.burn_duration += DT_THRUST
@@ -950,8 +963,8 @@ class StationKeepingController:
             accel: dict
     ) -> dict:
         """
-        Terminates the out of plane maneuver when the window maneuver
-        window closes or the maneuver reaches its maximum duration.
+        Terminates the out of plane maneuver when the maneuver window
+        closes or the maneuver reaches its maximum duration.
         
         During each time step the C-axis maneuver is active, check to
         see if any of the following termination criteria have been met:

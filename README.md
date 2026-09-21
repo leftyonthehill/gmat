@@ -44,7 +44,7 @@ project.
    ```bash
    pip install numpy matplotlib
 6.  **Test for correct install** - 
-   Run `testThrusting.py` and analyze the station keeping data!
+   Run `station_keeping_simulation.py` and analyze the station keeping data!
 
 ## Contributing
 This is currently a personal research project, but feel free to open issues or pull requests if 

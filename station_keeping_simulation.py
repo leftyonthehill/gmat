@@ -53,7 +53,7 @@ Notes
 Outputs
 -------
 Prints the terminal state, elapsed time, terminal epoch, and final
-Keplerian elements for both spacecraft, then calls `outputPlots()` to
+Keplerian elements for both spacecraft, then calls `output_plots()` to
 render RIC position/velocity, oscillation-amplitude, and diff_coe-
 difference plots (see `simulationParameters.py` for which plots are
 enabled and `data_outputs.py` for details).
