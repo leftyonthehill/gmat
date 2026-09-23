@@ -58,8 +58,8 @@ def xyz2ric(
     -------
     tuple
         - rv_ric : list[float]
-            Contains the rotated, RIC frame state vector of the
-            original 'true_state'.
+            - `rv_ric[:3]` = relative position in RIC frame
+            - `rv_ric[3:]` = relative velocity in rotating RIC frame
         - rot_matrix : np.ndarray
             Contains the 3x3 rotation matrix to rotate the ECI frame to
             RIC.

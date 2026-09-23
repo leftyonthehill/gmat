@@ -709,7 +709,7 @@ class StationKeepingController:
         # Estimate the time steps needed to correct the undershoot criteria (1
         # `DT_THRUST` time step per missed Km).
         self.estimated_steps = np.ceil(
-            (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS)
+            (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS) * I_BURN_STEP_GAIN
         )
 
         # Verify maneuver duration hasn't been tried to prevent
@@ -787,7 +787,7 @@ class StationKeepingController:
         # `DT_THRUST` time step per missed Km)
         stepsToBackTrack = abs(
             np.ceil(
-                self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS
+                (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS) * I_BURN_STEP_GAIN
             )
         )
 
@@ -949,9 +949,9 @@ class StationKeepingController:
                 # - Overshoots deadband target (less thrusting required)
 
                 termination_conditions = [
-                    DEADBAND_TRIGGER_RATIO < abs(self.min_i_pos / I_BOUNDS) <= 1,
-                    abs(self.min_i_pos / I_BOUNDS) <= DEADBAND_TRIGGER_RATIO,
-                    abs(self.min_i_pos / I_BOUNDS) > 1
+                    DEADBAND_TRIGGER_RATIO < -self.min_i_pos / I_BOUNDS <= 1,
+                    -self.min_i_pos / I_BOUNDS <= DEADBAND_TRIGGER_RATIO,
+                    -self.min_i_pos / I_BOUNDS > 1
                 ]
 
                 if termination_conditions[0]:
@@ -1116,8 +1116,8 @@ class StationKeepingController:
         """
 
         # Determine if the amplitude of the C position oscillation has
-        # dropped below `DEADBAND_TRIGGER_RATIO` percent of `C_BOUNDS`
-        c_amp_corrected = self.amp_ric["C"] / C_BOUNDS < DEADBAND_TRIGGER_RATIO
+        # dropped below `C_TARGET_RATIO` percent of `C_BOUNDS`
+        c_amp_corrected = self.amp_ric["C"] / C_BOUNDS < C_TARGET_RATIO
 
         if c_amp_corrected:
             self.state = self.interrupted_state

@@ -159,7 +159,7 @@ class StationKeepingObjects:
         self.sat_wrap.getGMATSat().IsManeuvering(True)
 
         # Add the thruster's force to the Propagator
-        prop.prop_gmat.AddForce(fm.burnForce[self.thrust_axis])
+        prop.prop_gmat.AddForce(fm.burn_force[self.thrust_axis])
 
         # Update the Propagator's satellite reference
         prop.prop_gmat.AddPropObject(self.sat_gmat)

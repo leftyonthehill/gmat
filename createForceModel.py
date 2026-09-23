@@ -11,7 +11,7 @@ class ForceModel:
     experienced during a station keeping scenario.
 
     This wrapper supports two types of force models:
-    - "Reference": Includes the minimum perturbation load (4x4 Earth
+    - "Reference": Includes the minimum perturbation load (16x16 Earth
       geopotential model) for an ideal reference trajectory.
     - "Truth": High fidelity dynamics model to include atmospheric
       drag, 3rd body effects (Sun/Moon), and solar radiation pressure.

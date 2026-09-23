@@ -4,7 +4,7 @@ import datetime as dt
 
 # ----------------- Scenario Control ------------------------------------------
 # Duration of the scenario in days
-MAX_DAYS = 60
+MAX_DAYS = 365*4
 
 # Simulation step size while coasting
 DT_COAST = 120.0
@@ -50,7 +50,7 @@ TRUTH_ORBIT_STATE = [
 ]
 
 # Minimum thruster duty time in seconds
-MIN_DUTY_TIME = 900
+MIN_DUTY_TIME = 60
 # Maximum thruster duty time in seconds
 MAX_DUTY_TIME = 3600
 
@@ -63,6 +63,8 @@ I_BOUNDS = 40
 C_BOUNDS = 15
 
 DEADBAND_TRIGGER_RATIO = 0.85
+I_BURN_STEP_GAIN = 0.5
+C_TARGET_RATIO = 0.33
 # ----------------- Plotting --------------------------------------------------
 PLOT_3D_RIC = False
 
@@ -77,8 +79,8 @@ PLOT_RIC_VELO_AMP = False
 PLOT_COE_DIFFS = {
     "del_a": True,
     "del_e": True,
-    "del_i": False  ,
-    "del_raan": False,
+    "del_i": True  ,
+    "del_raan": True,
     "del_aop": False,
     "del_f": False
 }

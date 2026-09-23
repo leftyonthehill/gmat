@@ -4,7 +4,7 @@ This script drives a two-satellite (reference and truth) GMAT scenario
 and uses a state-machine controller to keep the truth spacecraft within
 a user-defined operational bounds of the reference spacecraft in the
 Radial/In-Track/Cross-Track (RIC) frame. The reference spacecraft is
-only perturbed by Earth's geopotential (4x4 model), while the truth
+only perturbed by Earth's geopotential (16x16 model), while the truth
 spacecraft carries electric thrusters in the +/-R, +/-I, +/-C
 directions to counter the same Earth geopotential model, atmospheric
 drag, solar radiation pressure, and third body effects (Sun and Moon).
