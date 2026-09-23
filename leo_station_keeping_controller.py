@@ -31,14 +31,14 @@ class StationKeepingController:
         Earth's gravitational parameter (km^3/s^2)
     PERIOD_IN_SECONDS : float
         The orbital period of the initial truth spacecraft in seconds.
-    STEPS_PER_ORBIT : 
+    STEPS_PER_ORBIT : int
         Based on the defined DT_COAST value, how many steps to complete
         one orbital period.
-    COE_KEYS : dict
-        dict of the keys used to store the differences in orbital
+    COE_KEYS : list
+        list of the keys used to store the differences in orbital
         elements between the truth and reference spacecraft.
-    RIC_KEYS : dict
-        dict of the keys used to store the RIC position and velocity
+    RIC_KEYS : list
+        list of the keys used to store the RIC position and velocity
         vectors of the truth spacecraft.
     I_OVERRIDE : set
         set of `state` values that cannot be interrupted to begin
@@ -76,7 +76,7 @@ class StationKeepingController:
     ref_coes : list
         Updated each time step from the main loop with the reference
         spacecraft's Keplerian state vector.
-    maneuver_starts : lsit
+    maneuver_starts : list
         Tracks the times of when every maneuver was initiated and what
         type of maneuver it was.
     maneuver_attempts : list
@@ -95,8 +95,8 @@ class StationKeepingController:
         Thruster axis and direction during R/C-axis maneuvers.
     negative_time_correction_tries : int
         Specific to the I-axis maneuver algorithm, the number of tries
-        the algo with a negative thrust time before terminating the
-        simulation.
+        the controller is allowed to suggest a negative thrust time
+        before terminating the simulation.
     estimated_steps : int
         Specific to the I-axis maneuver algorithm, the number of
         DT_THRUST steps for the truth spacecraft to add or remove from
@@ -108,20 +108,13 @@ class StationKeepingController:
     min_i_pos : float
         Specific to the I-axis maneuver algorithm, tracks the greatest
         negative I-axis position during each maneuver attempt.
-    del_a_estimated : float
-        Specific to the I-axis maneuver algorithm, used in the maneuver
-        notification print outs as the projected difference in SMA
-        between the truth and reference spacecraft needed to achieve a
-        nominal drag recovery (TO BE REMOVED).
-    del_a_recovered : float
-        Specific to the I-axis maneuver algorithm, used in the maneuver
-        notifcation print outs as the actual difference in SMA between
-        the truth and reference spacecraft after the termination of a
-        maneuver (TO BE REMOVED).
     min_i_pos_timer : float
         Specific to the I-axis maneuver algorithm, the time limit
         `min_i_pos` must be updated by to ensure `min_i_pos` is still
         decreasing.
+    max_i_pos : float
+        Specific to the I-axis maneuver algorithm, tracks the greatest
+        positive I-axis position during each maneuver attempt.
     """
 
     MU = 398600  # Earth’s gravitational parameter in km^3/s^2
@@ -175,15 +168,13 @@ class StationKeepingController:
         self.coast_duration = 0
         self.min_i_pos = 0
         self.max_i_pos = 0
-        self.del_a_estimated = 0
-        self.del_a_recovered = 0
         self.min_i_pos_timer = 0
 
     def update(
             self,
             elapsed_time: float,
             accel: dict
-    ):
+    ) -> dict:
         """ Determine the station keeping action to take.
 
         After updating the necessary attributes, determine what the
@@ -197,6 +188,12 @@ class StationKeepingController:
         accel : {str: float}
             Assuming constant thrust and mass, the acceleration map for
             each thruster axis.
+        
+        Returns
+        -------
+        dict
+            The dict will contain what the spacecraft's next action is
+            and if any values in the main loop need to be updated.
         """
 
         # At each major time step, evaluate if there have been any
@@ -262,9 +259,9 @@ class StationKeepingController:
 
         The maneuver window will occur when:
         - The eccentricity vectors are aligned ``|del_aop| <= 3``
-        - The true anomaly is approaching within `MANEUVER_HALF_ANGLE`
-          of 90 deg or 270 deg
-            - With the eccentiricty vectors of the truth and reference
+        - The true anomaly is approaching within
+          `MANEUVER_ARC_HALF_ANGLE` of 90 deg or 270 deg
+            - With the eccentricity vectors of the truth and reference
               state nearly aligned, the driving radial deviation comes
               from the difference in eccentricity. By performing a
               maneuver near a true anomaly value of 90 deg or 270 deg,
@@ -272,10 +269,10 @@ class StationKeepingController:
               ``del_e``.
         
         The direction of the maneuver, either "R+" or "R-", will be
-        specified by ``del_e`` and the angle of the true anomaly prior
-        to the start of the maneuver (> 180 deg or < 180 deg). When
-        these two conditions are met, then alert the spacecraft to
-        begin thrusting along the R-axis. Otherwise of they are not met
+        specified by the values of ``del_e`` and the angle of the true
+        anomaly prior to the start of the maneuver. When these two
+        conditions are met, then alert the spacecraft to begin
+        thrusting along the R-axis. Otherwise if they are not met
         within one orbital period, quit looking for maneuver
         opportunities.
 
@@ -286,7 +283,7 @@ class StationKeepingController:
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """
@@ -318,9 +315,7 @@ class StationKeepingController:
 
         if in_node_window and in_del_aop_range:
             # Choose thruster direction based on the sign of "del_e" and
-            # whether the maneuver window is the 90 or 270 deg true anomaly so
-            # that the burn torques the line of apsides toward the reference
-            # spacecraft.
+            # the current maneuver window.
             if self.coes_avg_diff["del_e"] > 0:
                 self.thruster_axis = "R-" if approaching_90 else "R+"
             else:
@@ -348,23 +343,27 @@ class StationKeepingController:
         Evaluate if the truth spacecraft is in its ideal in-track
         maneuver window.
 
-        The ideal in-track maneuver window will open when the truth
-        spacecraft is within `MANEUVER_ARC_HALF_ANGLE` degrees of
-        either its perigee or apogee. The location of the maneuver will
-        be decided by one of two conditions:
-        - The sign of "del_e"
-            - "del_e" < 0 for a maneuver at perigee
-                - The reference apogee is higher than the truth and the
-                  reference perigee is lower than the truth. Performing
-                  the maneuver at perigee will raise the truth
-                  spacecraft's apogee to meet/exceed that of the
-                  reference spacecraft.
-            - "del_e" > 0 for a maneuver at apogee
-                - The reference  apogee is lower than the truth and the
-                  reference perigee is higher than the truth.
-                  Performing the maneuver at apogee will raise the
-                  truth's perigee to meet/exceed that of the reference
-                  spacecraft.
+        The ideal in-track maneuver window will open when the following
+        are true:
+            - The truth spacecraft is within `MANEUVER_ARC_HALF_ANGLE`
+              degrees of either its perigee or apogee. The location of
+              the maneuver will be decided by one of two conditions:
+                - The sign of "del_e"
+                    - "del_e" < 0 for a maneuver at perigee
+                        - The reference apogee is higher than the truth
+                        and the reference perigee is lower than the
+                        truth. Performing the maneuver at perigee will
+                        raise the truth spacecraft's apogee to
+                        meet/exceed that of the reference spacecraft.
+                    - "del_e" > 0 for a maneuver at apogee
+                        - The reference  apogee is lower than the truth
+                        and the reference perigee is higher than the
+                        truth. Performing the maneuver at apogee will
+                        raise the truth's perigee to meet/exceed that
+                        of the reference spacecraft.
+            - The previous maneuver occured more than 3 periods ago
+            - The truth spacecraft's average sma delta is less than 0
+              Km.
         
         If these conditions are not met within one orbital period, quit
         looking for maneuver opportunities.
@@ -376,7 +375,7 @@ class StationKeepingController:
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """
@@ -400,12 +399,12 @@ class StationKeepingController:
             in_burn_window = in_apogee_pass or in_perigee_pass
 
         if len(self.maneuver_starts) > 0:
-            recent_maneuver = (elapsed_time - self.maneuver_ends[-1]
+            no_recent_maneuver = (elapsed_time - self.maneuver_ends[-1]
                                 >= 3 * self.PERIOD_IN_SECONDS)
         else:
-            recent_maneuver = True
+            no_recent_maneuver = True
 
-        del_a_settled = self.coes_instant_diff["del_a"] < 0
+        del_a_settled = self.coes_avg_diff["del_a"] < 0
 
         if self.steps_waiting >= self.STEPS_PER_ORBIT:
             self.steps_waiting = 0
@@ -420,10 +419,9 @@ class StationKeepingController:
             }
 
         ## Spacecraft action reporting ##
-        if in_burn_window and recent_maneuver and del_a_settled:
+        if in_burn_window and no_recent_maneuver and del_a_settled:
             self.steps_waiting = 0
             self.maneuver_starts.append((elapsed_time, "r"))
-            self.del_a_estimated = abs(self.coes_avg_diff["del_a"])
 
             self.state = "I burn"
             self.thrusting = True
@@ -456,10 +454,9 @@ class StationKeepingController:
             perform the maneuver.
         """
 
-        crit_angle = np.rad2deg(np.arctan(
-                self.coes_avg_diff["del_raan"]
-                / self.coes_avg_diff["del_i"] / 10
-                * np.sin(np.deg2rad(self.ref_coes[2]))
+        crit_angle = np.rad2deg(np.arctan2(
+                self.coes_avg_diff["del_raan"] * np.sin(np.deg2rad(self.ref_coes[2])),
+                self.coes_avg_diff["del_i"] * 10
             )
         )
 
@@ -489,7 +486,7 @@ class StationKeepingController:
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """
@@ -567,12 +564,12 @@ class StationKeepingController:
         elapsed_time : float
             Time in seconds since the simulation began.
         accel : dict
-            Dict of each thruster axis and its imparted acceleration on
+            dict of each thruster axis and its imparted acceleration on
             the spacecraft.
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """
@@ -633,16 +630,16 @@ class StationKeepingController:
         elapsed_time : float
             Time in seconds since the simulation began.
         accel : dict
-            Dict of each thruster axis and its imparted acceleration on
+            dict of each thruster axis and its imparted acceleration on
             the spacecraft.
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """
-        
+
         # Update delta_v consumed during mission
         delta_v = accel["I+"] * self.burn_duration
         self.total_delta_v += delta_v
@@ -682,10 +679,16 @@ class StationKeepingController:
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
-         """
+        
+        Raises
+        ------
+        RuntimeError
+            The controller attempted to perform a successful maneuver
+            100 times. To prevent an infinte loop, end the simulation.
+        """
         # Turn thrusters on
         self.thrusting = True
 
@@ -749,10 +752,23 @@ class StationKeepingController:
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
+        
+        Raises
+        ------
+        RuntimeError
+            The controller attempted to perform a successful maneuver
+            100 times. To prevent an infinte loop, end the simulation.
+        RuntimeError
+            The controller had to many attempts where it tried using a
+            negative thrust duration time. To prevent any errors, end
+            the simulation.
         """
+        # As an unsuccessful maneuver, remove its end time
+        burn_end_time = self.maneuver_ends[-1]
+        self.maneuver_ends.pop()
 
         # Turn thrusters on
         self.thrusting = True
@@ -785,23 +801,18 @@ class StationKeepingController:
         backtrack_burn_time = stepsToBackTrack * DT_THRUST
         self.burn_duration -= backtrack_burn_time
 
+        # In case the maneuver time goes negative while the algorithm searches
+        # for the shorter maneuver time to bring in the overshoot of
+        # `I_BOUNDS`, there is an chance that the controller overcorrected and
+        # sent the spacecraft into a negative maneuver time. Should that be the
+        # the case, reset the maneuver time to 5 times `DT_THRUST` and try
+        # again. If the controller cannot converge on a solution after 5
+        # attempts that produce a negative thrust time, raise a RuntimeError.
         if self.burn_duration < 0:
             self.burn_duration = 5 * DT_THRUST
             self.negative_time_correction_tries -=  1
             if self.negative_time_correction_tries <= 0:
                 raise RuntimeError("Too many attempts to fix a negative burn time")
-
-        # As an unsuccessful maneuver, remove its end time
-        burn_end_time = self.maneuver_ends[-1]
-        self.maneuver_ends.pop()
-        # In case the maneuver time goes negative while the algorithm searches
-        # for the shorter maneuver time to bring in the overshoot of
-        # `I_BOUNDS`, message the user in the terminal and exit the station
-        # keeping loop.
-        if self.burn_duration < 0:
-            raise RuntimeError("Negative thrust time! Min I = "
-                    + str(self.min_i_pos)
-            )
 
         # In case this leads to the 100th maneuver attempt, notify the user and
         # exit the station keeping loop.
@@ -835,20 +846,20 @@ class StationKeepingController:
         The algorithm to determine the "perfect" maneuver length is as
         follows:
         - Upon entering "I burn" for the first time, fire the thrusters
-          for `MIN_DUTY_TIME`
+          for `MIN_DUTY_TIME`.
             - Corrects for atmospheric drag and sends the spacecraft
-              drifting into I- direction
-        - Coast for a minimum of 4 orbits and wait until ``del_a_avg``
-        drops below 0
-            - Signifies that the truth spacecraft has begin to drift
-              in I+ direction
+              drifting into I- direction.
+        - Coast for a minimum of 4 orbits and wait until the average 
+          "del_a" drops below 0.
+            - Signifies that the truth spacecraft has begun to drift
+              in I+ direction.
         - If the maximum negative I-axis position is not greater than
-          `DEADBAND_TRIGGER_RATIO`% of `I_BOUNDS`, backwards propagate to
-          the end of the maneuver and increase the burn duration
+          `DEADBAND_TRIGGER_RATIO` of `I_BOUNDS`, backwards propagate to
+          the end of the maneuver and increase the burn duration.
         - If the maximum negative I-axis position is greater than
           `I_BOUNDS`, backwards propagate to the end of the maneuver and
           backwards propagate into the maneuver to reduce the maneuver's
-          burn duration
+          burn duration.
         - If the burn duration is commanded to be negative or the
           amount of maneuver corrections exceeds 100 attempts, the
           simulation is ended.
@@ -858,21 +869,21 @@ class StationKeepingController:
         elapsed_time : float
             Time in seconds since the simulation began.
         accel : dict
-            Dict of each thruster axis and its imparted acceleration on
+            dict of each thruster axis and its imparted acceleration on
             the spacecraft.
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         
         Notes
         -----
-        - Backwards propagation operations (<integrator>.Step(-<time>)) rely on
-        RK89 being numerically irreversible only to within simulation
-        tolerance. Small discontinuities at these seams are expected and
-        acceptable.
+        Backwards propagation operations (<integrator>.Step(-<time>))
+        rely on RK89 being numerically irreversible only to within
+        simulation tolerance. Small discontinuities at these seams
+        are expected and acceptable.
         """
         if self.thrusting:
             self.burn_duration += DT_THRUST
@@ -976,12 +987,12 @@ class StationKeepingController:
         elapsed_time : float
             Time in seconds since the simulation began.
         accel : dict
-            Dict of each thruster axis and its imparted acceleration on
+            dict of each thruster axis and its imparted acceleration on
             the spacecraft.
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """
@@ -1049,7 +1060,7 @@ class StationKeepingController:
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """
@@ -1099,7 +1110,7 @@ class StationKeepingController:
         
         Returns
         -------
-        {str: str}
+        dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
         """

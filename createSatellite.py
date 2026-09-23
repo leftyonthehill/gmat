@@ -169,10 +169,10 @@ class Satellite:
             If the provided epoch string is not in the correct format.
         """
 
-        if 6 > len(coes) > 7:
+        if len(coes) < 6 or len(coes) > 7:
             raise ValueError("Incorrect amount of elements passed. There "
                              + "needs to be either 6 (COEs) or 7 (COEs + "
-                             + "Epoch) elements. In this case " 
+                             + "Epoch) elements. In this case "
                              + str(len(coes)) + " elements were passed.")
 
         # State vector setting
@@ -191,7 +191,7 @@ class Satellite:
         else:
             epoch = coes[-1]
 
-        if type(epoch) == dt.datetime:
+        if isinstance(epoch, dt.datetime):
             self.epoch = epoch.strftime("%d %b %Y 00:00:00.000")
         elif type(epoch == str):
             self.epoch = epoch
@@ -205,36 +205,37 @@ class Satellite:
     def setCartesianState(self, xyz: list):
         """ Set the spacecraft state vector using Cartesian elements.
                 
-            The provided list must contain an element for each Cartesian
-            element from the ECI frame and, optionally, the epoch
-            associated with the state vector. If an epoch is included,
-            it must in the form of "dd mmm yyyy HH:MM.SS.SSS".
-    
-            Parameters
-            ----------
-            xyz : list[float | str]
-                - X, 
-                - Y, 
-                - Z, 
-                - V_X, 
-                - V_Y, 
-                - V_Z,
-                - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
-                                
-            Raises
-            ------
-            ValueError
-                If the provided list is not exactly 6 or 7 elements long.
-            SyntaxError
-                If the provided epoch string is not in the correct format.
+        The provided list must contain an element for each Cartesian
+        element from the ECI frame and, optionally, the epoch
+        associated with the state vector. If an epoch is included,
+        it must in the form of "dd mmm yyyy HH:MM.SS.SSS".
+
+        Parameters
+        ----------
+        xyz : list[float | str]
+            - X, 
+            - Y, 
+            - Z, 
+            - V_X, 
+            - V_Y, 
+            - V_Z,
+            - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
+                            
+        Raises
+        ------
+        ValueError
+            If the provided list is not exactly 6 or 7 elements long.
+        SyntaxError
+            If the provided epoch string is not in the correct format.
         """
 
-        if 6 > len(xyz) > 7:
+        if len(xyz) < 6 or len(xyz) > 7:
             raise ValueError("Incorrect amount of elements passed. There "
-                             + "needs to be either 6 elements. In this case "
-                             + str(len(xyz)) + " elements were passed.")
+                             + "needs to be either 6 or 7 elements. "
+                             + "In this case " + str(len(xyz))
+                             + " elements were passed.")
 
-        x, y, z, xdot, ydot, zdot, epoch = xyz[:6]
+        x, y, z, xdot, ydot, zdot = xyz[:6]
 
         self.sat.SetField("X", x)
         self.sat.SetField("Y", y)
@@ -243,12 +244,26 @@ class Satellite:
         self.sat.SetField("VY", ydot)
         self.sat.SetField("VZ", zdot)
 
+        # State vector epoch setting
+        if len(xyz) == 6:
+            epoch = dt.datetime.today()
+        else:
+            epoch = xyz[-1]
+
+        if isinstance(epoch, dt.datetime):
+            self.epoch = epoch.strftime("%d %b %Y 00:00:00.000")
+        elif type(epoch == str):
+            self.epoch = epoch
+        else:
+            raise SyntaxError("Invalid date type. The epoch must be either a " \
+                            "datetime.datetime object or a string")
+
         self.epoch = epoch.strftime("%d %b %Y 12:00:00.000")
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
 
         self.sat.SetField("DisplayStateType", "Cartesian")
-        self.sat.SetField("DisplayStateType", "Keplerian") 
+        self.sat.SetField("DisplayStateType", "Keplerian")
 
     def setETank(self, mass: float = 30):
         """

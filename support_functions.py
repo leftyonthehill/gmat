@@ -69,6 +69,11 @@ def xyz2ric(
     RuntimeError
         If the length of `ref_state` or `true_state` is not exactly 6
         elements long, alert user and end simulation.
+
+    Notes
+    -----
+    `rv_ric[3:]` contains the relative velocity of the truth spacecraft
+    in the rotating RIC frame.
     """
     # Verify 6 elements were provided (3 for position and 3 for velocity).
     if len(ref_state) != 6 or len(true_state) != 6:
@@ -93,9 +98,13 @@ def xyz2ric(
     delta_r = true_state[:3] - ref_state[:3]
     delta_v = true_state[3:] - ref_state[3:]
 
-    # Position delta in RIC frame
+    # Relative position delta in RIC frame
     r_ric = rot_matrix @ delta_r
-    v_ric = rot_matrix @ delta_v
+
+    # Relative velocity delta in RIC frame
+    r_mag = np.linalg.norm(ref_state[:3])
+    omega = h_vec / r_mag**2
+    v_ric = rot_matrix @ (delta_v - np.cross(omega, delta_r))
 
     # Combine the position and velocity vectors
     rv_ric = list(r_ric) + list(v_ric)
@@ -105,15 +114,12 @@ def xyz2ric(
 def get_epoch_as_datetime(date_str: str) -> dt.datetime:
     """ Parse a GMAT UTCGregorian epoch string into a datetime.
     
-    Expected Format
-    ---------------
-    ``"dd mmm yyyy HH:MM:SS.fff"``
-    Example: ``"26 Aug 2026 00:00:00.000"``
-
     Parameters
     ----------
     date_str : str
-        Epoch written in GMAT's UTCGregorian format.
+        Epoch written in GMAT's UTCGregorian format. The input is
+        expected to follow this format: "dd mmm yyyy HH:MM:SS.fff"
+        (Example: "26 Aug 2026 00:00:00.000").
     
     Returns
     -------
@@ -140,8 +146,8 @@ def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
     Returns
     -------
     str
-        ``"dd mmm yyyy HH:MM:SS.fff"`` with millisecond precision.
-        ``strftime("%f")`` provides 6 millisecond digits, however the
+        "dd mmm yyyy HH:MM:SS.fff" with millisecond precision.
+        `strftime("%f")` provides 6 millisecond digits, however the
         last three decimal places are stripped to match GMAT's
         millisecond field width.
     """
@@ -182,10 +188,7 @@ def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
     Returns
     -------
     str 
-        ``"yyyyDOYHHMMSS.fff"`` with millisecond precision.
-        ``strftime("%f")`` provides 6 millisecond digits, however the
-        last three decimal places are stripped to match GMAT's
-        millisecond field width.
+        `yyyyDOYHHMMSS.fff` with millisecond precision.
     """
 
     epoch = date.strftime("%Y%j%H%M%S.%f")

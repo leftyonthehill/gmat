@@ -1,9 +1,4 @@
-""" Station keeping scenario config file. 
-
-In this file, the user can define the simulation parameters from
-the number of days to simulate, the orbital elements of the scenario
-spacecraft, the shape of the 
-"""
+"""Station keeping scenario config file."""
 
 import datetime as dt
 
@@ -21,7 +16,7 @@ DT_THRUST = 5.0
 # orbital solutions
 REVOLUTIONS_TO_AVG = 3.0
 
-# ----------------- Satellite Characterisitcs ---------------------------------
+# ----------------- Satellite Characteristics ---------------------------------
 STATE_VECT_SOURCE = "new" # "existing"
 # Orbital element set shared by the initial reference and truth satellites
 ORBIT_STATE = [
@@ -54,8 +49,9 @@ TRUTH_ORBIT_STATE = [
     "25 Jul 2027 15:05:29.068"
 ]
 
-# Maximum thruster duty time in seconds
+# Minimum thruster duty time in seconds
 MIN_DUTY_TIME = 900
+# Maximum thruster duty time in seconds
 MAX_DUTY_TIME = 3600
 
 MANEUVER_ARC_HALF_ANGLE = 20

@@ -24,11 +24,27 @@ from support_functions import (
 )
 
 def output_terminal(
-        elapsed_time : float,
-        sat_t0 : float,
-        ref_sat : Satellite,
-        truth_sat : Satellite,
-):
+        elapsed_time: float,
+        sat_t0: datetime.datetime,
+        ref_sat: Satellite,
+        truth_sat: Satellite,
+) -> None:
+    """
+    After the completed run, print to the terminal the epoch at the end
+    of the scenario and the classical orbital elements for the
+    reference and truth spacecraft states.
+
+    Parameters
+    ----------
+    elapsed_time : float
+        Duration of the completed station keeping scenario in seconds.
+    sat_t0 : float
+        `datetime` object representing that beginning of the station keeping scenario.
+    ref_sat : Satellite
+        Reference spacecraft object.
+    truth_sat : Satellite
+        Truth spacecraft object.
+    """
     print(f"Current time: T+{(elapsed_time / 86400)} days")
 
     terminal_time = sat_t0 + datetime.timedelta(seconds=elapsed_time)
@@ -56,7 +72,7 @@ def output_plots(
     graphs available to plot. Each plot can include a point for when
     each thruster fired, if desired (PLOT_MANEUVER_MARKERS).
     - 3D trajectory in RIC frame (PLOT_3D_RIC)
-    - Position in each RIC axis over time (plot_RIC_v_Time)
+    - Position in each RIC axis over time (PLOT_RIC_POS)
     - Amplitude of the oscillation in RIC position over time
       (PLOT_RIC_POS_AMP)
     - Velocity in each RIC axis over time (PLOT_RIC_VELO)
@@ -72,7 +88,6 @@ def output_plots(
         - True Anomaly (del_f)
     - Differences in the instantaneous and averaged values for the True
       Latitude (del_theta)
-    
 
     Additionally, the scenario can print to the terminal what maneuver
     was completed, how long it took to complete, and at what time did
@@ -91,6 +106,7 @@ def output_plots(
         - Float describing the number of orbital revolutions were
           averaged to study trends.
         - Simulation step size while coasting.
+        - The number of `DT_COAST` steps in one orbit.
     coes : list[dict]
         A compound list containing information about the differences in
         the truth and reference orbital elements:
@@ -247,10 +263,10 @@ def output_plots(
         ----------
         ax : plt.Axes
             The plot to put the maneuver marker on.
-        dataToPlotOn : list
-            A list of keys from 'dataToScreen' to define what data the
+        data_to_plot_on : list
+            A list of keys from 'data_to_screen' to define what data the
             maneuver markers will be plotted over.
-        dataToScreen : dict
+        data_to_screen : dict
             A dict containing the information to be plotted.
         """
 
@@ -274,7 +290,7 @@ def output_plots(
                 c="r",
                 label="I-axis maneuver")
 
-        # If there are at least 1 R-axis maneuver, place a marker when the
+        # If there are at least 1 C-axis maneuver, place a marker when the
         # maneuver began.
         if PLOT_MANEUVER_MARKERS and len(c_burns) > 0:
             ax.plot(

@@ -39,7 +39,7 @@ axis priority is I > C > R and is enforced by the sets `I_OVERRIDE`,
 
 Notes
 -----
-- `elapsed_time` and `t` are tracked in integer seconds. Time is only
+- `elapsed_time` and `t` are tracked in float seconds. Time is only
   converted to days at plot time and for any maneuver notifications in
   the terminal.
 - Backwards propagation operations (<integrator>.Step(-<time>)) rely on
@@ -146,7 +146,7 @@ if STATE_VECT_SOURCE == "new":
     TRUTH_SAT.setKeplerianState(ORBIT_STATE)
 else:
     TRUTH_SAT.setKeplerianState(TRUTH_ORBIT_STATE)
-TRUTH_OBJ.setManeuverable()
+TRUTH_OBJ.set_maneuverable()
 ACCEL = TRUTH_SAT.accelerations
 
 # Initialize the GMAT scenario
@@ -157,20 +157,38 @@ dt = DT_COAST
 
 # ----------------- Build Out Thruster Forces ---------------------------------
 # Reference Objects
-REF_OBJ.preparePropInternal()
+REF_OBJ.prepare_propagators()
 propagator_ref = REF_OBJ.prop_wrap["coast"].prop_gmat.GetPropagator()
 
 # Truth Objects
-TRUTH_OBJ.setBurnForces()
-TRUTH_OBJ.preparePropInternal()
+TRUTH_OBJ.set_burn_forces()
+TRUTH_OBJ.prepare_propagators()
 propagator_truth = TRUTH_OBJ.prop_wrap["coast"].prop_gmat.GetPropagator()
 
 # ----------------- I-axis Maneuver Support Functions -------------------------
-def _back_prop(time, time_to_back_prop: float) -> None:
+def _back_prop(time: float, time_to_back_prop: float) -> float:
+    """Back propagate the simulation.
+
+    Due to an undershoot or overshoot of the targeted recovery window
+    during an I-axis maneuver, rewind the simulation
+    `time_to_back_prop` seconds.
+
+    Parameters
+    ----------
+    time : float
+        The current simulation time in seconds.
+    time_to_back_prop : float
+        The amount of seconds to back propagate.
+    
+    Returns
+    -------
+    float
+        Rewound simulation time in seconds.
+    """
     time_to_back_prop = abs(time_to_back_prop)
 
     t_step = time_to_back_prop // 300
-    for i in range(300):
+    for counter in range(300):
         propagator_ref.Step(-t_step)
         propagator_truth.Step(-t_step)
 
@@ -185,17 +203,33 @@ def _back_prop(time, time_to_back_prop: float) -> None:
     return time
 
 def _reload_diff_buffers(reload_from_time: float) -> None:
-    t_step = t.index(reload_from_time)
-    t_history = t[(t_step - STEPS_TO_AVERAGE):t_step]
+    """After a simulation rewind, reload the buffers needed to compute
+    average values.
+    
+    After a rewind, the average value buffers contain information from
+    the future that is no longer relavent. The buffers need to go
+    backwards in time, beyond the reqound time, to refill the buffers
+    with the corresponding data history.
 
-    # Reload the average diff_coe buffers with data leading
-    # up to the timestamp the thruster turned off
+    Parameters
+    ----------
+    reload_from_time : float
+        The moment in time that the simulation has been rewound to.
+    """
+
+    # Index of the rewound simulation time
+    t_rewounded = t.index(reload_from_time)
+    # Based on the value of `STEPS_TO_AVERAGE`, collect that many data points
+    t_rewound_history = t[(t_rewounded - STEPS_TO_AVERAGE):t_rewounded]
+
+    # For each key in `diffCOEs_buffer` and `RIC_Amp_Buffer`, reload their
+    # buffers
     for key in COE_KEYS:
-        for time in t_history:
+        for time in t_rewound_history:
             diffCOEs_buffer[key].append(diffCOEs[key][time])
 
     for key in RIC_KEYS:
-        for time in t_history:
+        for time in t_rewound_history:
             RIC_Amp_Buffer[key].append(RIC_History[key][time])
 
 # ----------------- Run Simulation---------------------------------------------
@@ -286,7 +320,7 @@ while elapsed_time < TOTALSECONDS:
             thruster_axis = result["thruster_axis"]
             dt = result["dt"]
 
-            propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
+            propagator_truth = TRUTH_OBJ.thruster_on(thruster_axis)
 
         case "stop_waiting":
             state = result["new_state"]
@@ -321,7 +355,7 @@ while elapsed_time < TOTALSECONDS:
                         total_delta_v
                     )
 
-            propagator_truth = TRUTH_OBJ.satEnginesOff(thruster_axis)
+            propagator_truth = TRUTH_OBJ.thruster_off(thruster_axis)
             thruster_axis = ""
 
         case "successful_maneuver":
@@ -363,7 +397,7 @@ while elapsed_time < TOTALSECONDS:
             _reload_diff_buffers(round_to_time_step(burn_end_time))
 
             thruster_axis = "I+"
-            propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
+            propagator_truth = TRUTH_OBJ.thruster_on(thruster_axis)
 
         case "back_prop_coast_and_burn":
             dt = result["dt"]
@@ -375,7 +409,7 @@ while elapsed_time < TOTALSECONDS:
             _reload_diff_buffers(round_to_time_step(burn_end_time))
 
             thruster_axis = "I+"
-            propagator_truth = TRUTH_OBJ.satEnginesOn(thruster_axis)
+            propagator_truth = TRUTH_OBJ.thruster_on(thruster_axis)
             elapsed_time = _back_prop(elapsed_time, back_prop_burn_time)
         case "":
             break
