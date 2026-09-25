@@ -102,7 +102,8 @@ def xyz2ric(
     # Relative position delta in RIC frame
     r_ric = rot_matrix @ delta_r
 
-    # Relative velocity delta in RIC frame
+    # Relative velocity delta in RIC frame and the computed rotation rate of
+    # the frame.
     r_mag = np.linalg.norm(ref_state[:3])
     omega = h_vec / r_mag**2
     v_ric = rot_matrix @ (delta_v - np.cross(omega, delta_r))
@@ -148,7 +149,7 @@ def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
     -------
     str
         "dd mmm yyyy HH:MM:SS.fff" with millisecond precision.
-        `strftime("%f")` provides 6 mircosecond digits, however the
+        `strftime("%f")` provides 6 microsecond digits, however the
         last three decimal places are stripped to match GMAT's
         millisecond field width.
     """

@@ -91,8 +91,8 @@ def output_plots(
       Latitude (del_theta)
 
     Additionally, the scenario can print to the terminal what maneuver
-    was completed, how long it took to complete, and at what time did
-    the maneuver conclude (`PRINT_MANEUVER_MESSAGE`).
+    was completed, how long it took to complete, and at what time the
+    maneuver concluded (`PRINT_MANEUVER_MESSAGE`).
 
     Parameters
     ----------
@@ -100,7 +100,7 @@ def output_plots(
         A compound list containing the following time-related scenario
         information:
         - list containing the maneuver shut off times.
-        - list containing the maneuver start times and the maneuver.
+        - list containing the maneuver start times and the maneuver
           type identifier (R-axis = "m", I-axis = "r", and
           C-axis = "c").
         - list of all time-stamps in the scenario.
@@ -160,19 +160,31 @@ def output_plots(
         ax_ric_traj = plt.figure().add_subplot(projection='3d')
 
         if len(burnStarts) > 0:
-            # If there are any maneuvers in the simulation, separate the maneuver
-            # windows by those associated with each maneuver type.
+            # If there are any maneuvers in the simulation, separate the
+            # maneuver windows by those associated with each maneuver type.
             burnEnds.append(0)
             for i, burn_time in enumerate(burnStarts):
                 # If the stored time 'k' falls between maneuvers in burnEnds
                 # and the start of one in burnStarts, plot the segment in blue
                 # to visualize the coasting period.
                 R = {k:v for k, v in RIC_History["R"].items()
-                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burn_time[0] / 86400}
+                     if (
+                         burnEnds[i-1] - dtCoast) / 86400
+                         <= k
+                         <= burn_time[0] / 86400
+                    }
                 I = {k:v for k, v in RIC_History["I"].items()
-                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burn_time[0] / 86400}
+                     if (
+                         burnEnds[i-1] - dtCoast) / 86400
+                         <= k
+                         <= burn_time[0] / 86400
+                    }
                 C = {k:v for k, v in RIC_History["C"].items()
-                     if (burnEnds[i-1] - dtCoast) / 86400 <= k <= burn_time[0] / 86400}
+                     if (
+                         burnEnds[i-1] - dtCoast) / 86400
+                         <= k
+                         <= burn_time[0] / 86400
+                    }
 
                 ax_ric_traj.plot(
                     [*R.values()],
@@ -608,9 +620,9 @@ def output_plots(
             if -180 > tau > 180:
                 del_theta[i] = (360 - tau if tau > 180 else 360 + tau)
                 tau_to_avg = (
-                                    del_theta[i - STEPS_PER_AVG_ORBIT:i]
-                                    if i >= STEPS_PER_AVG_ORBIT else del_theta[:i]
-                                )
+                    del_theta[i - STEPS_PER_AVG_ORBIT:i]
+                    if i >= STEPS_PER_AVG_ORBIT else del_theta[:i]
+                )
                 del_theta_avg[i] = np.mean(tau_to_avg)
 
         ax = plt.figure().add_subplot()

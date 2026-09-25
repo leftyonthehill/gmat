@@ -1,5 +1,7 @@
-""" Support class that combines the satellite, force model, and propagator
-objects to support the study of a station keeping scenario. """
+"""
+Support class that combines the satellite, force model, and propagator
+objects to support the study of a station keeping scenario.
+"""
 
 from createForceModel import ForceModel
 from createPropagator import Propagator
@@ -36,7 +38,7 @@ class StationKeepingObjects:
     def __init__(self, object_type: str):
         """ Create GMAT objects for the provided object type.
         
-        By default, a new satellite object is set to non-maneuverable. 
+        By default, a new satellite object is set to non-maneuverable.
 
         Parameters
         ----------
@@ -46,8 +48,8 @@ class StationKeepingObjects:
         Raises
         ------
         ValueError
-            Checks to see if the provided `object_type` is either "truth"
-            or "reference".
+            Checks to see if the provided `object_type` is either
+            "truth" or "reference".
         """
 
         if all([object_type.lower() != "truth",
@@ -77,17 +79,16 @@ class StationKeepingObjects:
         model.
 
         If a satellite is determined to be maneuverable, this function
-        calls `sat_wrap` and `set_maneuverable()` to creates
-        ForceModels and Propagators for each thruster attached to the
-        vehicle.
+        calls `sat_wrap` and `set_maneuverable()` to create ForceModels
+        and Propagators for each thruster attached to the vehicle.
         """
 
         self.sat_wrap.set_maneuverable()
 
-        thuster_axes = self.sat_wrap.thrusters.keys()
-        for ax in thuster_axes:
+        thruster_axes = self.sat_wrap.thrusters.keys()
+        for ax in thruster_axes:
             self.fm_wrap[ax] = ForceModel(f"{self.object_type}_{ax}")
-            self.fm_wrap[ax].set_forces_to_propagate(self.object_type)
+            self.fm_wrap[ax].set_forces_to_propagate()
             fm_gmat = self.fm_wrap[ax].fm
 
             self.prop_wrap[ax] = Propagator(f"{self.object_type}_{ax}")
@@ -106,8 +107,8 @@ class StationKeepingObjects:
         None
         """
 
-        thuster_axes = self.sat_wrap.thrusters.keys()
-        for ax in thuster_axes:
+        thruster_axes = self.sat_wrap.thrusters.keys()
+        for ax in thruster_axes:
             self.fm_wrap[ax].create_burn_forces(self.sat_wrap, ax)
             self.prop_wrap[ax].prop_gmat.PrepareInternals()
 

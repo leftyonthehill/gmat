@@ -12,12 +12,13 @@ class Satellite:
     - If this is for the reference spacecraft, no other function calls
       are required. 
     - If this is for the maneuvering spacecraft (the truth state in a
-      station keeping scenario), make sure to call `set_maneuverable()` to
-      create thrusters along the +/-R, +/-I, +/-C axes in the RIC
-      reference frame. If a different combination of thrusters is
-      required, make sure to call `set_ethruster(axis, engineSpecs)`
-      before `set_maneuverable()`. The +/-R, +/-I, +/-C thrust vectors
-      are created if there are no other thrusters assigned to the vehicle.
+      station keeping scenario), make sure to call
+      `set_maneuverable()` to create thrusters along the +/-R, +/-I,
+      +/-C axes in the RIC reference frame. If a different combination
+      of thrusters is required, make sure to call
+      `_set_ethruster(axis, engineSpecs)` before `set_maneuverable()`.
+      The +/-R, +/-I, +/-C thrust vectors are created if there are no
+      other thrusters assigned to the vehicle.
 
     Attributes
     ----------
@@ -53,7 +54,7 @@ class Satellite:
         # Default parameters:
         #   DisplayStateType = Keplerian
         #   Area affected by solar radiation pressure | SRPArea = 6 m^2
-        #   Coefficient of relfectivity | Cr = 1.8
+        #   Coefficient of reflectivity | Cr = 1.8
         #   Area affected by atmospheric drag | DragArea = 5 m^2
         #   Coefficient of drag | Cd = 1.5
         #   Satellite dry mass | DryMass = 900 kg
@@ -419,13 +420,13 @@ class Satellite:
     def _set_power_system(self, power_system_type: str="Nuclear", kw: float=20):
         """ Create the power supply for the spacecraft.
         
-        While the power system type of satellites is commonly "Solar"
+        While the power system type of spacecraft is commonly "Solar"
         power, this function sets the default type to "Nuclear". This
         was chosen because in GMAT there is no way to create a battery
         and maneuver a solar powered spacecraft while eclipsed with the
         Earth. To prevent missed maneuver opportunities, "Nuclear" was
         chosen to be the default power supply type. Future versions of
-        this proejct will include an eclipse checker to verify viable
+        this project will include an eclipse checker to verify viable
         maneuver windows.
 
         Parameters

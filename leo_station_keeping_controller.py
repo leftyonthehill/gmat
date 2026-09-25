@@ -164,7 +164,6 @@ class StationKeepingController:
         self.coast_duration = 0
         self.min_i_pos = 0
         self.max_i_pos = 0
-        self.min_i_pos_timer = 0
 
     def update(
             self,
@@ -287,8 +286,12 @@ class StationKeepingController:
         ## Maneuver window identification ##
         self.steps_waiting += 1
 
-        approaching_90 = 90 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 90
-        approaching_270 = 270 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 270
+        approaching_90 = (90 - MANEUVER_ARC_HALF_ANGLE
+                          < self.truth_coes[-1]
+                          < 90)
+        approaching_270 = (270 - MANEUVER_ARC_HALF_ANGLE
+                           < self.truth_coes[-1]
+                           < 270)
         in_node_window = approaching_90 or approaching_270
 
         # Keeping the value of "del_aop" small means the eccentricity vectors
@@ -357,7 +360,7 @@ class StationKeepingController:
                         truth. Performing the maneuver at apogee will
                         raise the truth's perigee to meet/exceed that
                         of the reference spacecraft.
-            - The previous maneuver occured more than 3 periods ago
+            - The previous maneuver occurred more than 3 periods ago
             - The truth spacecraft's average sma delta is less than 0
               Km.
         
@@ -451,7 +454,8 @@ class StationKeepingController:
         """
 
         crit_angle = np.rad2deg(np.arctan2(
-                self.coes_avg_diff["del_raan"] * np.sin(np.deg2rad(self.ref_coes[2])),
+                self.coes_avg_diff["del_raan"]
+                * np.sin(np.deg2rad(self.ref_coes[2])),
                 self.coes_avg_diff["del_i"] * 10
             )
         )
@@ -575,8 +579,12 @@ class StationKeepingController:
         self.burn_duration += DT_THRUST
 
         # Verifying that the spacecraft is still in a valid maneuver window.
-        approaching_90 = 90 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 90
-        approaching_270 = 270 - MANEUVER_ARC_HALF_ANGLE < self.truth_coes[-1] < 270
+        approaching_90 = (90 - MANEUVER_ARC_HALF_ANGLE
+                          < self.truth_coes[-1]
+                          < 90)
+        approaching_270 = (270 - MANEUVER_ARC_HALF_ANGLE
+                           < self.truth_coes[-1]
+                           < 270)
         in_burn_window = approaching_90 or approaching_270
 
         in_del_aop_range = abs(self.coes_instant_diff["del_aop"]) <= 3
@@ -707,7 +715,8 @@ class StationKeepingController:
         # (`I_BURN_STEP_GAIN` *  'miss distance ', rounded to the next whole
         # number to get the number of `DT_THRUST` steps needed).
         self.estimated_steps = np.ceil(
-            (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS) * I_BURN_STEP_GAIN
+            (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS)
+            * I_BURN_STEP_GAIN
         )
 
         # Verify maneuver duration hasn't been tried to prevent
@@ -786,7 +795,8 @@ class StationKeepingController:
         # number to get the number of `DT_THRUST` steps needed)
         steps_back = abs(
             np.ceil(
-                (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS) * I_BURN_STEP_GAIN
+                (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS)
+                * I_BURN_STEP_GAIN
             )
         )
 
@@ -811,7 +821,9 @@ class StationKeepingController:
             self.burn_duration = 5 * DT_THRUST
             self.negative_time_correction_tries -=  1
             if self.negative_time_correction_tries <= 0:
-                raise RuntimeError("Too many attempts to fix a negative burn time")
+                raise RuntimeError(
+                    "Too many attempts to fix a negative burn time"
+                )
 
         # In case this leads to the 100th maneuver attempt, notify the user and
         # exit the station keeping loop.
@@ -852,12 +864,16 @@ class StationKeepingController:
           "del_a" drops below 0.
             - Signifies that the truth spacecraft has begun to drift
               in I+ direction.
-        - If i_pos_min > `DEADBAND_TRIGGER_RATIO` * `I_BOUNDS`,
+        - If -i_pos_min > `DEADBAND_TRIGGER_RATIO` * `I_BOUNDS`,
           backwards propagate to the end of the maneuver and increase
           the burn duration.
-        - If i_pos_min < `I_BOUNDS`, backwards propagate to the end of
+            - The negative sign is preferred over abs so that false
+              positives are prevented when i_pos_min >0
+        - If -i_pos_min < `I_BOUNDS`, backwards propagate to the end of
           the maneuver and backwards propagate into the maneuver to
           reduce the maneuver's burn duration.
+            - The negative sign is preferred over abs so that false
+              positives are prevented when i_pos_min >0
         - If the burn duration is commanded to be negative or the
           amount of maneuver corrections exceeds 100 attempts, the
           simulation is ended.
@@ -1091,10 +1107,10 @@ class StationKeepingController:
     ):
         """ Verifies the cross-track maneuver performed nominally.
         
-        After an C-axis maneuver is complete, monitor the amplitude of
-        the position's amplitude. If it drops below
-        `C_TARGET_RATIO` then the maneuver is deemed successful. If the
-        `DEADBAND_TRIGGER_RATIO` threshold is not met, then alert the
+        After a C-axis maneuver is complete, monitor the amplitude of
+        the position's amplitude. If it drops below `C_TARGET_RATIO`
+        then the maneuver is deemed successful. If the oscillation
+        amplitude does not drop below `C_TARGET_RATIO`, then alert the
         spacecraft that additional maneuvers are required.
 
         Parameters
@@ -1110,7 +1126,7 @@ class StationKeepingController:
         """
 
         # Determine if the amplitude of the C position oscillation has
-        # dropped below `C_TARGET_RATIO` percent of `C_BOUNDS`
+        # dropped below `C_TARGET_RATIO` of `C_BOUNDS`
         c_amp_corrected = self.amp_ric["C"] / C_BOUNDS < C_TARGET_RATIO
 
         if c_amp_corrected:

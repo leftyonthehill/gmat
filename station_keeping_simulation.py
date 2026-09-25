@@ -207,7 +207,7 @@ def _reload_diff_buffers(reload_from_time: float) -> None:
     average values.
     
     After a rewind, the average value buffers contain information from
-    the future that is no longer relevent. The buffers need to go
+    the future that is no longer relavent. The buffers need to go
     backwards in time, beyond the rewound time, to refill the buffers
     with the corresponding data history.
 
@@ -305,9 +305,12 @@ while elapsed_time < TOTALSECONDS:
             diffCOEs_avg[COE_KEYS[j]][elapsed_time] = avg_value
 
     # Update internals of controller
-    ctrl.amp_ric = {key: value[prev_major_time_step] for key, value in RIC_Amp_History.items()}
-    ctrl.coes_instant_diff = {key: value[prev_major_time_step] for key, value in diffCOEs.items()}
-    ctrl.coes_avg_diff = {key: value[prev_major_time_step] for key, value in diffCOEs_avg.items()}
+    ctrl.amp_ric = {key: value[prev_major_time_step]
+                    for key, value in RIC_Amp_History.items()}
+    ctrl.coes_instant_diff = {key: value[prev_major_time_step]
+                            for key, value in diffCOEs.items()}
+    ctrl.coes_avg_diff = {key: value[prev_major_time_step]
+                          for key, value in diffCOEs_avg.items()}
     ctrl.rv_ric = rv_ric
     ctrl.truth_coes = truthCOE
     ctrl.ref_coes = refCOE
