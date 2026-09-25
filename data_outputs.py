@@ -38,8 +38,9 @@ def output_terminal(
     ----------
     elapsed_time : float
         Duration of the completed station keeping scenario in seconds.
-    sat_t0 : float
-        `datetime` object representing that beginning of the station keeping scenario.
+    sat_t0 : datetime.datetime
+        `datetime.datetime` object representing the beginning of the
+        station keeping scenario.
     ref_sat : Satellite
         Reference spacecraft object.
     truth_sat : Satellite
@@ -51,13 +52,13 @@ def output_terminal(
     print(get_epoch_as_mod_itc(terminal_time))
     print("\nReference COEs:")
     output_state = ""
-    for i in ref_sat.getKeplerianState():
+    for i in ref_sat.get_keplerian_state():
         output_state += " " * 4 + str(i) + ",\n"
     print(output_state)
     print(" " * 4 + f'"{get_epoch_as_str(terminal_time)}"')
     print("\nTruth COEs:")
     output_state = ""
-    for i in truth_sat.getKeplerianState():
+    for i in truth_sat.get_keplerian_state():
         output_state += " " * 4 + str(i) + ",\n"
     print(output_state)
     print(" " * 4 + f'"{get_epoch_as_str(terminal_time)}"')
@@ -70,14 +71,14 @@ def output_plots(
 
     Measuring the differences as (Truth - Reference), there are 9
     graphs available to plot. Each plot can include a point for when
-    each thruster fired, if desired (PLOT_MANEUVER_MARKERS).
-    - 3D trajectory in RIC frame (PLOT_3D_RIC)
-    - Position in each RIC axis over time (PLOT_RIC_POS)
+    each thruster fired, if desired (`PLOT_MANEUVER_MARKERS`).
+    - 3D trajectory in RIC frame (`PLOT_3D_RIC`)
+    - Position in each RIC axis over time (`PLOT_RIC_POS`)
     - Amplitude of the oscillation in RIC position over time
-      (PLOT_RIC_POS_AMP)
-    - Velocity in each RIC axis over time (PLOT_RIC_VELO)
+      (`PLOT_RIC_POS_AMP`)
+    - Velocity in each RIC axis over time (`PLOT_RIC_VELO`)
     - Amplitude of the oscillation in RIC frame velocity over time 
-      (PLOT_RIC_VELO_AMP)
+      (`PLOT_RIC_VELO_AMP`)
     - Differences in the instantaneous and averaged values for each
       orbital element over time:
         - Semi-major Axis (del_a)
@@ -91,22 +92,23 @@ def output_plots(
 
     Additionally, the scenario can print to the terminal what maneuver
     was completed, how long it took to complete, and at what time did
-    the maneuver conclude (terminal_Completed_Firings).
+    the maneuver conclude (`PRINT_MANEUVER_MESSAGE`).
 
     Parameters
     ----------
     timings : list[list | float]
         A compound list containing the following time-related scenario
         information:
-        - List containing the maneuver shut off times.
-        - List containing the maneuver start times and the maneuver.
+        - list containing the maneuver shut off times.
+        - list containing the maneuver start times and the maneuver.
           type identifier (R-axis = "m", I-axis = "r", and
           C-axis = "c").
-        - List of all time-stamps in the scenario.
-        - Float describing the number of orbital revolutions were
-          averaged to study trends.
+        - list of all time-stamps in the scenario.
+        - float describing the number of orbital revolutions averaged
+          to study trends.
         - Simulation step size while coasting.
-        - The number of `DT_COAST` steps in one orbit.
+        - The number of `DT_COAST` steps used to compute orbital
+          averages.
     coes : list[dict]
         A compound list containing information about the differences in
         the truth and reference orbital elements:
@@ -117,13 +119,13 @@ def output_plots(
     ric : list[dict]
         A compound list containing information about the differences in
         the truth and reference Cartesian states:
-        - Dict containing the instananeous differences in the Cartesian
+        - Dict containing the instantaneous differences in the Cartesian
           states.
-        - Dict continaind the averaged differences in the Cartesian
-          State.
+        - Dict containing the oscillation amplitude history of the RIC
+          states.
     """
 
-    # Separting out the components of the inputs
+    # Separating out the components of the inputs
     burnEnds, burnStarts, t, revs_to_avg, dtCoast, STEPS_PER_AVG_ORBIT = timings
     diffCOEs_dict, diffCOEs_avg = coes
     RIC_History, RIC_Amp_History = ric
@@ -158,8 +160,8 @@ def output_plots(
         ax_ric_traj = plt.figure().add_subplot(projection='3d')
 
         if len(burnStarts) > 0:
-            # If there any maneuvers in the simulation, separate the maneuver
-            # windows by the associated with each maneuver type.
+            # If there are any maneuvers in the simulation, separate the maneuver
+            # windows by those associated with each maneuver type.
             burnEnds.append(0)
             for i, burn_time in enumerate(burnStarts):
                 # If the stored time 'k' falls between maneuvers in burnEnds
@@ -270,7 +272,7 @@ def output_plots(
             A dict containing the information to be plotted.
         """
 
-        # If there are at least 1 R-axis maneuver, place a marker when the
+        # If there are at least one R-axis maneuver, place a marker when the
         # maneuver began.
         if len(r_burns) > 0:
             ax.plot(
@@ -280,7 +282,7 @@ def output_plots(
                 c="m",
                 label="R-axis maneuver")
 
-        # If there are at least 1 I-axis maneuver, place a marker when the
+        # If there are at least one I-axis maneuver, place a marker when the
         # maneuver began.
         if PLOT_MANEUVER_MARKERS and len(i_burns) > 0:
             ax.plot(
@@ -290,7 +292,7 @@ def output_plots(
                 c="r",
                 label="I-axis maneuver")
 
-        # If there are at least 1 C-axis maneuver, place a marker when the
+        # If there are at least one C-axis maneuver, place a marker when the
         # maneuver began.
         if PLOT_MANEUVER_MARKERS and len(c_burns) > 0:
             ax.plot(

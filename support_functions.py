@@ -148,7 +148,7 @@ def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
     -------
     str
         "dd mmm yyyy HH:MM:SS.fff" with millisecond precision.
-        `strftime("%f")` provides 6 millisecond digits, however the
+        `strftime("%f")` provides 6 mircosecond digits, however the
         last three decimal places are stripped to match GMAT's
         millisecond field width.
     """

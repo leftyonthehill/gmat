@@ -41,7 +41,7 @@ class StationKeepingObjects:
         Parameters
         ----------
         object_type : str
-            Describes what objects need to made.
+            Describes what objects need to be made.
             
         Raises
         ------
@@ -66,21 +66,23 @@ class StationKeepingObjects:
 
         # For the coasting period, assign the corresponding forces and
         # satellite to the propagator
-        self.fm_wrap[self.thrust_axis].set_forces_to_propagate(object_type)
+        self.fm_wrap[self.thrust_axis].set_forces_to_propagate()
         self.prop_wrap[self.thrust_axis].set_integrator()
         self.prop_wrap[self.thrust_axis].set_fm(
             self.fm_wrap[self.thrust_axis].fm)
         self.prop_wrap[self.thrust_axis].set_sat(self.sat_gmat)
 
     def set_maneuverable(self) -> None:
-        """
+        """ Create GMAT objects to model the thruster(s) in the physics
+        model.
+
         If a satellite is determined to be maneuverable, this function
-        calls the 'sat_wrap' function, setManeuverable(), and creates
+        calls `sat_wrap` and `set_maneuverable()` to creates
         ForceModels and Propagators for each thruster attached to the
         vehicle.
         """
 
-        self.sat_wrap.setManeuverable()
+        self.sat_wrap.set_maneuverable()
 
         thuster_axes = self.sat_wrap.thrusters.keys()
         for ax in thuster_axes:
@@ -122,7 +124,7 @@ class StationKeepingObjects:
             prop.prop_gmat.PrepareInternals()
 
     def thruster_on(self, axis:str) -> gmat.RungeKutta89:
-        """ Turn the thrusters on of the given axis.
+        """ Turn on the thrusters for the given axis.
 
         For the provided value of 'axis', update the corresponding
         Propagator with the latest Satellite state and the thruster's
@@ -155,7 +157,7 @@ class StationKeepingObjects:
 
         # Turn on thruster and set Spacecraft to maneuverable
         thruster.SetField("IsFiring", True)
-        self.sat_wrap.getGMATSat().IsManeuvering(True)
+        self.sat_gmat.IsManeuvering(True)
 
         # Add the thruster's force to the Propagator
         prop.prop_gmat.AddForce(fm.burn_force[self.thrust_axis])

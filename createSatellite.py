@@ -12,13 +12,12 @@ class Satellite:
     - If this is for the reference spacecraft, no other function calls
       are required. 
     - If this is for the maneuvering spacecraft (the truth state in a
-      station keeping scenario), make sure to call setManeuverable() to
+      station keeping scenario), make sure to call `set_maneuverable()` to
       create thrusters along the +/-R, +/-I, +/-C axes in the RIC
-      reference frame. If a different combination of thrusters are
-      required, make sure to call setEThruster(axis, engineSpecs)
-      before calling setManeuverable(). The +/-R, +/-I, +/-C thrust
-      vectors are created if there are no other thrusters assigned to
-      the vehicle.
+      reference frame. If a different combination of thrusters is
+      required, make sure to call `set_ethruster(axis, engineSpecs)`
+      before `set_maneuverable()`. The +/-R, +/-I, +/-C thrust vectors
+      are created if there are no other thrusters assigned to the vehicle.
 
     Attributes
     ----------
@@ -53,10 +52,10 @@ class Satellite:
         #
         # Default parameters:
         #   DisplayStateType = Keplerian
-        #   Area effected by solar radiation pressure | SRPArea = 6 m^2
-        #   Coeffecient of relfectivity | Cr = 1.8
-        #   Area effected by atmospheric drag | DragArea = 5 m^2
-        #   Coeffecient of drag | Cd = 1.5
+        #   Area affected by solar radiation pressure | SRPArea = 6 m^2
+        #   Coefficient of relfectivity | Cr = 1.8
+        #   Area affected by atmospheric drag | DragArea = 5 m^2
+        #   Coefficient of drag | Cd = 1.5
         #   Satellite dry mass | DryMass = 900 kg
         self.sat = gmat.Construct("Spacecraft", sat_name)
         self.sat.SetField("DisplayStateType", "Keplerian")
@@ -80,10 +79,10 @@ class Satellite:
             a_d (Cross-sectional area exposed to atmospheric
             drag)
         - [1]
-            a_r (Cross-sectional area exposed to solar radition
+            a_r (Cross-sectional area exposed to solar radiation
             pressure)
         - [2]
-            c_d (Coeffienct of drag)
+            c_d (Coefficient of drag)
         - [3]       
             c_r (Coefficient of reflectivity)
         - [4]
@@ -92,7 +91,7 @@ class Satellite:
 
         a_d, a_r, c_d, c_r, m = sat_physical_param
 
-        # Updating the physical paramters of the spacecraft
+        # Updating the physical parameters of the spacecraft
         self.sat.SetField("DragArea", a_d)
         self.sat.SetField("SRPArea", a_r)
         self.sat.SetField("Cd", c_d)
@@ -105,8 +104,8 @@ class Satellite:
         
         The provided list must contain an element for each classical
         orbital element and, optionally, the epoch associated with the
-        state vector. If an epoch is included, it must in the form of
-        "dd mmm yyyy HH:MM:SS.SSS".
+        state vector. If an epoch is included, it must be in the form
+        of "dd mmm yyyy HH:MM:SS.SSS".
 
         Parameters
         ----------
@@ -166,7 +165,7 @@ class Satellite:
         The provided list must contain an element for each Cartesian
         element from the ECI frame and, optionally, the epoch
         associated with the state vector. If an epoch is included,
-        it must in the form of "dd mmm yyyy HH:MM:SS.SSS".
+        it must be in the form of "dd mmm yyyy HH:MM:SS.SSS".
 
         Parameters
         ----------
@@ -228,7 +227,7 @@ class Satellite:
         Prepare the components needed to make the spacecraft
         maneuverable.
 
-        If custom conponents have not been created for this spacecraft,
+        If custom components have not been created for this spacecraft,
         create a generic electric fuel tank, nuclear power system, and
         thruster for each axis of the RIC frame.
         """
@@ -267,7 +266,7 @@ class Satellite:
             i.SetField("Tank", etank_name)
 
     def get_keplerian_state(self) -> list[float]:
-        """ Return the keplerian state vector of the spacecraft.
+        """ Return the Keplerian state vector of the spacecraft.
         
         Returns
         -------
@@ -283,7 +282,7 @@ class Satellite:
         return x
 
     def get_cartesian_state(self) -> list[float]:
-        """ Returns the cartesian state vector of the spacecraft. 
+        """ Returns the Cartesian state vector of the spacecraft. 
         
         Returns
         -------
@@ -322,14 +321,14 @@ class Satellite:
 
     def _set_ethruster(self, axis:str = "I+",
                      engine_specs: tuple = (0.2, 3000)):
-        """ Creates a thruster on the spacecraft.
+        """ Create a thruster on the spacecraft.
         
         Parameters
         ----------
         axis : str, default="I+"
             Which axis in the Radial(R+/-)/In-track(I+/-)/Cross-Track
             (C+/-) coordinate frame (RIC) will this thruster fire.
-        engineSpecs : tuple, default=(0.2 N, 3000 sec)
+        engine_specs : tuple, default=(0.2 N, 3000 sec)
             Two element tuple containing the engine force and ISP,
             respectively.
         
@@ -379,7 +378,7 @@ class Satellite:
         Parameters
         ----------
         axis : str
-            Which axis in the RIC will this thruster fire.
+            Which RIC axis the thruster fires along.
         
         Raises
         ------
@@ -425,7 +424,7 @@ class Satellite:
         was chosen because in GMAT there is no way to create a battery
         and maneuver a solar powered spacecraft while eclipsed with the
         Earth. To prevent missed maneuver opportunities, "Nuclear" was
-        choosen to be the default power supply type. Future versions of
+        chosen to be the default power supply type. Future versions of
         this proejct will include an eclipse checker to verify viable
         maneuver windows.
 

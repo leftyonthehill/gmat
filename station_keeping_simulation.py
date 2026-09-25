@@ -2,7 +2,7 @@
 
 This script drives a two-satellite (reference and truth) GMAT scenario
 and uses a state-machine controller to keep the truth spacecraft within
-a user-defined operational bounds of the reference spacecraft in the
+user-defined operational bounds of the reference spacecraft in the
 Radial/In-Track/Cross-Track (RIC) frame. The reference spacecraft is
 only perturbed by Earth's geopotential (16x16 model), while the truth
 spacecraft carries electric thrusters in the +/-R, +/-I, +/-C
@@ -14,7 +14,7 @@ must be corrected.
 Main loop
 ---------
 Each iteration:
-1. Step forward both spacecraft's RK89 integrators by `dt` (`DT_COAST`
+1. Step forward both spacecrafts' RK89 integrators by `dt` (`DT_COAST`
    while coasting, `DT_THRUST` while thrusting).
 2. Compute the truth spacecraft's Cartesian offset from its reference
    in the RIC frame (using xyz2ric).
@@ -135,17 +135,17 @@ thruster_axis = ""
 REF_OBJ = StationKeepingObjects("reference")
 REF_SAT = REF_OBJ.sat_wrap
 if STATE_VECT_SOURCE == "new":
-    REF_SAT.setKeplerianState(ORBIT_STATE)
+    REF_SAT.set_keplerian_state(ORBIT_STATE)
 else:
-    REF_SAT.setKeplerianState(REF_ORBIT_STATE)
+    REF_SAT.set_keplerian_state(REF_ORBIT_STATE)
 
 # Truth Objects
 TRUTH_OBJ = StationKeepingObjects("truth")
 TRUTH_SAT = TRUTH_OBJ.sat_wrap
 if STATE_VECT_SOURCE == "new":
-    TRUTH_SAT.setKeplerianState(ORBIT_STATE)
+    TRUTH_SAT.set_keplerian_state(ORBIT_STATE)
 else:
-    TRUTH_SAT.setKeplerianState(TRUTH_ORBIT_STATE)
+    TRUTH_SAT.set_keplerian_state(TRUTH_ORBIT_STATE)
 TRUTH_OBJ.set_maneuverable()
 ACCEL = TRUTH_SAT.accelerations
 
@@ -207,8 +207,8 @@ def _reload_diff_buffers(reload_from_time: float) -> None:
     average values.
     
     After a rewind, the average value buffers contain information from
-    the future that is no longer relavent. The buffers need to go
-    backwards in time, beyond the reqound time, to refill the buffers
+    the future that is no longer relevent. The buffers need to go
+    backwards in time, beyond the rewound time, to refill the buffers
     with the corresponding data history.
 
     Parameters
@@ -256,10 +256,10 @@ while elapsed_time < TOTALSECONDS:
         dt = DT_COAST
 
     rv_ref = propagator_ref.GetState()
-    refCOE = REF_SAT.getKeplerianState()
+    refCOE = REF_SAT.get_keplerian_state()
 
     rv_truth = propagator_truth.GetState()
-    truthCOE = TRUTH_SAT.getKeplerianState()
+    truthCOE = TRUTH_SAT.get_keplerian_state()
 
     rv_ric, _ = xyz2ric(rv_ref, rv_truth)
 

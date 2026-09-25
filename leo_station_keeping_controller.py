@@ -108,10 +108,6 @@ class StationKeepingController:
     min_i_pos : float
         Specific to the I-axis maneuver algorithm, tracks the greatest
         negative I-axis position during each maneuver attempt.
-    min_i_pos_timer : float
-        Specific to the I-axis maneuver algorithm, the time limit
-        `min_i_pos` must be updated by to ensure `min_i_pos` is still
-        decreasing.
     max_i_pos : float
         Specific to the I-axis maneuver algorithm, tracks the greatest
         positive I-axis position during each maneuver attempt.
@@ -145,7 +141,7 @@ class StationKeepingController:
         self.interrupted_state = "nominal"
         self.steps_waiting = 0
 
-        # Relevant telementry (MUST BE PROVIDED EVERY STEP IN MAIN LOOP)
+        # Relevant telemetry (MUST BE PROVIDED EVERY STEP IN MAIN LOOP)
         self.amp_ric = {i: 0 for i in self.RIC_KEYS}
         self.coes_instant_diff = {i: 0 for i in self.COE_KEYS}
         self.coes_avg_diff = {i: 0 for i in self.COE_KEYS}
@@ -179,7 +175,7 @@ class StationKeepingController:
 
         After updating the necessary attributes, determine what the
         necessary actions are to ensure station keeping within the
-        operations boundary.
+        operational boundary.
         
         Parameters
         ----------
@@ -608,8 +604,7 @@ class StationKeepingController:
                 "total_delta_v": self.total_delta_v,
             }
 
-        # If no other action is required, then continue looking for maneuver
-        # opportunities.
+        # If no other action is required, then continue thrusting.
         return {"action": "continue"}
 
     def _i_burn_goldilocks(
@@ -689,7 +684,7 @@ class StationKeepingController:
         ------
         RuntimeError
             The controller attempted to perform a successful maneuver
-            100 times. To prevent an infinte loop, end the simulation.
+            100 times. To prevent an infinite loop, end the simulation.
         """
         # Turn thrusters on
         self.thrusting = True
@@ -708,8 +703,9 @@ class StationKeepingController:
         burn_end_time = self.maneuver_ends[-1]
         self.maneuver_ends.pop()
 
-        # Estimate the time steps needed to correct the undershoot criteria (1
-        # `DT_THRUST` time step per missed Km).
+        # Estimate the time steps needed to correct the undershoot
+        # (`I_BURN_STEP_GAIN` *  'miss distance ', rounded to the next whole
+        # number to get the number of `DT_THRUST` steps needed).
         self.estimated_steps = np.ceil(
             (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS) * I_BURN_STEP_GAIN
         )
@@ -762,9 +758,9 @@ class StationKeepingController:
         ------
         RuntimeError
             The controller attempted to perform a successful maneuver
-            100 times. To prevent an infinte loop, end the simulation.
+            100 times. To prevent an infinite loop, end the simulation.
         RuntimeError
-            The controller had to many attempts where it tried using a
+            The controller had too many attempts where it tried using a
             negative thrust duration time. To prevent any errors, end
             the simulation.
         """
@@ -785,9 +781,10 @@ class StationKeepingController:
                 self.burn_duration
             )
 
-        # Estimate the time steps needed to correct the overshoot (1
-        # `DT_THRUST` time step per missed Km)
-        stepsToBackTrack = abs(
+        # Estimate the time steps needed to correct the overshoot
+        # (`I_BURN_STEP_GAIN` *  'miss distance ', rounded to the next whole
+        # number to get the number of `DT_THRUST` steps needed)
+        steps_back = abs(
             np.ceil(
                 (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS) * I_BURN_STEP_GAIN
             )
@@ -795,17 +792,17 @@ class StationKeepingController:
 
         # Verify maneuver duration hasn't been tried to prevent an
         # infinite-loop.
-        if (self.burn_duration - DT_THRUST * stepsToBackTrack
+        if (self.burn_duration - DT_THRUST * steps_back
             in self.maneuver_attempts
         ):
-            stepsToBackTrack -=1
+            steps_back -=1
 
-        backtrack_burn_time = stepsToBackTrack * DT_THRUST
+        backtrack_burn_time = steps_back * DT_THRUST
         self.burn_duration -= backtrack_burn_time
 
         # In case the maneuver time goes negative while the algorithm searches
         # for the shorter maneuver time to bring in the overshoot of
-        # `I_BOUNDS`, there is an chance that the controller overcorrected and
+        # `I_BOUNDS`, there is a chance that the controller overcorrected and
         # sent the spacecraft into a negative maneuver time. Should that be the
         # the case, reset the maneuver time to 5 times `DT_THRUST` and try
         # again. If the controller cannot converge on a solution after 5
@@ -855,13 +852,12 @@ class StationKeepingController:
           "del_a" drops below 0.
             - Signifies that the truth spacecraft has begun to drift
               in I+ direction.
-        - If the maximum negative I-axis position is not greater than
-          `DEADBAND_TRIGGER_RATIO` of `I_BOUNDS`, backwards propagate to
-          the end of the maneuver and increase the burn duration.
-        - If the maximum negative I-axis position is greater than
-          `I_BOUNDS`, backwards propagate to the end of the maneuver and
-          backwards propagate into the maneuver to reduce the maneuver's
-          burn duration.
+        - If i_pos_min > `DEADBAND_TRIGGER_RATIO` * `I_BOUNDS`,
+          backwards propagate to the end of the maneuver and increase
+          the burn duration.
+        - If i_pos_min < `I_BOUNDS`, backwards propagate to the end of
+          the maneuver and backwards propagate into the maneuver to
+          reduce the maneuver's burn duration.
         - If the burn duration is commanded to be negative or the
           amount of maneuver corrections exceeds 100 attempts, the
           simulation is ended.
@@ -904,14 +900,13 @@ class StationKeepingController:
                 # `burn_duration` is not set to 0 here, the maneuver duration
                 # may be altered later.
 
-                # Set the simulation time step equal such that `elapsed_time`
+                # Set the simulation time step so that `elapsed_time`
                 # is aligned with `DT_COAST`.
                 dt_to_maj_time_step = DT_COAST - round(elapsed_time % DT_COAST)
 
                 # Set the baseline min/max values
                 self.max_i_pos = self.rv_ric[1]
                 self.min_i_pos = self.rv_ric[1]
-                self.min_i_pos_timer = 2 * self.PERIOD_IN_SECONDS
 
                 # Accounts for the coast time to get the simulation,
                 # post-maneuver, back onto the time grid.
@@ -927,7 +922,6 @@ class StationKeepingController:
                 }
         else:
             self.coast_duration += DT_COAST
-            self.min_i_pos_timer -= DT_COAST
 
             # Update min/max position values
             if self.rv_ric[1] > self.max_i_pos:
@@ -935,9 +929,8 @@ class StationKeepingController:
 
             if self.rv_ric[1] < self.min_i_pos:
                 self.min_i_pos = self.rv_ric[1]
-                self.min_i_pos_timer = 2 * self.PERIOD_IN_SECONDS
 
-            # Wait for at least 4 orbital period and the average "del_a" must
+            # Wait for at least 4 orbital periods and the average "del_a" must
             # be negative (signifies that the truth spacecraft is now drifting
             # to the reference) before evaluating the termination.
             min_time_passed = self.coast_duration > 4 * self.PERIOD_IN_SECONDS
@@ -1100,10 +1093,9 @@ class StationKeepingController:
         
         After an C-axis maneuver is complete, monitor the amplitude of
         the position's amplitude. If it drops below
-        `DEADBAND_TRIGGER_RATIO` within 75% of one orbit then the
-        maneuver is deemed successful. If the `DEADBAND_TRIGGER_RATIO`
-        threshold is not met, then alert the spacecraft that additional
-        maneuvers are required.
+        `C_TARGET_RATIO` then the maneuver is deemed successful. If the
+        `DEADBAND_TRIGGER_RATIO` threshold is not met, then alert the
+        spacecraft that additional maneuvers are required.
 
         Parameters
         ----------

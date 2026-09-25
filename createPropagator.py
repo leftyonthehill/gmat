@@ -13,7 +13,7 @@ class Propagator:
     ----------
     prop_gmat : gmat.Propagator
         GMAT Propagator object (object describing what is being
-        numerical integrated)
+        numerically integrated)
     integrator : gmat.RungeKutta89
         GMAT RungeKutta89 object (object containing the numerical
         integration parameters)
@@ -64,7 +64,7 @@ class Propagator:
         self.integrator = gmat.Construct("RungeKutta89", "Integrator")
         self.prop_gmat.SetReference(self.integrator)
 
-        # Shared integratation parameters
+        # Shared integration parameters
         self.prop_gmat.SetField("InitialStepSize", init_step_size)
         self.prop_gmat.SetField("MinStep", min_step_size)
         self.prop_gmat.SetField("MaxStep", max_step_size)
@@ -78,7 +78,7 @@ class Propagator:
         ----------
         fm : gmat.ODEModel
             GMAT Force Model object that defines the external forces
-            effecting the spacecraft.
+            affecting the spacecraft.
         """
 
         self.prop_gmat.SetReference(fm)

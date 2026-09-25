@@ -7,7 +7,7 @@ from load_gmat import gmat
 
 class ForceModel:
     """
-    Wrapper for a ForceModel object in GMAT design to model the forces
+    Wrapper for a ForceModel object in GMAT designed to model the forces
     experienced during a station keeping scenario.
 
     This wrapper supports two types of force models:
@@ -18,6 +18,10 @@ class ForceModel:
 
     Attributes
     ----------
+    fm_type : str
+        The force load this model carries.
+        - "reference" = gravity only
+        - "truth" = full force load
     fm : gmat.ODEModel 
         GMAT object holding the list of forces that contribute to the
         spacecraft's acceleration.
@@ -39,17 +43,13 @@ class ForceModel:
             Type of ForceModel to produce.
         """
 
-        self.fm = gmat.Construct("ForceModel", f"{fm_type}_Forces")
+        self.fm_type = fm_type
+        self.fm = gmat.Construct("ForceModel", f"{self.fm_type}_Forces")
         self.burn = {}
         self.burn_force = {}
 
-    def set_forces_to_propagate(self, prop_type: str):
+    def set_forces_to_propagate(self):
         """ Assign the corresponding forces for a given force mode.
-        
-        Parameters
-        ----------
-        prop_type : str
-            Type of propagator to produce.
         
         Raises
         ------
@@ -58,13 +58,14 @@ class ForceModel:
             "truth".
         """
 
-        if prop_type.lower() != "reference" and prop_type.lower() != "truth":
+        if (self.fm_type.lower() != "reference"
+            and self.fm_type.lower() != "truth"):
             raise ValueError(
                 "Incorrect propagation type was chosen (Provided: " 
-                + prop_type + "). The propagator type must only be "
+                + self.fm_type + "). The propagator type must only be "
                 + "'reference' or 'truth'.")
 
-        if prop_type.lower() == "reference":
+        if self.fm_type.lower() == "reference":
             self._set_forces(
                 degree=16,
                 order=16
@@ -138,7 +139,7 @@ class ForceModel:
             # Values below represent a quiet, mid-cycle solar climate
             drag.SetField("F107", 120.0)
             drag.SetField("F107A", 120.0)
-            drag.SetField("MagneticIndex", 2)
+            drag.SetField("MagneticIndex", 2) # Jacchia Roberts magnetic index is Kp
 
             self.fm.AddForce(drag)
 
@@ -176,7 +177,7 @@ class ForceModel:
         self.burn[ax].SetField("Thrusters", thr.GetName())
         self.burn[ax].SetRefObject(thr, gmat.THRUSTER, thr.GetName())
         self.burn[ax].SetSolarSystem(gmat.GetSolarSystem())
-        self.burn[ax].SetSpacecraftToManeuver(sat_obj.getGMATSat())
+        self.burn[ax].SetSpacecraftToManeuver(sat_obj.sat)
         self.burn[ax].SetRefObject(sat_obj.sat, gmat.SPACECRAFT, sat_obj.sat.GetName())
 
         # Create the BurnForce for the FiniteBurn
@@ -184,5 +185,5 @@ class ForceModel:
         self.burn_force[ax].SetRefObjectName(gmat.SPACECRAFT, sat_obj.sat.GetName())
         self.burn_force[ax].SetReference(self.burn[ax])
 
-        # Assign the BurnForce to the GMAT table of phyiscal models
+        # Assign the BurnForce to the GMAT table of physical models
         gmat.ConfigManager.Instance().AddPhysicalModel(self.burn_force[ax])
