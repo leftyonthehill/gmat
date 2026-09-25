@@ -54,8 +54,8 @@ class Propagator:
         max_step_size : float, default = 120
             Largest time step, in seconds, to use in the integrator.
         max_step_attempts : float, default = 2.5e4
-            Upper limit as to how many max steps to be attempted during
-            each propagator step.
+            Upper limit as to how many max integration steps to be
+            attempted during each propagator step.
         accuracy : float, default = 1e-10
             Error tolerance used in RK89's adaptive step control.
         """

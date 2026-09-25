@@ -10,7 +10,8 @@ from load_gmat import gmat
 from simulationParameters import DT_COAST
 
 def round_to_time_step(t: float) -> float:
-    """ Round down provided time to nearest multiple of `DT_COAST`.
+    """
+    Round down provided time to nearest multiple of `DT_COAST` <= t.
 
     The station keeping controller records the history of the truth
     spacecraft's RIC state vector, differences in the truth and

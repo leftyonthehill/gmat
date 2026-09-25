@@ -35,7 +35,7 @@ class ForceModel:
         
         Parameters
         ----------
-        fmType : str
+        fm_type : str
             Type of ForceModel to produce.
         """
 

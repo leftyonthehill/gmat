@@ -55,8 +55,8 @@ class Satellite:
         #   DisplayStateType = Keplerian
         #   Area effected by solar radiation pressure | SRPArea = 6 m^2
         #   Coeffecient of relfectivity | Cr = 1.8
-        #   Area effected by atmospheric drag | DragArea = 10 m^2
-        #   Coeffecient of drag | Cd = 2.2
+        #   Area effected by atmospheric drag | DragArea = 5 m^2
+        #   Coeffecient of drag | Cd = 1.5
         #   Satellite dry mass | DryMass = 900 kg
         self.sat = gmat.Construct("Spacecraft", sat_name)
         self.sat.SetField("DisplayStateType", "Keplerian")
@@ -70,7 +70,7 @@ class Satellite:
         # Spacecraft coordinate system reference
         self.sat.SetField("CoordinateSystem", "EarthMJ2000Eq")
 
-    def setSatParam(self, sat_physical_param: list[float]):
+    def set_sat_param(self, sat_physical_param: list[float]):
         """ Customize the physical parameters of the spacecraft.
 
         Parameters
@@ -100,55 +100,13 @@ class Satellite:
         self.sat.SetField("DryMass", m)
         self.mass = m
 
-    def getGMATSat(self) -> gmat.Spacecraft:
-        """ Returns the GMAT spacecraft object.
-        
-        Returns
-        -------
-        gmat.Spacecraft
-            The configured spacecraft.
-        """
-        return self.sat
-
-    def getCartesianState(self) -> list[float]:
-        """ Returns the cartesian state vector of the spacecraft. 
-        
-        Returns
-        -------
-        list[float]
-            The spacecraft's current Cartesian state vector.
-        """
-
-        # state comes in the form of GMAT R6Vector that is not human readable
-        # in Python. Converting the vector to a list makes debugging
-        # spacecraft states much easier
-        state = self.sat.GetCartesianState()
-        x = [float(state[i]) for i in range(6)]
-        return x
-
-    def getKeplerianState(self) -> list[float]:
-        """ Return the keplerian state vector of the spacecraft.
-        
-        Returns
-        -------
-        list[float]
-            The spacecraft's current Keplerian state vector.
-        """
-
-        # state comes in the form of GMAT R6Vector that is not human readable
-        # in Python. Converting the vector to a list makes debugging
-        # spacecraft states much easier
-        state = self.sat.GetKeplerianState()
-        x = [float(state[i]) for i in range(6)]
-        return x
-
-    def setKeplerianState(self, coes: list[float | str]):
+    def set_keplerian_state(self, coes: list[float | str]):
         """ Set the spacecraft state vector using Keplerian elements.
         
         The provided list must contain an element for each classical
         orbital element and, optionally, the epoch associated with the
         state vector. If an epoch is included, it must in the form of
-        "dd mmm yyyy HH:MM.SS.SSS".
+        "dd mmm yyyy HH:MM:SS.SSS".
 
         Parameters
         ----------
@@ -193,7 +151,7 @@ class Satellite:
 
         if isinstance(epoch, dt.datetime):
             self.epoch = epoch.strftime("%d %b %Y 00:00:00.000")
-        elif type(epoch == str):
+        elif isinstance(epoch, str):
             self.epoch = epoch
         else:
             raise SyntaxError("Invalid date type. The epoch must be either a " \
@@ -202,13 +160,13 @@ class Satellite:
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
 
-    def setCartesianState(self, xyz: list):
+    def set_cartesian_state(self, xyz: list):
         """ Set the spacecraft state vector using Cartesian elements.
                 
         The provided list must contain an element for each Cartesian
         element from the ECI frame and, optionally, the epoch
         associated with the state vector. If an epoch is included,
-        it must in the form of "dd mmm yyyy HH:MM.SS.SSS".
+        it must in the form of "dd mmm yyyy HH:MM:SS.SSS".
 
         Parameters
         ----------
@@ -252,7 +210,7 @@ class Satellite:
 
         if isinstance(epoch, dt.datetime):
             self.epoch = epoch.strftime("%d %b %Y 00:00:00.000")
-        elif type(epoch == str):
+        elif isinstance(epoch, str):
             self.epoch = epoch
         else:
             raise SyntaxError("Invalid date type. The epoch must be either a " \
@@ -265,19 +223,94 @@ class Satellite:
         self.sat.SetField("DisplayStateType", "Cartesian")
         self.sat.SetField("DisplayStateType", "Keplerian")
 
-    def setETank(self, mass: float = 30):
+    def set_maneuverable(self):
+        """ 
+        Prepare the components needed to make the spacecraft
+        maneuverable.
+
+        If custom conponents have not been created for this spacecraft,
+        create a generic electric fuel tank, nuclear power system, and
+        thruster for each axis of the RIC frame.
+        """
+
+        # Check for missing tank
+        if self.sat.GetField("Tanks") == "{}":
+            self._set_etank()
+
+        # Name of fuel tank for thrusters
+        etank_name = self.sat.GetField("Tanks")[1:-1]
+
+        # Check for missing power supply
+        if self.sat.GetField("PowerSystem") == "":
+            self._set_power_system()
+
+        # Check for missing thrusters
+        if not self.thrusters:
+            thruster_axes = {
+                "R+": (0.2, 3000), 
+                "R-": (0.2, 3000), 
+                "I+": (0.2, 3000), 
+                "I-": (0.2, 3000), 
+                "C+": (0.2, 3000), 
+                "C-": (0.2, 3000)}
+
+            # Create a thruster for each thruster direction 
+            for ax, thruster_param in thruster_axes.items():
+                self._set_ethruster(ax, thruster_param)
+
+        # String together all onboard thrusters and assign each to main fuel
+        # tank.
+        thruster_names = [i.GetName() for i in self.thrusters.values()]
+        thruster_array = "{" + ", ".join(thruster_names) + "}"
+        self.sat.SetField("Thrusters", thruster_array)
+        for i in self.thrusters.values():
+            i.SetField("Tank", etank_name)
+
+    def get_keplerian_state(self) -> list[float]:
+        """ Return the keplerian state vector of the spacecraft.
+        
+        Returns
+        -------
+        list[float]
+            The spacecraft's current Keplerian state vector.
+        """
+
+        # state comes in the form of GMAT R6Vector that is not human readable
+        # in Python. Converting the vector to a list makes debugging
+        # spacecraft states much easier
+        state = self.sat.GetKeplerianState()
+        x = [float(state[i]) for i in range(6)]
+        return x
+
+    def get_cartesian_state(self) -> list[float]:
+        """ Returns the cartesian state vector of the spacecraft. 
+        
+        Returns
+        -------
+        list[float]
+            The spacecraft's current Cartesian state vector.
+        """
+
+        # state comes in the form of GMAT R6Vector that is not human readable
+        # in Python. Converting the vector to a list makes debugging
+        # spacecraft states much easier
+        state = self.sat.GetCartesianState()
+        x = [float(state[i]) for i in range(6)]
+        return x
+
+    def _set_etank(self, mass: float = 30):
         """
         Create the fuel tank that the onboard electric thrusters will
         use.
         
         Parameters
         ----------
-        mass : float, default: 100 kg
+        mass : float, default: 30 kg
             How much gas is in the tank.
         """
 
         # create GMAT electric fuel tank
-        etank = gmat.Construct("ElectricTank", 
+        etank = gmat.Construct("ElectricTank",
                                     f"{self.sat.GetName()}_tank")
         etank.SetField("FuelMass", mass)
 
@@ -287,8 +320,8 @@ class Satellite:
         # Assign the tank to the spacecraft
         self.sat.SetField("Tanks", etank.GetName())
 
-    def setEThruster(self, axis:str = "I+",
-                     engineSpecs: tuple = (0.2, 3000)):
+    def _set_ethruster(self, axis:str = "I+",
+                     engine_specs: tuple = (0.2, 3000)):
         """ Creates a thruster on the spacecraft.
         
         Parameters
@@ -312,8 +345,8 @@ class Satellite:
                              + "R+, R-, I+, I-, C+, C-")
 
         # Create the thruster
-        thrust = engineSpecs[0]
-        isp = engineSpecs[1]
+        thrust = engine_specs[0]
+        isp = engine_specs[1]
         ethruster = gmat.Construct("ElectricThruster",
                                    self.sat.GetName() + "_electric_thruster_"
                                     + axis)
@@ -327,9 +360,9 @@ class Satellite:
         self.accelerations[axis] = thrust / self.mass
 
         # Based on the thruster axis, assign its thrust direction
-        self._setEThrusterDirection(axis)
+        self._set_ethruster_direction(axis)
 
-    def _setEThrusterDirection(self, axis):
+    def _set_ethruster_direction(self, axis):
         """ Assign the thruster's direction.
         
         The spacecraft's thrusters are created referencing the
@@ -362,7 +395,7 @@ class Satellite:
 
         # The following map is used to correlate the RIC frame to the VNB
         # frame
-        axisMap = {
+        axis_map = {
             "R+": [0, 0, 1], 
             "R-": [0, 0, -1], 
             "I+": [1, 0, 0], 
@@ -372,19 +405,19 @@ class Satellite:
             }
 
         # Based on the provided axis, choose the correct mapping
-        thrusterDirection = axisMap[axis]
+        thruster_direction = axis_map[axis]
 
         # Assign the directions in the VNB frame
-        v = thrusterDirection[0]
+        v = thruster_direction[0]
         self.thrusters[axis].SetField("ThrustDirection1", v)
 
-        n = thrusterDirection[1]
+        n = thruster_direction[1]
         self.thrusters[axis].SetField("ThrustDirection2", n)
 
-        b = thrusterDirection[2]
+        b = thruster_direction[2]
         self.thrusters[axis].SetField("ThrustDirection3", b)
 
-    def setPowerSystem(self, powerSystemType: str="Nuclear", kw: float=20):
+    def _set_power_system(self, power_system_type: str="Nuclear", kw: float=20):
         """ Create the power supply for the spacecraft.
         
         While the power system type of satellites is commonly "Solar"
@@ -398,7 +431,7 @@ class Satellite:
 
         Parameters
         ----------
-        powerSystemType : str, default="Nuclear"
+        power_system_type : str, default="Nuclear"
             Type of power supply for the spacecraft. GMAT only
             recognizes "Nuclear" or "Solar".
         kw : float, default=20 KW
@@ -412,58 +445,15 @@ class Satellite:
             is provided.
         """
 
-        if powerSystemType != "Nuclear" and powerSystemType != "Solar":
-            raise ValueError(powerSystemType + " is not a valid power system"
+        if power_system_type != "Nuclear" and power_system_type != "Solar":
+            raise ValueError(power_system_type + " is not a valid power system"
                              + "type in GMAT. Please select from either "
                              + "'Nuclear' or 'Solar'")
-        powerSystem = gmat.Construct(powerSystemType + "PowerSystem",
-                                          self.sat.GetName() + "_" 
-                                          + powerSystemType + "Power")
+        power_system = gmat.Construct(power_system_type + "PowerSystem",
+                                          self.sat.GetName() + "_"
+                                          + power_system_type + "Power")
 
-        powerSystem.SetField("InitialMaxPower", kw)
-        powerSystem.SetField("InitialEpoch", self.epoch)
+        power_system.SetField("InitialMaxPower", kw)
+        power_system.SetField("InitialEpoch", self.epoch)
 
-        self.sat.SetField("PowerSystem", powerSystem.GetName())
-
-    def setManeuverable(self):
-        """ 
-        Prepare the components needed to make the spacecraft
-        maneuverable.
-
-        If custom conponents have not been created for this spacecraft,
-        create a generic electric fuel tank, nuclear power system, and
-        thruster for each axis of the RIC frame.
-        """
-
-        # Check for missing tank
-        if self.sat.GetField("Tanks") == "{}":
-            self.setETank()
-
-        # Name of fuel tank for thrusters
-        etankName = self.sat.GetField("Tanks")[1:-1]
-
-        # Check for missing power supply
-        if self.sat.GetField("PowerSystem") == "":
-            self.setPowerSystem()
-
-        # Check for missing thrusters
-        if self.thrusters == {}:
-            thrusterAxes = {
-                "R+": (0.2, 3000), 
-                "R-": (0.2, 3000), 
-                "I+": (0.2, 3000), 
-                "I-": (0.2, 3000), 
-                "C+": (0.2, 3000), 
-                "C-": (0.2, 3000)}
-
-            # Create a thruster for each thruster direction 
-            for ax, thrParam in thrusterAxes.items():
-                self.setEThruster(ax, thrParam)
-
-        # String together all onboard thrusters and assign each to main fuel
-        # tank.
-        thrusterNames = [i.GetName() for i in self.thrusters.values()]
-        thrusterArray = "{" + ", ".join(thrusterNames) + "}"
-        self.sat.SetField("Thrusters", thrusterArray)
-        for i in self.thrusters.values():
-            i.SetField("Tank", etankName)
+        self.sat.SetField("PowerSystem", power_system.GetName())

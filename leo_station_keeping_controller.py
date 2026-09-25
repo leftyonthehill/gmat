@@ -556,8 +556,10 @@ class StationKeepingController:
         
         During each time step the R-axis maneuver is active, check to
         see if any of the following termination criteria have been met:
-        - Left maneuver window.
-        - Reached maximum duty time.
+        - The maneuver duration is `MIN_DUTY_TIME` seconds or longer.
+        - Either:
+            - Left maneuver window.
+            - Reached maximum duty time.
         
         Parameters
         ----------

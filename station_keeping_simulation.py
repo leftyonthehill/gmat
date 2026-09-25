@@ -234,7 +234,6 @@ def _reload_diff_buffers(reload_from_time: float) -> None:
 
 # ----------------- Run Simulation---------------------------------------------
 ctrl = StationKeepingController()
-
 while elapsed_time < TOTALSECONDS:
     # If not maneuvering and `elapsed_time` is not aligned with `DT_COAST`,
     # temporarily change `dt` so that the next step is a major time step.

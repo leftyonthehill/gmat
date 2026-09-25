@@ -21,11 +21,10 @@ class StationKeepingObjects:
         What type of objects to be created.
     thrust_axis : str
         Actively maneuvering thrust axis.
-    state : list
-        List of the Keplerian/Cartesian state vector assigned to the
-        spacecraft.
     sat_wrap : Satellite
         GMAT Spacecraft wrapper.
+    sat_gmat : gmat_py.Spacecraft
+        GMAT Spacecraft Object.
     fm_wrap : dict
         Dict containing the GMAT ForceModel wrappers for the coasting
         period and any axes with thrusters.
