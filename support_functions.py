@@ -9,6 +9,7 @@ import numpy as np
 from load_gmat import gmat
 from simulationParameters import DT_COAST
 
+
 def round_to_time_step(t: float) -> float:
     """
     Round down provided time to nearest multiple of `DT_COAST` <= t.
@@ -35,6 +36,7 @@ def round_to_time_step(t: float) -> float:
     # Compute the modulus of t with respect to `DT_COAST` and subtract it from
     # `t` to floor the time onto the time grid.
     return t - t % DT_COAST
+
 
 def xyz2ric(
         ref_state: list[float],
@@ -64,7 +66,7 @@ def xyz2ric(
         - rot_matrix : np.ndarray
             Contains the 3x3 rotation matrix to rotate the ECI frame to
             RIC.
-    
+
     Raises
     ------
     RuntimeError
@@ -112,17 +114,18 @@ def xyz2ric(
     rv_ric = list(r_ric) + list(v_ric)
     return (rv_ric, rot_matrix)
 
+
 # ----------------- Time instant conversions ----------------------------------
 def get_epoch_as_datetime(date_str: str) -> dt.datetime:
     """ Parse a GMAT UTCGregorian epoch string into a datetime.
-    
+
     Parameters
     ----------
     date_str : str
         Epoch written in GMAT's UTCGregorian format. The input is
-        expected to follow this format: "dd mmm yyyy HH:MM:SS.sss"
+        expected to follow this format: "dd mmm yyyy HH:MM:SS.SSS"
         (Example: "26 Aug 2026 00:00:00.000").
-    
+
     Returns
     -------
     dt.datetime
@@ -132,9 +135,10 @@ def get_epoch_as_datetime(date_str: str) -> dt.datetime:
     epoch = dt.datetime.strptime(date_str, "%d %b %Y %H:%M:%S.%f")
     return epoch
 
+
 def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
     """ Format a datetime as a GMAT UTCGregorian string.
-    
+
     Parameters
     ----------
     date : dt.datetime, default=dt.datetime.today()
@@ -143,13 +147,14 @@ def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
     Returns
     -------
     str
-        "dd mmm yyyy HH:MM:SS.sss" with millisecond precision.
+        "dd mmm yyyy HH:MM:SS.SSS" with millisecond precision.
         `strftime("%f")` provides 6 microsecond digits, however the
         last three decimal places are stripped to match GMAT's
         millisecond field width.
     """
     epoch = date.strftime("%d %b %Y %H:%M:%S.%f")
     return epoch[:-3]
+
 
 def get_epoch_from_satellite(sat: gmat.Spacecraft) -> float:
     """
@@ -184,12 +189,13 @@ def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
 
     Returns
     -------
-    str 
-        `yyyyDOYHHMMSS.sss` with millisecond precision.
+    str
+        `yyyyDOYHHMMSS.SSS` with millisecond precision.
     """
 
     epoch = date.strftime("%Y%j%H%M%S.%f")
     return epoch[:-3]
+
 
 # ----------------- Maneuver logging ------------------------------------------
 def get_r_axis_print(
@@ -201,7 +207,7 @@ def get_r_axis_print(
         total_delta_v: float,
     ) -> None:
     """ Print to terminal the results of an R-axis maneuver. 
-    
+
     Parameters
     ----------
     burn_start : float
@@ -250,6 +256,7 @@ def get_r_axis_print(
     terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
     print(terminal_output)
 
+
 def get_i_axis_print(
         burn_start: float,
         burn_duration: float,
@@ -259,7 +266,7 @@ def get_i_axis_print(
         total_delta_v: float,
 ) -> None:
     """ Print to terminal the results of an I-axis maneuver.
-    
+
     Parameters
     ----------
     burn_start : float
@@ -310,6 +317,7 @@ def get_i_axis_print(
     terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
     print(terminal_output)
 
+
 def get_c_axis_print(
         burn_start: float,
         burn_duration: float,
@@ -319,7 +327,7 @@ def get_c_axis_print(
         total_delta_v: float
 ) -> None:
     """ Print to terminal the results of a C-axis maneuver. 
-    
+
     Parameters
     ----------
     burn_start : float
@@ -367,15 +375,16 @@ def get_c_axis_print(
     terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
     print(terminal_output)
 
+
 def i_axis_maneuver_attempt_debug_message(
-        maneuver_attempts : int,
-        min_i_pos : float,
-        burn_duration : float
+        maneuver_attempts: int,
+        min_i_pos: float,
+        burn_duration: float
 ) -> None:
     """
     Prints messages for each maneuver attempt during I-axis maneuver
     algorithm.
-    
+
     Parameters
     ----------
     maneuver_attempts : int

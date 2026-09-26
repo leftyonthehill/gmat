@@ -6,7 +6,7 @@ from load_gmat import gmat
 
 class Propagator:
     """ Wrapper for a Propagator object in GMAT.
-    
+
     This wrapper supports the forwards and backwards propagation of
     high-fidelity orbital dynamics.
 
@@ -22,7 +22,7 @@ class Propagator:
 
     def __init__(self, prop_name: str):
         """ Initialize the Propagator wrapper.
-        
+
         Parameters
         ----------
         prop_name : str
@@ -41,7 +41,7 @@ class Propagator:
             accuracy: float = 1e-10,
         ):
         """ Creates numerical integrator.
-        
+
         To support the orbital propagators, GMAT needs a numerical
         integrator. This function creates an RK89 integrator GMAT
         object.
@@ -74,7 +74,7 @@ class Propagator:
 
     def set_fm(self, fm: gmat.ODEModel):
         """ Assign a ForceModel object to the propagator.
-        
+
         Parameters
         ----------
         fm : gmat.ODEModel
@@ -86,7 +86,7 @@ class Propagator:
 
     def set_sat(self, sat: gmat.Spacecraft):
         """ Assign a satellite to the propagator.
-        
+
         Parameters
         ----------
         sat : gmat.Spacecraft

@@ -6,9 +6,8 @@ from load_gmat import gmat
 
 
 class ForceModel:
-    """
-    Wrapper for a ForceModel object in GMAT designed to model the forces
-    experienced during a station keeping scenario.
+    """Wrapper for a ForceModel object in GMAT designed to model the
+    forces experienced during a station keeping scenario.
 
     This wrapper supports two types of force models:
     - "reference": Includes the minimum perturbation load (16x16 Earth
@@ -50,7 +49,7 @@ class ForceModel:
 
     def set_forces_to_propagate(self):
         """ Assign the corresponding forces for a given force model.
-        
+
         Raises
         ------
         ValueError
@@ -157,7 +156,7 @@ class ForceModel:
         """
         For a given thruster axis, add its dynamics to the scenario's
         physical model.
-        
+
         Parameters
         ----------
         sat_obj : Satellite

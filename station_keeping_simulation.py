@@ -177,6 +177,7 @@ TRUTH_OBJ.set_burn_forces()
 TRUTH_OBJ.prepare_propagators()
 propagator_truth = TRUTH_OBJ.prop_wrap["coast"].prop_gmat.GetPropagator()
 
+
 # ----------------- I-axis Maneuver Support Functions -------------------------
 def _back_prop(time: float, time_to_back_prop: float) -> float:
     """Back propagate the simulation.
@@ -213,6 +214,7 @@ def _back_prop(time: float, time_to_back_prop: float) -> float:
 
     time = time - time_to_back_prop
     return time
+
 
 def _reload_diff_buffers(reload_from_time: float) -> None:
     """After a simulation rewind, reload the buffers needed to compute

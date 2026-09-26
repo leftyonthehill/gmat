@@ -25,7 +25,7 @@ class StationKeepingController:
         - Maneuver overshoots target range, return to the end of
           previous maneuver and back propagate the maneuver to shorten
           its duration.
-    
+
     Attributes
     ----------
     MU : float
@@ -176,7 +176,7 @@ class StationKeepingController:
         After updating the necessary attributes, determine what the
         necessary actions are to ensure station keeping within the
         operational boundary.
-        
+
         Parameters
         ----------
         elapsed_time : float
@@ -184,7 +184,7 @@ class StationKeepingController:
         accel : {str: float}
             Assuming constant thrust and mass, the acceleration map for
             each thruster axis.
-        
+
         Returns
         -------
         dict
@@ -263,7 +263,7 @@ class StationKeepingController:
               maneuver near a true anomaly value of 90 deg or 270 deg,
               the corrective action can be focused on minimizing
               ``del_e``.
-        
+
         The direction of the maneuver, either "R+" or "R-", will be
         specified by the values of ``del_e`` and the angle of the true
         anomaly prior to the start of the maneuver. When these two
@@ -276,7 +276,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        
+
         Returns
         -------
         dict
@@ -363,7 +363,7 @@ class StationKeepingController:
             - The previous maneuver occurred more than 3 periods ago
             - The truth spacecraft's average sma delta is less than 0
               km.
-        
+
         If these conditions are not met within one orbital period, quit
         looking for maneuver opportunities.
 
@@ -371,7 +371,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        
+
         Returns
         -------
         dict
@@ -437,14 +437,14 @@ class StationKeepingController:
     def _calc_crit_angle(self) -> float:
         """
         Compute the ideal angle to correct both inclination and RAAN.
-        
+
         This computation uses a modified version of the heuristic by H.
         Schaub and J. Junkins in 'Analytical Mechanics of Space
         Systems', 4th Ed. This version multiplies the value of "del_i"
         by 10 so that "del_i" and "del_raan" have comparable
         magnitudes. Otherwise, the original computed the wrong critical
         angle.
-        
+
         Returns
         -------
         float
@@ -483,7 +483,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        
+
         Returns
         -------
         dict
@@ -552,14 +552,14 @@ class StationKeepingController:
         """
         Terminates the radial maneuver when the maneuver window closes
         or the maneuver reaches its maximum duration.
-        
+
         During each time step the R-axis maneuver is active, check to
         see if any of the following termination criteria have been met:
         - The maneuver duration is `MIN_DUTY_TIME` seconds or longer.
         - Either:
             - Left maneuver window.
             - Reached maximum duty time.
-        
+
         Parameters
         ----------
         elapsed_time : float
@@ -567,7 +567,7 @@ class StationKeepingController:
         accel : dict
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
-        
+
         Returns
         -------
         dict
@@ -622,13 +622,13 @@ class StationKeepingController:
         """
         Alert the spacecraft that a viable I-axis maneuver has been
         found and to resume nominal ops.
-        
+
         The current return trajectory of the truth spacecraft has a
         maximum displacement between `DEADBAND_TRIGGER_RATIO` and 1
         times the distance of the negative `I_BOUNDS` boundary.
         Alert the spacecraft of the successful maneuver and reset
         attributes.
-        
+
         Parameters
         ----------
         elapsed_time : float
@@ -636,7 +636,7 @@ class StationKeepingController:
         accel : dict
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
-        
+
         Returns
         -------
         dict
@@ -674,13 +674,13 @@ class StationKeepingController:
         """
         Alert the spacecraft that additional maneuvering time is
         required, I-axis target is currently being undershot.
-        
+
         Returns
         -------
         dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
-        
+
         Raises
         ------
         RuntimeError
@@ -744,13 +744,13 @@ class StationKeepingController:
         """
         Alert the spacecraft that less maneuvering time is required,
         I-axis target is currently being overshot.
-        
+
         Returns
         -------
         dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
-        
+
         Raises
         ------
         RuntimeError
@@ -842,7 +842,7 @@ class StationKeepingController:
         ) -> dict:
         """
         Contains the termination criteria for the in-track maneuvers.
-        
+
         The algorithm to determine the "perfect" maneuver length is as
         follows:
         - Upon entering "I burn" for the first time, fire the thrusters
@@ -868,7 +868,7 @@ class StationKeepingController:
         - If the burn duration is commanded to be negative or the
           amount of maneuver corrections exceeds 100 attempts, the
           simulation is ended.
-        
+
         Parameters
         ----------
         elapsed_time : float
@@ -876,13 +876,13 @@ class StationKeepingController:
         accel : dict
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
-        
+
         Returns
         -------
         dict
             The dict will contain what the spacecraft's next action is
             and if any values in the main loop need to be updated.
-        
+
         Notes
         -----
         Backwards propagation operations (<integrator>.Step(-<time>))
@@ -978,12 +978,12 @@ class StationKeepingController:
         """
         Terminates the out of plane maneuver when the maneuver window
         closes or the maneuver reaches its maximum duration.
-        
+
         During each time step the C-axis maneuver is active, check to
         see if any of the following termination criteria have been met:
         - Left maneuver window.
         - Reached maximum duty time.
-        
+
         Parameters
         ----------
         elapsed_time : float
@@ -991,7 +991,7 @@ class StationKeepingController:
         accel : dict
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
-        
+
         Returns
         -------
         dict
@@ -1047,7 +1047,7 @@ class StationKeepingController:
             elapsed_time: float,
     ) -> dict:
         """ Verifies the radial maneuver performed nominally.
-        
+
         After an R-axis maneuver is complete, monitor the
         position's oscillation amplitude. If
         `amp_ric["R"] / R_BOUNDS <= R_TARGET_RATIO` within 75% of one
@@ -1059,7 +1059,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        
+
         Returns
         -------
         dict
@@ -1094,7 +1094,7 @@ class StationKeepingController:
             elapsed_time: float
     ) -> dict:
         """ Verifies the cross-track maneuver performed nominally.
-        
+
         After a C-axis maneuver is complete, monitor the
         position's oscillation amplitude. If
         `amp_ric["C"] / C_BOUNDS <= C_TARGET_RATIO` within 75% of one
@@ -1106,7 +1106,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        
+
         Returns
         -------
         dict

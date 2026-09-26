@@ -23,6 +23,7 @@ from support_functions import (
     get_epoch_as_str
 )
 
+
 def output_terminal(
         elapsed_time: float,
         sat_t0: datetime.datetime,
@@ -62,6 +63,7 @@ def output_terminal(
         output_state += " " * 4 + str(i) + ",\n"
     print(output_state)
     print(" " * 4 + f'"{get_epoch_as_str(terminal_time)}"')
+
 
 def output_plots(
         timings: list[list | float],

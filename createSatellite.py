@@ -8,7 +8,7 @@ from load_gmat import gmat
 
 class Satellite:
     """ Wrapper for a Spacecraft object in GMAT. 
-    
+
     - If this is for the reference spacecraft, no other function calls
       are required. 
     - If this is for the maneuvering spacecraft (the truth state in a
@@ -38,7 +38,7 @@ class Satellite:
 
     def __init__(self, sat_name: str):
         """ Initialize the Satellite wrapper.
-        
+
         Parameters
         ----------
         sat_name : str
@@ -102,7 +102,7 @@ class Satellite:
 
     def set_keplerian_state(self, coes: list[float | str]):
         """ Set the spacecraft state vector using Keplerian elements.
-        
+
         The provided list must contain an element for each classical
         orbital element and, optionally, the epoch associated with the
         state vector. If an epoch is included, it must be in the form
@@ -118,13 +118,13 @@ class Satellite:
             - Argument of Periapsis, 
             - True Anomaly,
             - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
-                            
+
         Raises
         ------
         ValueError
             The provided state vector is not exactly 6 or 7 elements
             long.
-        SyntaxError
+        TypeError
             The provided epoch is not of the correct type. The accepted
             values are `datetime.datetime` or `str`.
         """
@@ -156,7 +156,7 @@ class Satellite:
         elif isinstance(epoch, str):
             self.epoch = epoch
         else:
-            raise SyntaxError("Invalid date type. The epoch must be either a " \
+            raise TypeError("Invalid date type. The epoch must be either a " \
                             "datetime.datetime object or a string")
 
         self.sat.SetField("DateFormat", "UTCGregorian")
@@ -164,7 +164,7 @@ class Satellite:
 
     def set_cartesian_state(self, xyz: list):
         """ Set the spacecraft state vector using Cartesian elements.
-                
+
         The provided list must contain an element for each Cartesian
         element from the ECI frame and, optionally, the epoch
         associated with the state vector. If an epoch is included,
@@ -180,13 +180,13 @@ class Satellite:
             - V_Y, 
             - V_Z,
             - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
-                            
+
         Raises
         ------
         ValueError
             The provided state vector is not exactly 6 or 7 elements
             long.
-        SyntaxError
+        TypeError
             The provided epoch is not of the correct type. The accepted
             values are `datetime.datetime` or `str`.
         """
@@ -218,7 +218,7 @@ class Satellite:
         elif isinstance(epoch, str):
             self.epoch = epoch
         else:
-            raise SyntaxError("Invalid date type. The epoch must be either a " \
+            raise TypeError("Invalid date type. The epoch must be either a " \
                             "datetime.datetime object or a string")
 
         self.sat.SetField("DateFormat", "UTCGregorian")
@@ -270,7 +270,7 @@ class Satellite:
 
     def get_keplerian_state(self) -> list[float]:
         """ Return the Keplerian state vector of the spacecraft.
-        
+
         Returns
         -------
         list[float]
@@ -286,7 +286,7 @@ class Satellite:
 
     def get_cartesian_state(self) -> list[float]:
         """ Returns the Cartesian state vector of the spacecraft. 
-        
+
         Returns
         -------
         list[float]
@@ -304,7 +304,7 @@ class Satellite:
         """
         Create the fuel tank that the onboard electric thrusters will
         use.
-        
+
         Parameters
         ----------
         mass : float, default: 30 kg
@@ -325,7 +325,7 @@ class Satellite:
     def _set_ethruster(self, axis: str = "I+",
                      engine_specs: tuple = (0.2, 3000)):
         """ Create a thruster on the spacecraft.
-        
+
         Parameters
         ----------
         axis : str, default="I+"
@@ -334,7 +334,7 @@ class Satellite:
         engine_specs : tuple, default=(0.2 N, 3000 sec)
             Two element tuple containing the engine force and ISP,
             respectively.
-        
+
         Raises
         ------
         ValueError
@@ -364,9 +364,9 @@ class Satellite:
         # Based on the thruster axis, assign its thrust direction
         self._set_ethruster_direction(axis)
 
-    def _set_ethruster_direction(self, axis):
+    def _set_ethruster_direction(self, axis: str):
         """ Assign the thruster's direction.
-        
+
         The spacecraft's thrusters are created referencing the
         spacecraft's Velocity/Normal/Bi-Normal (VNB) reference frame.
         A conversion map is used to relate the RIC and VNB frames.
@@ -382,7 +382,7 @@ class Satellite:
         ----------
         axis : str
             Which RIC axis the thruster fires along.
-        
+
         Raises
         ------
         ValueError
@@ -418,9 +418,13 @@ class Satellite:
         b = thruster_direction[2]
         self.thrusters[axis].SetField("ThrustDirection3", b)
 
-    def _set_power_system(self, power_system_type: str="Nuclear", kw: float=20):
+    def _set_power_system(
+            self,
+            power_system_type: str="Nuclear",
+            kw: float = 20
+        ):
         """ Create the power supply for the spacecraft.
-        
+
         While the power system type of spacecraft is commonly "Solar"
         power, this function sets the default type to "Nuclear". This
         was chosen because in GMAT there is no way to create a battery
@@ -438,7 +442,7 @@ class Satellite:
         kw : float, default=20 kW
             How much initial power the power supply will have at the
             spacecraft's epoch.
-            
+
         Raises
         ------
         ValueError

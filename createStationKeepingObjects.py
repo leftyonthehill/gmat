@@ -8,6 +8,7 @@ from createPropagator import Propagator
 from createSatellite import Satellite
 from load_gmat import gmat
 
+
 class StationKeepingObjects:
     """ Creates GMAT objects for a station keeping scenario.
     
