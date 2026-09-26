@@ -113,7 +113,7 @@ class StationKeepingController:
         positive I-axis position during each maneuver attempt.
     """
 
-    MU = 398600  # Earth’s gravitational parameter in km^3/s^2
+    MU = 398600  # Earth's gravitational parameter in km^3/s^2
 
     # Compute the number of steps per orbit based on state vector source.
     if STATE_VECT_SOURCE == "new":
@@ -355,14 +355,14 @@ class StationKeepingController:
                         raise the truth spacecraft's apogee to
                         meet/exceed that of the reference spacecraft.
                     - "del_e" > 0 for a maneuver at apogee
-                        - The reference  apogee is lower than the truth
+                        - The reference apogee is lower than the truth
                         and the reference perigee is higher than the
                         truth. Performing the maneuver at apogee will
                         raise the truth's perigee to meet/exceed that
                         of the reference spacecraft.
             - The previous maneuver occurred more than 3 periods ago
             - The truth spacecraft's average sma delta is less than 0
-              Km.
+              km.
         
         If these conditions are not met within one orbital period, quit
         looking for maneuver opportunities.
@@ -673,7 +673,7 @@ class StationKeepingController:
 
     def _i_burn_undershoot(
             self,
-    ):
+    ) -> dict:
         """
         Alert the spacecraft that additional maneuvering time is
         required, I-axis target is currently being undershot.
@@ -709,7 +709,7 @@ class StationKeepingController:
         self.maneuver_ends.pop()
 
         # Estimate the time steps needed to correct the undershoot
-        # (`I_BURN_STEP_GAIN` *  'miss distance ', rounded to the next whole
+        # (`I_BURN_STEP_GAIN * miss distance', rounded to the next whole
         # number to get the number of `DT_THRUST` steps needed).
         self.estimated_steps = np.ceil(
             (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS)
@@ -721,7 +721,7 @@ class StationKeepingController:
         predicted_burn_duration = (self.burn_duration
                                     + self.estimated_steps * DT_THRUST)
         if predicted_burn_duration in self.maneuver_attempts:
-            self.estimated_steps -=1
+            self.estimated_steps -= 1
 
         # In case this leads to the 100th or greater maneuver attempt, notify
         # the user and exit the station keeping loop.
@@ -744,7 +744,7 @@ class StationKeepingController:
 
     def _i_burn_overshoot(
             self
-    ):
+    ) -> dict:
         """
         Alert the spacecraft that less maneuvering time is required,
         I-axis target is currently being overshot.
@@ -784,7 +784,7 @@ class StationKeepingController:
             )
 
         # Estimate the time steps needed to correct the overshoot
-        # (`I_BURN_STEP_GAIN` *  'miss distance ', rounded to the next whole
+        # (`I_BURN_STEP_GAIN * miss distance', rounded to the next whole
         # number to get the number of `DT_THRUST` steps needed)
         steps_back = abs(
             np.ceil(
@@ -798,7 +798,7 @@ class StationKeepingController:
         if (self.burn_duration - DT_THRUST * steps_back
             in self.maneuver_attempts
         ):
-            steps_back -=1
+            steps_back -= 1
 
         backtrack_burn_time = steps_back * DT_THRUST
         self.burn_duration -= backtrack_burn_time
@@ -807,12 +807,12 @@ class StationKeepingController:
         # for the shorter maneuver time to bring in the overshoot of
         # `I_BOUNDS`, there is a chance that the controller overcorrected and
         # sent the spacecraft into a negative maneuver time. Should that be the
-        # the case, reset the maneuver time to 5 times `DT_THRUST` and try
-        # again. If the controller cannot converge on a solution after 5
-        # attempts that produce a negative thrust time, raise a RuntimeError.
+        # case, reset the maneuver time to 5 times `DT_THRUST` and try again.
+        # If the controller cannot converge on a solution after 5 attempts that
+        # produce a negative thrust time, raise a RuntimeError.
         if self.burn_duration < 0:
             self.burn_duration = 5 * DT_THRUST
-            self.negative_time_correction_tries -=  1
+            self.negative_time_correction_tries -= 1
             if self.negative_time_correction_tries <= 0:
                 raise RuntimeError(
                     "Too many attempts to fix a negative burn time"
@@ -843,7 +843,7 @@ class StationKeepingController:
             self,
             elapsed_time: float,
             accel: dict
-        ):
+        ) -> dict:
         """
         Contains the termination criteria for the in-track maneuvers.
         
@@ -1132,7 +1132,7 @@ class StationKeepingController:
         # If the amplitude hasn't recovered after 3/4 of an orbit,
         # prepare to try again
         if (round_to_time_step(elapsed_time)
-                - self.maneuver_ends[-1] > .75 * self.PERIOD_IN_SECONDS
+                - self.maneuver_ends[-1] > 0.75 * self.PERIOD_IN_SECONDS
         ):
             self.state = "wait for C burn"
             return {

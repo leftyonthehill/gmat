@@ -55,7 +55,7 @@ class StationKeepingObjects:
         if all([object_type.lower() != "truth",
                 object_type.lower() != "reference"]):
             raise ValueError(
-                "Object typing can only be 'Truth' or 'Reference'.")
+                "Object typing can only be 'truth' or 'reference'.")
 
         self.object_type = object_type
         self.thrust_axis = "coast"
@@ -211,6 +211,8 @@ class StationKeepingObjects:
 
             # Update the spacecraft reference in the propagator
             prop.prop_gmat.AddPropObject(self.sat_gmat)
+
+        self.thrust_axis = "coast"
 
         # Update the latest internal values for the propagator
         prop.prop_gmat.PrepareInternals()

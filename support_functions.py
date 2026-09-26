@@ -127,11 +127,6 @@ def get_epoch_as_datetime(date_str: str) -> dt.datetime:
     -------
     dt.datetime
         dt.datetime representing the same instant.
-    
-    Raises
-    ------
-    ValueError
-        If `date_str` is not in the expected format.
     """
 
     epoch = dt.datetime.strptime(date_str, "%d %b %Y %H:%M:%S.%f")
@@ -385,7 +380,7 @@ def i_axis_maneuver_attempt_debug_message(
     ----------
     maneuver_attempts : int
         The previous maneuver attempt number.
-    min_i_pos  : float
+    min_i_pos : float
         The minimum I-axis position achieved during previous maneuver
         attempt.
     burn_duration : float

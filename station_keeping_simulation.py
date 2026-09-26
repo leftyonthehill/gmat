@@ -140,7 +140,6 @@ diffCOEs_buffer = {key: deque([0.0], maxlen=int(STEPS_TO_AVERAGE))
                    for key in COE_KEYS}
 
 state = "nominal"
-interrupted_state = "nominal"
 thruster_axis = ""
 
 # ----------------- Configure Object Preliminaries ----------------------------
@@ -339,7 +338,6 @@ while elapsed_time < TOTALSECONDS:
 
         case "stop_waiting":
             state = result["new_state"]
-            interrupted_state = result["interrupted_state"]
 
         case "stop_burn":
             state = result["new_state"]
@@ -375,14 +373,12 @@ while elapsed_time < TOTALSECONDS:
 
         case "successful_maneuver":
             state = result["new_state"]
-            interrupted_state = result["interrupted_state"]
 
         case "maneuver_required":
             state = result["new_state"]
 
         case "successful_i_maneuver":
             state = result["new_state"]
-            interrupted_state = result["interrupted_state"]
             dt = result["dt"]
             maneuver_duration = result["maneuver_duration"]
             delta_v = result["maneuver_delta_v"]
@@ -432,7 +428,7 @@ while elapsed_time < TOTALSECONDS:
             continue
 
 # ----------------- Outputs ---------------------------------------------------
-timings =  [
+timings = [
     ctrl.maneuver_ends,
     ctrl.maneuver_starts,
     t,

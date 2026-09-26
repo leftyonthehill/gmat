@@ -66,7 +66,8 @@ def output_terminal(
 def output_plots(
         timings: list[list | float],
         coes: list[dict],
-        ric: list[dict]):
+        ric: list[dict]
+    ) -> None:
     """ Generate plots to visualize the scenario.
 
     Measuring the differences as (Truth - Reference), there are 9

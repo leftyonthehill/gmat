@@ -11,9 +11,9 @@ class ForceModel:
     experienced during a station keeping scenario.
 
     This wrapper supports two types of force models:
-    - "Reference": Includes the minimum perturbation load (16x16 Earth
+    - "reference": Includes the minimum perturbation load (16x16 Earth
       geopotential model) for an ideal reference trajectory.
-    - "Truth": High fidelity dynamics model to include atmospheric
+    - "truth": High fidelity dynamics model to include atmospheric
       drag, 3rd body effects (Sun/Moon), and solar radiation pressure.
 
     Attributes
@@ -22,7 +22,7 @@ class ForceModel:
         The force load this model carries.
         - "reference" = gravity only
         - "truth" = full force load
-    fm : gmat.ODEModel 
+    fm : gmat.ODEModel
         GMAT object holding the list of forces that contribute to the
         spacecraft's acceleration.
     burn : {str: gmat.FiniteBurn}
@@ -153,7 +153,7 @@ class ForceModel:
             )
             self.fm.AddForce(srp)
 
-    def create_burn_forces(self, sat_obj: Satellite, ax:str):
+    def create_burn_forces(self, sat_obj: Satellite, ax: str):
         """
         For a given thruster axis, add its dynamics to the scenario's
         physical model.

@@ -3,6 +3,7 @@ scenario. """
 
 from load_gmat import gmat
 
+
 class Propagator:
     """ Wrapper for a Propagator object in GMAT.
     
@@ -36,7 +37,7 @@ class Propagator:
             init_step_size: int = 5,
             min_step_size: float = 1e-5,
             max_step_size: float = 120,
-            max_step_attempts: float = 2.5e4,
+            max_step_attempts: int = 2.5e4,
             accuracy: float = 1e-10,
         ):
         """ Creates numerical integrator. 
@@ -53,7 +54,7 @@ class Propagator:
             Smallest time step, in seconds, to use in the integrator.
         max_step_size : float, default = 120
             Largest time step, in seconds, to use in the integrator.
-        max_step_attempts : float, default = 2.5e4
+        max_step_attempts : int, default = 2.5e4
             Upper limit as to how many max integration steps to be
             attempted during each propagator step.
         accuracy : float, default = 1e-10
