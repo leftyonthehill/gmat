@@ -14,19 +14,20 @@ must be corrected.
 Main loop
 ---------
 Each iteration:
-1. Step forward both spacecrafts' RK89 integrators by `dt` (`DT_COAST`
-   while coasting, `DT_THRUST` while thrusting).
+1. Step forward both spacecrafts by `dt` (`DT_COAST` while coasting,
+   `DT_THRUST` while thrusting).
 2. Compute the truth spacecraft's Cartesian offset from its reference
    in the RIC frame (using xyz2ric).
 3. Compute the differences between each Keplerian element between both
    spacecraft (truth_element - reference_element)
 4. At each `DT_COAST`-aligned time step, perform the following updates:
-   - `RIC_History` / `diffCOEs`: instantaneous values
-   - `RIC_Amp_History`: RIC position/velocity oscillation amplitudes
-     (via a rolling `RIC_amp_Buffer` containing one orbit's worth of
-     values).
-   - `diffCOEs_avg`: averaged diff_coe difference (via a rolling
-     `diffCOEs_buffer` over `REVOLUTIONS_TO_AVG` orbits).
+    - `RIC_History` / `diffCOEs`: instantaneous values
+    - `RIC_Amp_History`: RIC position/velocity oscillation amplitudes
+        - Uses live data until rolling buffer, `RIC_Amp_Buffer`,
+          contains 1.5 * `STEPS_PER_ORBIT` steps worth of data.
+    - `diffCOEs_avg`: averaged diff_coe difference
+        - Uses live data until rolling buffer, `diffCOEs_buffer`,
+          contains `STEPS_TO_AVERAGE` steps worth of data.
 5. Check for any R/I/C boundary violations and, if the controller is
    not already performing a higher-priority correction, prepare for a
    maneuver in the corresponding "wait for <axis> burn" state.
@@ -52,11 +53,18 @@ Notes
 
 Outputs
 -------
-Prints the terminal state, elapsed time, terminal epoch, and final
-Keplerian elements for both spacecraft, then calls `output_plots()` to
-render RIC position/velocity, oscillation-amplitude, and diff_coe-
-difference plots (see `simulationParameters.py` for which plots are
-enabled and `data_outputs.py` for details).
+Optionally prints a terminal summary for both spacecraft (final state,
+elapsed time, epoch, Keplerian elements) when `output_terminal(...)` is
+called.
+
+Then calls `output_plots()` to render any of the following versus time
+plots that are enabled in `simulationParamters.py`:
+- RIC position / velocity
+- RIC position / velocty oscillation amplitude
+- Truth-reference Keplerian element differences
+
+See `simulationParameters.py` for plot flags and `data_outputs.py` for
+more details.
 """
 
 # Native libraries
@@ -207,7 +215,7 @@ def _reload_diff_buffers(reload_from_time: float) -> None:
     average values.
     
     After a rewind, the average value buffers contain information from
-    the future that is no longer relavent. The buffers need to go
+    the future that is no longer relevant. The buffers need to go
     backwards in time, beyond the rewound time, to refill the buffers
     with the corresponding data history.
 

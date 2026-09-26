@@ -58,11 +58,11 @@ class ForceModel:
             "truth".
         """
 
-        if (self.fm_type.lower() != "reference"
-            and self.fm_type.lower() != "truth"):
+        if (not self.fm_type.startswith("reference")
+            and not self.fm_type.startswith("truth")):
             raise ValueError(
-                "Incorrect force-model type was chosen (Provided: " 
-                + self.fm_type + "). The propagator type must only be "
+                "Incorrect force-model type was chosen (Provided: "
+                + self.fm_type + "). The force model type must contain "
                 + "'reference' or 'truth'.")
 
         if self.fm_type.lower() == "reference":

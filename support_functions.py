@@ -74,7 +74,7 @@ def xyz2ric(
     Notes
     -----
     `rv_ric[3:]` contains the relative velocity of the truth spacecraft
-    in the rotating RIC frame.
+    in the rotating RIC frame (`δv - ω x δr`).
     """
     # Verify 6 elements were provided (3 for position and 3 for velocity).
     if len(ref_state) != 6 or len(true_state) != 6:
@@ -205,7 +205,7 @@ def get_r_axis_print(
         delta_v: float,
         total_delta_v: float,
     ) -> None:
-    """ Print to terminal the results of a R-axis maneuver. 
+    """ Print to terminal the results of an R-axis maneuver. 
     
     Parameters
     ----------
@@ -263,7 +263,7 @@ def get_i_axis_print(
         delta_v: float,
         total_delta_v: float,
 ) -> None:
-    """ Print to terminal the results of a I-axis maneuver.
+    """ Print to terminal the results of an I-axis maneuver.
     
     Parameters
     ----------

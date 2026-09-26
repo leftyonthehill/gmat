@@ -16,7 +16,7 @@ class Satellite:
       `set_maneuverable()` to create thrusters along the +/-R, +/-I,
       +/-C axes in the RIC reference frame. If a different combination
       of thrusters is required, make sure to call
-      `_set_ethruster(axis, engineSpecs)` before `set_maneuverable()`.
+      `_set_ethruster(axis, engine_specs)` before `set_maneuverable()`.
       The +/-R, +/-I, +/-C thrust vectors are created if there are no
       other thrusters assigned to the vehicle.
 
@@ -195,6 +195,7 @@ class Satellite:
 
         x, y, z, xdot, ydot, zdot = xyz[:6]
 
+        self.sat.SetField("DisplayStateType", "Cartesian")
         self.sat.SetField("X", x)
         self.sat.SetField("Y", y)
         self.sat.SetField("Z", z)
@@ -216,16 +217,13 @@ class Satellite:
             raise SyntaxError("Invalid date type. The epoch must be either a " \
                             "datetime.datetime object or a string")
 
-        self.epoch = epoch.strftime("%d %b %Y 12:00:00.000")
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
 
-        self.sat.SetField("DisplayStateType", "Cartesian")
         self.sat.SetField("DisplayStateType", "Keplerian")
 
     def set_maneuverable(self):
-        """ 
-        Prepare the components needed to make the spacecraft
+        """ Prepare the components needed to make the spacecraft
         maneuverable.
 
         If custom components have not been created for this spacecraft,
@@ -341,7 +339,7 @@ class Satellite:
         """
 
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
-            raise ValueError(axis + "axis not found. Acceptable values are:"
+            raise ValueError(axis + " axis not found. Acceptable values are:"
                              + "R+, R-, I+, I-, C+, C-")
 
         # Create the thruster
@@ -423,7 +421,7 @@ class Satellite:
         While the power system type of spacecraft is commonly "Solar"
         power, this function sets the default type to "Nuclear". This
         was chosen because in GMAT there is no way to create a battery
-        and maneuver a solar powered spacecraft while eclipsed with the
+        and maneuver a solar powered spacecraft while eclipsed by the
         Earth. To prevent missed maneuver opportunities, "Nuclear" was
         chosen to be the default power supply type. Future versions of
         this project will include an eclipse checker to verify viable
@@ -446,9 +444,9 @@ class Satellite:
         """
 
         if power_system_type != "Nuclear" and power_system_type != "Solar":
-            raise ValueError(power_system_type + " is not a valid power system"
-                             + "type in GMAT. Please select from either "
-                             + "'Nuclear' or 'Solar'")
+            raise ValueError(power_system_type + " is not a valid power "
+                             + "system type in GMAT. Please select from "
+                             + "either 'Nuclear' or 'Solar'.")
         power_system = gmat.Construct(power_system_type + "PowerSystem",
                                           self.sat.GetName() + "_"
                                           + power_system_type + "Power")

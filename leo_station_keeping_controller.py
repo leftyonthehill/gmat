@@ -477,7 +477,8 @@ class StationKeepingController:
         spacecraft is within 4 * `MANEUVER_ARC_HALF_ANGLE` degrees of
         `crit_angle`. The direction of the C-axis maneuver will vary
         depending on the average value of "del_raan" and the quadrant
-        of `crit_angle`.
+        of `crit_angle`. If these conditions are not met within one
+        orbital period, quit looking for maneuver opportunities.
 
         Parameters
         ----------
@@ -677,11 +678,6 @@ class StationKeepingController:
         Alert the spacecraft that additional maneuvering time is
         required, I-axis target is currently being undershot.
         
-        The current trajectory will undershoot the targeted I-axis
-        recovery window, a maximum displacement between
-        `DEADBAND_TRIGGER_RATIO` and 1 times the distance of the
-        negative `I_BOUNDS` boundary.
-        
         Returns
         -------
         dict
@@ -751,11 +747,6 @@ class StationKeepingController:
         """
         Alert the spacecraft that less maneuvering time is required,
         I-axis target is currently being overshot.
-        
-        The current trajectory will overshoot the target I-axis
-        recovery window, a maximum displacement between
-        `DEADBAND_TRIGGER_RATIO` and 1 times the distance of the
-        negative `I_BOUNDS` boundary.
         
         Returns
         -------
@@ -864,16 +855,18 @@ class StationKeepingController:
           "del_a" drops below 0.
             - Signifies that the truth spacecraft has begun to drift
               in I+ direction.
-        - If -i_pos_min > `DEADBAND_TRIGGER_RATIO` * `I_BOUNDS`,
-          backwards propagate to the end of the maneuver and increase
-          the burn duration.
-            - The negative sign is preferred over abs so that false
-              positives are prevented when i_pos_min >0
-        - If -i_pos_min < `I_BOUNDS`, backwards propagate to the end of
-          the maneuver and backwards propagate into the maneuver to
-          reduce the maneuver's burn duration.
-            - The negative sign is preferred over abs so that false
-              positives are prevented when i_pos_min >0
+        - If `DEADBAND_TRIGGER_RATIO <= -min_i_pos / I_BOUNDS <= 1`,
+          then a "goldilocks" trajectory has been found (within the
+          allowed band for drag-loss recovery).
+        - If `-min_i_pos < DEADBAND_TRIGGER_RATIO` * `I_BOUNDS`
+          (undershoot), backwards propagate to the end of the maneuver
+          and increase the burn duration.
+            - Prefer `-min_i_pos` over abs so `min_i_pos` > 0 cannot
+              trigger a "goldilocks" trajectory.
+        - If `-min_i_pos > I_BOUNDS` (overshoot), back propagate to
+          the end of the maneuver and into the maneuver to reduce burn
+          duration.
+            - Same `-min_i_pos` preference as above.
         - If the burn duration is commanded to be negative or the
           amount of maneuver corrections exceeds 100 attempts, the
           simulation is ended.
@@ -960,8 +953,8 @@ class StationKeepingController:
                 # - Overshoots deadband target (less thrusting required)
 
                 termination_conditions = [
-                    DEADBAND_TRIGGER_RATIO < -self.min_i_pos / I_BOUNDS <= 1,
-                    -self.min_i_pos / I_BOUNDS <= DEADBAND_TRIGGER_RATIO,
+                    DEADBAND_TRIGGER_RATIO <= -self.min_i_pos / I_BOUNDS <= 1,
+                    -self.min_i_pos / I_BOUNDS < DEADBAND_TRIGGER_RATIO,
                     -self.min_i_pos / I_BOUNDS > 1
                 ]
 
@@ -1057,12 +1050,12 @@ class StationKeepingController:
     ) -> dict:
         """ Verifies the radial maneuver performed nominally.
         
-        After an R-axis maneuver is complete, monitor the amplitude of
-        the position's amplitude. If it drops below
-        `DEADBAND_TRIGGER_RATIO` within 75% of one orbit then the
-        maneuver is deemed successful. If the `DEADBAND_TRIGGER_RATIO`
-        threshold is not met, then alert the spacecraft that additional
-        maneuvers are required.
+        After an R-axis maneuver is complete, monitor the
+        position's oscillation amplitude. If
+        `amp_ric["R"] <= DEADBAND_TRIGGER_RATIO` within 75% of one
+        orbit then the maneuver is deemed successful. If the
+        `DEADBAND_TRIGGER_RATIO` threshold is not met, then alert the
+        spacecraft that additional maneuvers are required.
 
         Parameters
         ----------
@@ -1107,9 +1100,10 @@ class StationKeepingController:
     ):
         """ Verifies the cross-track maneuver performed nominally.
         
-        After a C-axis maneuver is complete, monitor the amplitude of
-        the position's amplitude. If it drops below `C_TARGET_RATIO`
-        then the maneuver is deemed successful. If the oscillation
+        After a C-axis maneuver is complete, monitor the
+        position's oscillation amplitude. If
+        `amp_ric["C"] <= DEADBAND_TRIGGER_RATIO` within 75% of one
+        obit then the maneuver is deemed successful. If the oscillation
         amplitude does not drop below `C_TARGET_RATIO`, then alert the
         spacecraft that additional maneuvers are required.
 

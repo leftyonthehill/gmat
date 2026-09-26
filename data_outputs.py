@@ -90,10 +90,6 @@ def output_plots(
     - Differences in the instantaneous and averaged values for the True
       Latitude (del_theta)
 
-    Additionally, the scenario can print to the terminal what maneuver
-    was completed, how long it took to complete, and at what time the
-    maneuver concluded (`PRINT_MANEUVER_MESSAGE`).
-
     Parameters
     ----------
     timings : list[list | float]
@@ -230,10 +226,10 @@ def output_plots(
         else:
             # If there are no maneuvers in the duration of the scenario, simply
             # plot the trajectory.
-            R = RIC_History["R"].items()
-            I = RIC_History["I"].items()
-            C = RIC_History["C"].items()
-            ax_ric_traj.plot([*R.values()], [*I.values()], [*C.values()], 'b')
+            R = [*RIC_History["R"].values()]
+            I = [*RIC_History["I"].values()]
+            C = [*RIC_History["C"].values()]
+            ax_ric_traj.plot(R, I, C, 'b')
 
         # Plot title and labels
         ax_ric_traj.set_xlabel('R (km)')
@@ -617,7 +613,7 @@ def output_plots(
         del_theta = del_f + del_aop
         del_theta_avg = del_f_avg + del_aop_avg
         for i, tau in enumerate(del_theta):
-            if -180 > tau > 180:
+            if tau < -180 or tau > 180:
                 del_theta[i] = (360 - tau if tau > 180 else 360 + tau)
                 tau_to_avg = (
                     del_theta[i - STEPS_PER_AVG_ORBIT:i]
@@ -649,8 +645,10 @@ def output_plots(
     if any([
         PLOT_3D_RIC,
         PLOT_RIC_POS,
+        PLOT_RIC_POS_AMP,
         PLOT_RIC_VELO,
-        PLOT_COE_DIFFS.items()
-        ]):
+        PLOT_RIC_VELO_AMP,
+        PLOT_PHASE_DIFF,
+        *PLOT_COE_DIFFS.values()]):
 
         plt.show()
