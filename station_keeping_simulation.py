@@ -34,9 +34,9 @@ Each iteration:
 
 State machine
 -------------
-States are tracked in `state` / `interrupted_state`. The maneuver
-axis priority is I > C > R and is enforced by the sets `I_OVERRIDE`,
-`C_OVERRIDE`, and `R_OVERRIDE`.
+Spacecraft state is tracked in `state`. The maneuver axis priority is
+I > C > R and is enforced by the sets `I_OVERRIDE`, `C_OVERRIDE`, and
+`R_OVERRIDE`.
 
 Notes
 -----

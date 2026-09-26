@@ -120,7 +120,7 @@ def get_epoch_as_datetime(date_str: str) -> dt.datetime:
     ----------
     date_str : str
         Epoch written in GMAT's UTCGregorian format. The input is
-        expected to follow this format: "dd mmm yyyy HH:MM:SS.fff"
+        expected to follow this format: "dd mmm yyyy HH:MM:SS.sss"
         (Example: "26 Aug 2026 00:00:00.000").
     
     Returns
@@ -143,7 +143,7 @@ def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
     Returns
     -------
     str
-        "dd mmm yyyy HH:MM:SS.fff" with millisecond precision.
+        "dd mmm yyyy HH:MM:SS.sss" with millisecond precision.
         `strftime("%f")` provides 6 microsecond digits, however the
         last three decimal places are stripped to match GMAT's
         millisecond field width.
@@ -185,7 +185,7 @@ def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
     Returns
     -------
     str 
-        `yyyyDOYHHMMSS.fff` with millisecond precision.
+        `yyyyDOYHHMMSS.sss` with millisecond precision.
     """
 
     epoch = date.strftime("%Y%j%H%M%S.%f")

@@ -123,7 +123,7 @@ def output_plots(
     """
 
     # Separating out the components of the inputs
-    burnEnds, burnStarts, t, revs_to_avg, dtCoast, STEPS_PER_AVG_ORBIT = timings
+    burnEnds, burnStarts, t, REVS_TO_AVG, DT_COAST, STEPS_TO_AVERAGE = timings
     diffCOEs_dict, diffCOEs_avg = coes
     RIC_History, RIC_Amp_History = ric
 
@@ -166,19 +166,19 @@ def output_plots(
                 # to visualize the coasting period.
                 R = {k:v for k, v in RIC_History["R"].items()
                      if (
-                         burnEnds[i-1] - dtCoast) / 86400
+                         burnEnds[i-1] - DT_COAST) / 86400
                          <= k
                          <= burn_time[0] / 86400
                     }
                 I = {k:v for k, v in RIC_History["I"].items()
                      if (
-                         burnEnds[i-1] - dtCoast) / 86400
+                         burnEnds[i-1] - DT_COAST) / 86400
                          <= k
                          <= burn_time[0] / 86400
                     }
                 C = {k:v for k, v in RIC_History["C"].items()
                      if (
-                         burnEnds[i-1] - dtCoast) / 86400
+                         burnEnds[i-1] - DT_COAST) / 86400
                          <= k
                          <= burn_time[0] / 86400
                     }
@@ -244,7 +244,7 @@ def output_plots(
     i_burns = []
     c_burns = []
     for i in burnStarts:
-        # The telemetry is stored at intervals of 'dtCoast' but the maneuver
+        # The telemetry is stored at intervals of 'DT_COAST' but the maneuver
         # ignition time could occur outside of the reported time steps. If this
         # is the case, then grab the next available time after the maneuver has
         # started.
@@ -369,7 +369,7 @@ def output_plots(
         # Plot title, labels, and legend
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (km)')
-        ax.set_title("Oscillation Amplitude of Position in RIC Frame vs Time")
+        ax.set_title("Oscillation Amplitude of RIC Position vs Time")
         ax.legend()
 
     # If enabled, plot the RIC frame velocity over time
@@ -431,14 +431,13 @@ def output_plots(
         # Plot title, labels, and legend
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (m/sec)')
-        ax.set_title("Oscillation Amplitude of Velocity in Reference RIC " \
-        "Frame vs Time")
+        ax.set_title("Oscillation Amplitude of RIC Velocity vs Time")
         ax.legend()
 
     # -------------------- Differences in COE Plots ---------------------------
     #
     # If enabled, plot the difference in semi-major axis between the truth and
-    # reference states compared to the average value over 'revs_to_avg' orbits.
+    # reference states compared to the average value over 'REVS_TO_AVG' orbits.
     if PLOT_COE_DIFFS["del_a"]:
         ax = plt.figure().add_subplot()
         ax.plot(
@@ -449,7 +448,7 @@ def output_plots(
             [*diffCOEs_avg["del_a"].keys()],
             [*diffCOEs_avg["del_a"].values()],
             "--",
-            label=f"{revs_to_avg} orbit average")
+            label=f"{REVS_TO_AVG} orbit average")
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:
@@ -465,7 +464,7 @@ def output_plots(
         ax.legend()
 
     # If enabled, plot the difference in eccentricity between the truth and
-    # reference states compared to the average value over 'revs_to_avg' orbits.
+    # reference states compared to the average value over 'REVS_TO_AVG' orbits.
     if PLOT_COE_DIFFS["del_e"]:
         ax = plt.figure().add_subplot()
         ax.plot(
@@ -476,7 +475,7 @@ def output_plots(
             [i for i in diffCOEs_avg["del_e"].keys()],
             [i for i in diffCOEs_avg["del_e"].values()],
             "--",
-            label=f"{revs_to_avg} orbit average")
+            label=f"{REVS_TO_AVG} orbit average")
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:
@@ -492,7 +491,7 @@ def output_plots(
         ax.legend()
 
     # If enabled, plot the difference in inclination between the truth and
-    # reference states compared to the average value over 'revs_to_avg' orbits.
+    # reference states compared to the average value over 'REVS_TO_AVG' orbits.
     if PLOT_COE_DIFFS["del_i"]:
         ax = plt.figure().add_subplot()
         ax.plot(
@@ -503,7 +502,7 @@ def output_plots(
             [i for i in diffCOEs_avg["del_i"].keys()],
             [i for i in diffCOEs_avg["del_i"].values()],
             "--",
-            label=f"{revs_to_avg} orbit average")
+            label=f"{REVS_TO_AVG} orbit average")
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:
@@ -520,7 +519,7 @@ def output_plots(
 
     # If enabled, plot the difference in right ascension of the ascending node
     # between the truth and reference states compared to the average value over
-    # 'revs_to_avg' orbits.
+    # 'REVS_TO_AVG' orbits.
     if PLOT_COE_DIFFS["del_raan"]:
         ax = plt.figure().add_subplot()
         ax.plot(
@@ -531,7 +530,7 @@ def output_plots(
             [i for i in diffCOEs_avg["del_raan"].keys()],
             [i for i in diffCOEs_avg["del_raan"].values()],
             "--",
-            label=f"{revs_to_avg} orbit average")
+            label=f"{REVS_TO_AVG} orbit average")
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:
@@ -548,7 +547,7 @@ def output_plots(
 
     # If enabled, plot the difference in argument of periapsis between the
     # truth and reference states compared to the average value over
-    # 'revs_to_avg' orbits.
+    # 'REVS_TO_AVG' orbits.
     if PLOT_COE_DIFFS["del_aop"]:
         ax = plt.figure().add_subplot()
         ax.plot(
@@ -559,7 +558,7 @@ def output_plots(
             [i for i in diffCOEs_avg["del_aop"].keys()],
             [i for i in diffCOEs_avg["del_aop"].values()],
             "--",
-            label=f"{revs_to_avg} orbit average")
+            label=f"{REVS_TO_AVG} orbit average")
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:
@@ -571,12 +570,12 @@ def output_plots(
         # Plot title, labels, and legend
         ax.set_xlabel('Time (Days)')
         ax.set_ylabel('Offset (deg)')
-        ax.set_title("Truth-Reference Differences in Argument of Perigee vs" \
-        " Time")
+        ax.set_title(
+            "Truth-Reference Differences in Argument of Perigee vs Time")
         ax.legend()
 
     # If enabled, plot the difference in true anomaly between the truth and
-    # reference states compared to the average value over 'revs_to_avg' orbits.
+    # reference states compared to the average value over 'REVS_TO_AVG' orbits.
     if PLOT_COE_DIFFS["del_f"]:
         ax = plt.figure().add_subplot()
         ax.plot(
@@ -587,7 +586,7 @@ def output_plots(
             i for i in diffCOEs_avg["del_f"].keys()],
             [i for i in diffCOEs_avg["del_f"].values()],
             "--",
-            label=f"{revs_to_avg} orbit average")
+            label=f"{REVS_TO_AVG} orbit average")
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:
@@ -603,7 +602,7 @@ def output_plots(
         ax.legend()
 
     # If enabled, plot the difference in true latitude between the truth and
-    # reference states compared to the average value over 'revs_to_avg' orbits.
+    # reference states compared to the average value over 'REVS_TO_AVG' orbits.
     if PLOT_PHASE_DIFF:
         del_f = np.array([*diffCOEs_dict["del_f"].values()])
         del_f_avg = np.array([*diffCOEs_avg["del_f"].values()])
@@ -616,14 +615,14 @@ def output_plots(
             if tau < -180 or tau > 180:
                 del_theta[i] = (360 - tau if tau > 180 else 360 + tau)
                 tau_to_avg = (
-                    del_theta[i - STEPS_PER_AVG_ORBIT:i]
-                    if i >= STEPS_PER_AVG_ORBIT else del_theta[:i]
+                    del_theta[i - STEPS_TO_AVERAGE:i]
+                    if i >= STEPS_TO_AVERAGE else del_theta[:i]
                 )
                 del_theta_avg[i] = np.mean(tau_to_avg)
 
         ax = plt.figure().add_subplot()
         ax.plot(t, del_theta, label="del_theta")
-        ax.plot(t, del_theta_avg, "--", label=f"{revs_to_avg} orbit average")
+        ax.plot(t, del_theta_avg, "--", label=f"{REVS_TO_AVG} orbit average")
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:

@@ -5,6 +5,7 @@ import numpy as np
 from simulationParameters import *
 from support_functions import *
 
+
 class StationKeepingController:
     """
     Determines a spacecraft's actions that are necessary to station
@@ -308,8 +309,7 @@ class StationKeepingController:
             # Prevent permanent lock-up if the window never appears
             return {
                 "action": "stop_waiting",
-                "new_state": self.state,
-                "interrupted_state": self.interrupted_state,
+                "new_state": self.state
             }
 
         if in_node_window and in_del_aop_range:
@@ -414,7 +414,6 @@ class StationKeepingController:
             return {
                 "action": "stop_waiting",
                 "new_state": self.state,
-                "interrupted_state": self.interrupted_state
             }
 
         ## Spacecraft action reporting ##
@@ -519,8 +518,7 @@ class StationKeepingController:
             # Prevent permanent lock-up if the window never appears
             return {
                 "action": "stop_waiting",
-                "new_state": self.state,
-                "interrupted_state": self.interrupted_state,
+                "new_state": self.state
             }
 
         if in_node_window:
@@ -663,7 +661,6 @@ class StationKeepingController:
         return {
             "action": "successful_i_maneuver",
             "new_state": self.state,
-            "interrupted_state": self.interrupted_state,
             "dt": DT_COAST - round(elapsed_time % DT_COAST),
             "maneuver_duration": maneuver_duration,
             "maneuver_delta_v": delta_v,
@@ -709,7 +706,7 @@ class StationKeepingController:
         self.maneuver_ends.pop()
 
         # Estimate the time steps needed to correct the undershoot
-        # (`I_BURN_STEP_GAIN * miss distance', rounded to the next whole
+        # (`I_BURN_STEP_GAIN * miss distance`, rounded to the next whole
         # number to get the number of `DT_THRUST` steps needed).
         self.estimated_steps = np.ceil(
             (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS)
@@ -726,8 +723,7 @@ class StationKeepingController:
         # In case this leads to the 100th or greater maneuver attempt, notify
         # the user and exit the station keeping loop.
         if len(self.maneuver_attempts) >= 100:
-            raise RuntimeError("Max burns! "
-                    + "Current burn duration = "
+            raise RuntimeError("Max burns! Current burn duration = "
                     + f"{self.burn_duration} sec")
 
         # Store time to back propagate and reset coast duration timer
@@ -784,7 +780,7 @@ class StationKeepingController:
             )
 
         # Estimate the time steps needed to correct the overshoot
-        # (`I_BURN_STEP_GAIN * miss distance', rounded to the next whole
+        # (`I_BURN_STEP_GAIN * miss distance`, rounded to the next whole
         # number to get the number of `DT_THRUST` steps needed)
         steps_back = abs(
             np.ceil(
@@ -1028,10 +1024,11 @@ class StationKeepingController:
             delta_v = accel[self.thruster_axis] * self.burn_duration
             self.total_delta_v += delta_v
 
+            self.maneuver_ends.append(elapsed_time)
             maneuver_duration = self.burn_duration
             self.burn_duration = 0
             self.state = "returning from C burn"
-            self.maneuver_ends.append(elapsed_time)
+            self.thruster_axis = ""
 
             return {
                 "action": "stop_burn",
@@ -1043,7 +1040,6 @@ class StationKeepingController:
             }
 
         return {"action": "continue"}
-
 
     # ------------- Verifying Recovery ----------------------------------------
     def _return_from_r(
@@ -1077,8 +1073,7 @@ class StationKeepingController:
 
             return {
                 "action": "successful_maneuver",
-                "new_state": self.state,
-                "interrupted_state": self.interrupted_state
+                "new_state": self.state
             }
 
         # If the amplitude hasn't recovered after 3/4 of an orbit, prepare to
@@ -1125,8 +1120,7 @@ class StationKeepingController:
 
             return {
                 "action": "successful_maneuver",
-                "new_state": self.state,
-                "interrupted_state": self.interrupted_state
+                "new_state": self.state
             }
 
         # If the amplitude hasn't recovered after 3/4 of an orbit,

@@ -113,7 +113,7 @@ class ForceModel:
         self.fm.AddForce(earth_grav)
 
         # If enabled, add solar and lunar third body effects
-        if kwargs.get("thirdBodyEffects",False):
+        if kwargs.get("thirdBodyEffects", False):
             solar = gmat.GetSolarSystem()
             self.fm.SetSolarSystem(solar)
 
@@ -130,7 +130,7 @@ class ForceModel:
             self.fm.AddForce(sun_grav)
 
         # If enabled, add atmospheric drag effects
-        if kwargs.get("atmDrag",False):
+        if kwargs.get("atmDrag", False):
             drag = gmat.Construct("DragForce", f"{self.fm.GetName()}_atmDrag")
             drag.SetField("AtmosphereModel", "JacchiaRoberts")
             atmosphere = gmat.Construct("JacchiaRoberts")
@@ -146,7 +146,7 @@ class ForceModel:
             self.fm.AddForce(drag)
 
         # If enabled, add solar radiation pressure effects
-        if kwargs.get("srp",False):
+        if kwargs.get("srp", False):
             srp = gmat.Construct(
                 "SolarRadiationPressure",
                 f"{self.fm.GetName()}_srp"

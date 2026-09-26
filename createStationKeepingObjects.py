@@ -22,7 +22,8 @@ class StationKeepingObjects:
     object_type : str
         What type of objects to be created.
     thrust_axis : str
-        Actively maneuvering thrust axis.
+        Actively maneuvering thrust axis. If not maneuvering,
+        `thrust_axis` is equal to "coast".
     sat_wrap : Satellite
         GMAT Spacecraft wrapper.
     sat_gmat : gmat.Spacecraft
@@ -125,7 +126,7 @@ class StationKeepingObjects:
         for prop in self.prop_wrap.values():
             prop.prop_gmat.PrepareInternals()
 
-    def thruster_on(self, axis:str) -> gmat.RungeKutta89:
+    def thruster_on(self, axis: str) -> gmat.RungeKutta89:
         """ Turn on the thrusters for the given axis.
 
         For the provided value of 'axis', update the corresponding
@@ -174,11 +175,11 @@ class StationKeepingObjects:
         integrator = prop.prop_gmat.GetPropagator()
         return integrator
 
-    def thruster_off(self, axis:str) -> gmat.RungeKutta89:
+    def thruster_off(self, axis: str) -> gmat.RungeKutta89:
         """ Turn off any active thrusters on the Satellite.
 
         Based on the provided axis, turn off the corresponding
-        thrusters.
+        thrusters and reset `self.thrust_axis` to "coast".
 
         Parameters
         ----------

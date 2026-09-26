@@ -125,7 +125,7 @@ class Satellite:
             The provided state vector is not exactly 6 or 7 elements
             long.
         SyntaxError
-            The provided epoch is not in the correct type. The accepted
+            The provided epoch is not of the correct type. The accepted
             values are `datetime.datetime` or `str`.
         """
 
@@ -187,7 +187,7 @@ class Satellite:
             The provided state vector is not exactly 6 or 7 elements
             long.
         SyntaxError
-            The provided epoch is not in the correct type. The accepted
+            The provided epoch is not of the correct type. The accepted
             values are `datetime.datetime` or `str`.
         """
 
@@ -322,7 +322,7 @@ class Satellite:
         # Assign the tank to the spacecraft
         self.sat.SetField("Tanks", etank.GetName())
 
-    def _set_ethruster(self, axis:str = "I+",
+    def _set_ethruster(self, axis: str = "I+",
                      engine_specs: tuple = (0.2, 3000)):
         """ Create a thruster on the spacecraft.
         
