@@ -621,7 +621,7 @@ class StationKeepingController:
     ) -> dict:
         """
         Alert the spacecraft that a viable I-axis maneuver has been
-        found and to resume nominal ops.
+        found and to resume prior ops.
 
         The current return trajectory of the truth spacecraft has a
         maximum displacement between `DEADBAND_TRIGGER_RATIO` and 1
@@ -665,7 +665,7 @@ class StationKeepingController:
             "maneuver_duration": maneuver_duration,
             "maneuver_delta_v": delta_v,
             "total_delta_v": self.total_delta_v,
-            "backtrack_coast_time": backtrack_time
+            "back_track_coast_time": backtrack_time
         }
 
     def _i_burn_undershoot(

@@ -35,7 +35,7 @@ class ForceModel:
 
     def __init__(self, fm_type: str):
         """ Initialize the ForceModel wrapper.
-        
+
         Parameters
         ----------
         fm_type : str

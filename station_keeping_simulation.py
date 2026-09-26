@@ -1,4 +1,4 @@
-""" Station keeping scenario starting point. 
+""" Station keeping scenario starting point.
 
 This script drives a two-satellite (reference and truth) GMAT scenario
 and uses a state-machine controller to keep the truth spacecraft within
@@ -123,20 +123,20 @@ elapsed_time = 0.0
 
 # Stores the RIC history of the truth spacecraft about the reference spacecraft
 RIC_KEYS = ["R", "I", "C", "R_dot", "I_dot", "C_dot"]
-RIC_History = {key: {0.0:0.0}
+RIC_History = {key : {0.0:0.0}
                for key in RIC_KEYS}
-RIC_Amp_History = {key: {0.0:0.0}
+RIC_Amp_History = {key : {0.0:0.0}
                    for key in RIC_KEYS}
-RIC_Amp_Buffer = {key: deque([0.0], maxlen=int(1.5 * STEPS_PER_ORBIT))
+RIC_Amp_Buffer = {key : deque([0.0], maxlen=int(1.5 * STEPS_PER_ORBIT))
                   for key in RIC_History}
 
 # Storage of the differences in the orbital elements throughout the scenario
 COE_KEYS = ["del_a", "del_e", "del_i", "del_raan", "del_aop", "del_f"]
-diffCOEs = {key: {0.0:0.0}
+diffCOEs = {key : {0.0:0.0}
                  for key in COE_KEYS}
-diffCOEs_avg = {key: {0.0:0.0}
+diffCOEs_avg = {key : {0.0:0.0}
                 for key in COE_KEYS}
-diffCOEs_buffer = {key: deque([0.0], maxlen=int(STEPS_TO_AVERAGE))
+diffCOEs_buffer = {key : deque([0.0], maxlen=int(STEPS_TO_AVERAGE))
                    for key in COE_KEYS}
 
 state = "nominal"
@@ -192,7 +192,7 @@ def _back_prop(time: float, time_to_back_prop: float) -> float:
         The current simulation time in seconds.
     time_to_back_prop : float
         The amount of seconds to back propagate.
-    
+
     Returns
     -------
     float
@@ -219,7 +219,7 @@ def _back_prop(time: float, time_to_back_prop: float) -> float:
 def _reload_diff_buffers(reload_from_time: float) -> None:
     """After a simulation rewind, reload the buffers needed to compute
     average values.
-    
+
     After a rewind, the average value buffers contain information from
     the future that is no longer relevant. The buffers need to go
     backwards in time, beyond the rewound time, to refill the buffers
@@ -330,7 +330,7 @@ while elapsed_time < TOTALSECONDS:
     ctrl.ref_coes = refCOE
 
     result = ctrl.update(elapsed_time, ACCEL)
-    match result.get("action","continue"):
+    match result.get("action", "continue"):
         case "start_burn":
             state = result["new_state"]
             thruster_axis = result["thruster_axis"]
@@ -385,7 +385,7 @@ while elapsed_time < TOTALSECONDS:
             maneuver_duration = result["maneuver_duration"]
             delta_v = result["maneuver_delta_v"]
             total_delta_v = result["total_delta_v"]
-            back_prop_coast_time = result["backtrack_coast_time"]
+            back_prop_coast_time = result["back_track_coast_time"]
 
             if PRINT_MANEUVER_MESSAGE:
                 get_i_axis_print(

@@ -11,7 +11,7 @@ from load_gmat import gmat
 
 class StationKeepingObjects:
     """ Creates GMAT objects for a station keeping scenario.
-    
+
     Rather than only storing the information for one state at a time
     (either coasting or thrusting along one of the spacecraft's
     thruster directions), the necessary ForceModel and Propagator
@@ -39,14 +39,14 @@ class StationKeepingObjects:
 
     def __init__(self, object_type: str):
         """ Create GMAT objects for the provided object type.
-        
+
         By default, a new satellite object is set to non-maneuverable.
 
         Parameters
         ----------
         object_type : str
             Describes what objects need to be made.
-            
+
         Raises
         ------
         ValueError
@@ -133,7 +133,7 @@ class StationKeepingObjects:
         For the provided value of 'axis', update the corresponding
         Propagator with the latest Satellite state and the thruster's
         force.
-        
+
         Parameters
         ----------
         axis : str
@@ -186,7 +186,7 @@ class StationKeepingObjects:
         ----------
         axis : str
             The thruster axis we want to turn off.
-        
+
         Returns
         -------
         gmat.RungeKutta89

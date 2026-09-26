@@ -206,7 +206,7 @@ def get_r_axis_print(
         delta_v: float,
         total_delta_v: float,
     ) -> None:
-    """ Print to terminal the results of an R-axis maneuver. 
+    """ Print to terminal the results of an R-axis maneuver.
 
     Parameters
     ----------
@@ -326,7 +326,7 @@ def get_c_axis_print(
         delta_v: float,
         total_delta_v: float
 ) -> None:
-    """ Print to terminal the results of a C-axis maneuver. 
+    """ Print to terminal the results of a C-axis maneuver.
 
     Parameters
     ----------

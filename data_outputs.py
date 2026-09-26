@@ -80,7 +80,7 @@ def output_plots(
     - Amplitude of the oscillation in RIC position over time
       (`PLOT_RIC_POS_AMP`)
     - Velocity in each RIC axis over time (`PLOT_RIC_VELO`)
-    - Amplitude of the oscillation in RIC frame velocity over time 
+    - Amplitude of the oscillation in RIC frame velocity over time
       (`PLOT_RIC_VELO_AMP`)
     - Differences in the instantaneous and averaged values for each
       orbital element over time:
@@ -615,7 +615,7 @@ def output_plots(
         del_theta_avg = del_f_avg + del_aop_avg
         for i, tau in enumerate(del_theta):
             if tau < -180 or tau > 180:
-                del_theta[i] = (360 - tau if tau > 180 else 360 + tau)
+                del_theta[i] = (tau - 360 if tau > 180 else 360 + tau)
                 tau_to_avg = (
                     del_theta[i - STEPS_TO_AVERAGE:i]
                     if i >= STEPS_TO_AVERAGE else del_theta[:i]
@@ -628,7 +628,7 @@ def output_plots(
 
         # If enabled, plot the maneuver markers
         if PLOT_MANEUVER_MARKERS:
-            del_theta_avg_dict = {t[i]: del_theta_avg[i] 
+            del_theta_avg_dict = {t[i]: del_theta_avg[i]
                                   for i in range(len(del_theta_avg))}
             diffCOEs_avg["del_theta"] = del_theta_avg_dict
             plot_maneuver_markers(

@@ -17,7 +17,7 @@ DT_THRUST = 5.0
 REVOLUTIONS_TO_AVG = 3.0
 
 # ----------------- Satellite Characteristics ---------------------------------
-STATE_VECT_SOURCE = "new" # "existing"
+STATE_VECT_SOURCE = "new"  # "existing"
 # Orbital element set shared by the initial reference and truth satellites
 ORBIT_STATE = [
     6903,   # SMA, avg alt of 525 km
@@ -26,7 +26,7 @@ ORBIT_STATE = [
     0,      # RAAN
     0,      # AOP
     0,      # TA
-    dt.datetime.today() # Epoch
+    dt.datetime.today()  # Epoch
 ]
 
 REF_ORBIT_STATE = [
@@ -66,6 +66,7 @@ DEADBAND_TRIGGER_RATIO = 0.85
 I_BURN_STEP_GAIN = 0.5
 R_TARGET_RATIO = 0.5
 C_TARGET_RATIO = 0.33
+
 # ----------------- Plotting --------------------------------------------------
 PLOT_3D_RIC = False
 

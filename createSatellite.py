@@ -7,10 +7,10 @@ from load_gmat import gmat
 
 
 class Satellite:
-    """ Wrapper for a Spacecraft object in GMAT. 
+    """ Wrapper for a Spacecraft object in GMAT.
 
     - If this is for the reference spacecraft, no other function calls
-      are required. 
+      are required.
     - If this is for the maneuvering spacecraft (the truth state in a
       station keeping scenario), make sure to call
       `set_maneuverable()` to create thrusters along the +/-R, +/-I,
@@ -29,7 +29,7 @@ class Satellite:
     sat : gmat.Spacecraft
         GMAT Spacecraft Object.
     thrusters : {str: gmat.ElectricThruster}
-        Dict containing any and all of the thrusters assigned to this 
+        Dict containing any and all of the thrusters assigned to this
         spacecraft associated with the corresponding thruster axis.
     accelerations : {str: float}
         Dict containing the acceleration of the spacecraft while
@@ -84,10 +84,10 @@ class Satellite:
             pressure)
         - [2]
             c_d (Coefficient of drag)
-        - [3]       
+        - [3]
             c_r (Coefficient of reflectivity)
         - [4]
-            m (Satellite mass)        
+            m (Satellite mass)
         """
 
         a_d, a_r, c_d, c_r, m = sat_physical_param
@@ -100,7 +100,7 @@ class Satellite:
         self.sat.SetField("DryMass", m)
         self.mass = m
 
-    def set_keplerian_state(self, coes: list[float | str]):
+    def set_keplerian_state(self, coes: list[float | str | dt.datetime]):
         """ Set the spacecraft state vector using Keplerian elements.
 
         The provided list must contain an element for each classical
@@ -110,12 +110,12 @@ class Satellite:
 
         Parameters
         ----------
-        coes : list[float | str]
-            - Semi-major axis, 
-            - Eccentricity, 
-            - Inclination, 
-            - Right Ascension of the Ascending Node, 
-            - Argument of Periapsis, 
+        coes : list[float | str | dt.datetime]
+            - Semi-major axis,
+            - Eccentricity,
+            - Inclination,
+            - Right Ascension of the Ascending Node,
+            - Argument of Periapsis,
             - True Anomaly,
             - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
 
@@ -162,7 +162,7 @@ class Satellite:
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
 
-    def set_cartesian_state(self, xyz: list):
+    def set_cartesian_state(self, xyz: list[float | str | dt.datetime]):
         """ Set the spacecraft state vector using Cartesian elements.
 
         The provided list must contain an element for each Cartesian
@@ -172,12 +172,12 @@ class Satellite:
 
         Parameters
         ----------
-        xyz : list[float | str]
-            - X, 
-            - Y, 
-            - Z, 
-            - V_X, 
-            - V_Y, 
+        xyz : list[float | str | dt.datetime]
+            - X,
+            - Y,
+            - Z,
+            - V_X,
+            - V_Y,
             - V_Z,
             - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
 
@@ -249,14 +249,14 @@ class Satellite:
         # Check for missing thrusters
         if not self.thrusters:
             thruster_axes = {
-                "R+": (0.2, 3000), 
-                "R-": (0.2, 3000), 
-                "I+": (0.2, 3000), 
-                "I-": (0.2, 3000), 
-                "C+": (0.2, 3000), 
+                "R+": (0.2, 3000),
+                "R-": (0.2, 3000),
+                "I+": (0.2, 3000),
+                "I-": (0.2, 3000),
+                "C+": (0.2, 3000),
                 "C-": (0.2, 3000)}
 
-            # Create a thruster for each thruster direction 
+            # Create a thruster for each thruster direction
             for ax, thruster_param in thruster_axes.items():
                 self._set_ethruster(ax, thruster_param)
 
@@ -285,7 +285,7 @@ class Satellite:
         return x
 
     def get_cartesian_state(self) -> list[float]:
-        """ Returns the Cartesian state vector of the spacecraft. 
+        """ Returns the Cartesian state vector of the spacecraft.
 
         Returns
         -------
@@ -397,10 +397,10 @@ class Satellite:
         # The following map is used to correlate the RIC frame to the VNB
         # frame
         axis_map = {
-            "R+": [0, 0, 1], 
-            "R-": [0, 0, -1], 
-            "I+": [1, 0, 0], 
-            "I-": [-1, 0, 0], 
+            "R+": [0, 0, 1],
+            "R-": [0, 0, -1],
+            "I+": [1, 0, 0],
+            "I-": [-1, 0, 0],
             "C+": [1e-5, 1, 1e-5],
             "C-": [-1e-5, -1, -1e-5],
             }
@@ -420,7 +420,7 @@ class Satellite:
 
     def _set_power_system(
             self,
-            power_system_type: str="Nuclear",
+            power_system_type: str = "Nuclear",
             kw: float = 20
         ):
         """ Create the power supply for the spacecraft.
