@@ -206,18 +206,18 @@ def output_plots(
                 # scenario ended during a maneuver. This sets the final time
                 # step of the maneuver to be the end time of the last maneuver.
                 if i == 0 and len(burnStarts) == len(burnEnds):
-                    burnEnds[-1] = t[-1]
+                    burnEnds[-1] = t[-1] * 86400
 
             # If all maneuvers have a defined start and end time, as in not
             # interrupted by the end of the simulation, then plot the last
             # section of the trajectory.
             if len(burnStarts) != len(burnEnds):
                 R = {k:v for k, v in RIC_History["R"].items()
-                     if burnEnds[-2] <= k}
+                     if burnEnds[-2] <= k * 86400}
                 I = {k:v for k, v in RIC_History["I"].items()
-                     if burnEnds[-2] <= k}
+                     if burnEnds[-2] <= k * 86400}
                 C = {k:v for k, v in RIC_History["C"].items()
-                     if burnEnds[-2] <= k}
+                     if burnEnds[-2] <= k * 86400}
                 ax_ric_traj.plot(
                     [*R.values()],
                     [*I.values()],
@@ -282,7 +282,7 @@ def output_plots(
 
         # If there are at least one R-axis maneuver, place a marker when the
         # maneuver began.
-        if len(r_burns) > 0:
+        if PLOT_MANEUVER_MARKERS and len(r_burns) > 0:
             ax.plot(
                 r_burns,
                 [float(data_to_screen[data_to_plot_on[0]][i]) for i in r_burns],

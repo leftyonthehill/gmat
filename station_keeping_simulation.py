@@ -58,9 +58,9 @@ elapsed time, epoch, Keplerian elements) when `output_terminal(...)` is
 called.
 
 Then calls `output_plots()` to render any of the following versus time
-plots that are enabled in `simulationParamters.py`:
+plots that are enabled in `simulationParameters.py`:
 - RIC position / velocity
-- RIC position / velocty oscillation amplitude
+- RIC position / velocity oscillation amplitude
 - Truth-reference Keplerian element differences
 
 See `simulationParameters.py` for plot flags and `data_outputs.py` for
@@ -280,7 +280,7 @@ while elapsed_time < TOTALSECONDS:
             # Rolling amplitude: once the buffer holds 1.5 orbits worth of
             # data, use 1/2 of peak-to-peak. Otherwise, fall back to rolling
             # maximum.
-            if len(RIC_Amp_Buffer[RIC_KEYS[j]]) == 1.5 * STEPS_PER_ORBIT:
+            if len(RIC_Amp_Buffer[RIC_KEYS[j]]) == int(1.5 * STEPS_PER_ORBIT):
                 amp = (max(RIC_Amp_Buffer[RIC_KEYS[j]])
                        - min(RIC_Amp_Buffer[RIC_KEYS[j]])) / 2
             else:
@@ -292,7 +292,7 @@ while elapsed_time < TOTALSECONDS:
 
             # Keep RAAN, AOP, and True Anomaly differences in [-180, 180] deg
             quad_correction = 0
-            if j > 1:
+            if j > 2:
                 if diff_coe > 180:
                     quad_correction = -360
                 elif diff_coe < -180:

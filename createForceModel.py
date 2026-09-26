@@ -54,8 +54,8 @@ class ForceModel:
         Raises
         ------
         ValueError
-            `self.fm_type` is not one of allowed values: "reference" or
-            "truth".
+            `self.fm_type` does not contain one of the following:
+            "reference" or "truth".
         """
 
         if (not self.fm_type.startswith("reference")

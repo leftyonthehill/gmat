@@ -1052,10 +1052,10 @@ class StationKeepingController:
         
         After an R-axis maneuver is complete, monitor the
         position's oscillation amplitude. If
-        `amp_ric["R"] <= DEADBAND_TRIGGER_RATIO` within 75% of one
+        `amp_ric["R"] / R_BOUNDS <= R_TARGET_RATIO` within 75% of one
         orbit then the maneuver is deemed successful. If the
-        `DEADBAND_TRIGGER_RATIO` threshold is not met, then alert the
-        spacecraft that additional maneuvers are required.
+        amplitude ratio does not drop below `R_TARGET_RATIO`, then
+        alert the spacecraft that additional maneuvers are required.
 
         Parameters
         ----------
@@ -1069,9 +1069,7 @@ class StationKeepingController:
             and if any values in the main loop need to be updated.
         """
 
-        # Determine if the amplitude of the R position oscillation has dropped
-        # below `DEADBAND_TRIGGER_RATIO` percent of `R_BOUNDS`.
-        if self.amp_ric["R"] <= DEADBAND_TRIGGER_RATIO * R_BOUNDS:
+        if self.amp_ric["R"] / R_BOUNDS <= R_TARGET_RATIO:
             self.state = self.interrupted_state
             self.interrupted_state = "nominal"
 
@@ -1102,8 +1100,8 @@ class StationKeepingController:
         
         After a C-axis maneuver is complete, monitor the
         position's oscillation amplitude. If
-        `amp_ric["C"] <= DEADBAND_TRIGGER_RATIO` within 75% of one
-        obit then the maneuver is deemed successful. If the oscillation
+        `amp_ric["C"] / C_BOUNDS <= C_TARGET_RATIO` within 75% of one
+        orbit then the maneuver is deemed successful. If the oscillation
         amplitude does not drop below `C_TARGET_RATIO`, then alert the
         spacecraft that additional maneuvers are required.
 
@@ -1119,11 +1117,7 @@ class StationKeepingController:
             and if any values in the main loop need to be updated.
         """
 
-        # Determine if the amplitude of the C position oscillation has
-        # dropped below `C_TARGET_RATIO` of `C_BOUNDS`
-        c_amp_corrected = self.amp_ric["C"] / C_BOUNDS < C_TARGET_RATIO
-
-        if c_amp_corrected:
+        if self.amp_ric["C"] / C_BOUNDS <= C_TARGET_RATIO:
             self.state = self.interrupted_state
             self.interrupted_state = "nominal"
 

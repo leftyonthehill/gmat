@@ -387,7 +387,7 @@ class Satellite:
         """
 
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
-            raise ValueError(axis + "axis not found. Acceptable values are:"
+            raise ValueError(axis + " axis not found. Acceptable values are:"
                              + " R+, R-, I+, I-, C+, C-")
 
 

@@ -64,6 +64,7 @@ C_BOUNDS = 15
 
 DEADBAND_TRIGGER_RATIO = 0.85
 I_BURN_STEP_GAIN = 0.5
+R_TARGET_RATIO = 0.5
 C_TARGET_RATIO = 0.33
 # ----------------- Plotting --------------------------------------------------
 PLOT_3D_RIC = False
