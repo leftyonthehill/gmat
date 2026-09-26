@@ -235,7 +235,6 @@ def output_plots(
         ax_ric_traj.set_xlabel('R (km)')
         ax_ric_traj.set_ylabel('I (km)')
         ax_ric_traj.set_zlabel('C (km)')
-        ax_ric_traj.set_title('3D Trajectory of Earth Orbiter')
         ax_ric_traj.axis('equal')
         ax_ric_traj.set_title("3D RIC Positions Over Time")
 
@@ -280,8 +279,8 @@ def output_plots(
             A dict containing the information to be plotted.
         """
 
-        # If there are at least one R-axis maneuver, place a marker when the
-        # maneuver began.
+        # If at least one R-axis maneuver, place a marker when the maneuver
+        # began.
         if PLOT_MANEUVER_MARKERS and len(r_burns) > 0:
             ax.plot(
                 r_burns,
@@ -290,8 +289,8 @@ def output_plots(
                 c="m",
                 label="R-axis maneuver")
 
-        # If there are at least one I-axis maneuver, place a marker when the
-        # maneuver began.
+        # If at least one I-axis maneuver, place a marker when the maneuver
+        # began.
         if PLOT_MANEUVER_MARKERS and len(i_burns) > 0:
             ax.plot(
                 i_burns,
@@ -300,8 +299,8 @@ def output_plots(
                 c="r",
                 label="I-axis maneuver")
 
-        # If there are at least one C-axis maneuver, place a marker when the
-        # maneuver began.
+        # If at least one C-axis maneuver, place a marker when the maneuver
+        # began.
         if PLOT_MANEUVER_MARKERS and len(c_burns) > 0:
             ax.plot(
                 c_burns,

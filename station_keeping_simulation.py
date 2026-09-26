@@ -14,7 +14,7 @@ must be corrected.
 Main loop
 ---------
 Each iteration:
-1. Step forward both spacecrafts by `dt` (`DT_COAST` while coasting,
+1. Step forward both spacecraft by `dt` (`DT_COAST` while coasting,
    `DT_THRUST` while thrusting).
 2. Compute the truth spacecraft's Cartesian offset from its reference
    in the RIC frame (using xyz2ric).
@@ -53,15 +53,20 @@ Notes
 
 Outputs
 -------
-Optionally prints a terminal summary for both spacecraft (final state,
-elapsed time, epoch, Keplerian elements) when `output_terminal(...)` is
-called.
-
-Then calls `output_plots()` to render any of the following versus time
+`output_plots()` renders any of the following versus time
 plots that are enabled in `simulationParameters.py`:
 - RIC position / velocity
 - RIC position / velocity oscillation amplitude
 - Truth-reference Keplerian element differences
+
+Although not called by default, `output_terminal(...)` prints a
+terminal summary for both spacecraft (final state, elapsed time, epoch,
+Keplerian elements). `output_terminal(...)` is deisgned to support
+segmented runs where you capture terminal COEs and epoch to use as the
+state for the next segment's initial conditions. If segmented runs are
+desired, paste the following at the end of the script:
+
+`output_terminal(elapsed_time, t0, REF_SAT, TRUTH_SAT)`
 
 See `simulationParameters.py` for plot flags and `data_outputs.py` for
 more details.
@@ -75,7 +80,7 @@ import numpy as np
 from createStationKeepingObjects import StationKeepingObjects
 from leo_station_keeping_controller import StationKeepingController
 from load_gmat import gmat
-from data_outputs import output_plots
+from data_outputs import output_plots, output_terminal
 from simulationParameters import (
     DT_COAST,
     MAX_DAYS,
@@ -92,7 +97,7 @@ from support_functions import (
     xyz2ric,
     get_r_axis_print,
     get_c_axis_print,
-    get_i_axis_print,
+    get_i_axis_print
 )
 
 # ----------------- Create Variables ------------------------------------------

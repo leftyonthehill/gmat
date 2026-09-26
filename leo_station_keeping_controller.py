@@ -687,8 +687,9 @@ class StationKeepingController:
         Raises
         ------
         RuntimeError
-            The controller attempted to perform a successful maneuver
-            100 times. To prevent an infinite loop, end the simulation.
+            The controller tried 100 different maneuver attempts to
+            reach its goal. To prevent an infinite loop, end the
+            simulation.
         """
         # Turn thrusters on
         self.thrusting = True
@@ -757,12 +758,13 @@ class StationKeepingController:
         Raises
         ------
         RuntimeError
-            The controller attempted to perform a successful maneuver
-            100 times. To prevent an infinite loop, end the simulation.
+            The controller tried 100 different maneuver attempts to
+            reach its goal. To prevent an infinite loop, end the
+            simulation.
         RuntimeError
             The controller had too many attempts where it tried using a
-            negative thrust duration time. To prevent any errors, end
-            the simulation.
+            negative thrust duration time. To prevent an infinite loop,
+            end the simulation.
         """
         # As an unsuccessful maneuver, remove its end time
         burn_end_time = self.maneuver_ends[-1]
@@ -818,7 +820,7 @@ class StationKeepingController:
 
         # In case this leads to the 100th maneuver attempt, notify the user and
         # exit the station keeping loop.
-        if len(self.maneuver_attempts) == 100:
+        if len(self.maneuver_attempts) >= 100:
             raise RuntimeError("Max burns! current burn duration = "
                     + str(self.burn_duration) + " sec | Min I = "
                     + str(self.min_i_pos)
@@ -858,7 +860,7 @@ class StationKeepingController:
         - If `DEADBAND_TRIGGER_RATIO <= -min_i_pos / I_BOUNDS <= 1`,
           then a "goldilocks" trajectory has been found (within the
           allowed band for drag-loss recovery).
-        - If `-min_i_pos < DEADBAND_TRIGGER_RATIO` * `I_BOUNDS`
+        - If `-min_i_pos / I_BOUNDS < DEADBAND_TRIGGER_RATIO`
           (undershoot), backwards propagate to the end of the maneuver
           and increase the burn duration.
             - Prefer `-min_i_pos` over abs so `min_i_pos` > 0 cannot
@@ -1054,8 +1056,8 @@ class StationKeepingController:
         position's oscillation amplitude. If
         `amp_ric["R"] / R_BOUNDS <= R_TARGET_RATIO` within 75% of one
         orbit then the maneuver is deemed successful. If the
-        amplitude ratio does not drop below `R_TARGET_RATIO`, then
-        alert the spacecraft that additional maneuvers are required.
+        amplitude ratio > `R_TARGET_RATIO`, then alert the spacecraft
+        that additional maneuvers are required.
 
         Parameters
         ----------
@@ -1101,9 +1103,9 @@ class StationKeepingController:
         After a C-axis maneuver is complete, monitor the
         position's oscillation amplitude. If
         `amp_ric["C"] / C_BOUNDS <= C_TARGET_RATIO` within 75% of one
-        orbit then the maneuver is deemed successful. If the oscillation
-        amplitude does not drop below `C_TARGET_RATIO`, then alert the
-        spacecraft that additional maneuvers are required.
+        orbit then the maneuver is deemed successful. If the
+        amplitude ratio > `C_TARGET_RATIO`, then alert the spacecraft
+        that additional maneuvers are required.
 
         Parameters
         ----------

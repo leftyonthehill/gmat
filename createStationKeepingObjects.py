@@ -25,7 +25,7 @@ class StationKeepingObjects:
         Actively maneuvering thrust axis.
     sat_wrap : Satellite
         GMAT Spacecraft wrapper.
-    sat_gmat : gmat_py.Spacecraft
+    sat_gmat : gmat.Spacecraft
         GMAT Spacecraft Object.
     fm_wrap : dict
         Dict containing the GMAT ForceModel wrappers for the coasting
@@ -79,7 +79,7 @@ class StationKeepingObjects:
         model.
 
         If a satellite is determined to be maneuverable, this function
-        calls `sat_wrap` and `set_maneuverable()` to create ForceModels
+        calls `self.sat_wrap.set_maneuverable()` to create ForceModels
         and Propagators for each thruster attached to the vehicle.
         """
 

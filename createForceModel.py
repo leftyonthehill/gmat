@@ -49,12 +49,12 @@ class ForceModel:
         self.burn_force = {}
 
     def set_forces_to_propagate(self):
-        """ Assign the corresponding forces for a given force mode.
+        """ Assign the corresponding forces for a given force model.
         
         Raises
         ------
         ValueError
-            `self.fm_type` does not contain one of the following:
+            `self.fm_type` does not start with one of the following:
             "reference" or "truth".
         """
 
@@ -65,7 +65,7 @@ class ForceModel:
                 + self.fm_type + "). The force model type must contain "
                 + "'reference' or 'truth'.")
 
-        if self.fm_type.lower() == "reference":
+        if self.fm_type.startswith("reference"):
             self._set_forces(
                 degree=16,
                 order=16

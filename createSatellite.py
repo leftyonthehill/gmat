@@ -26,9 +26,9 @@ class Satellite:
         String of state vector epoch.
     mass : float
         Spacecraft mass in kg.
-    sat : gmat_py.Spacecraft
+    sat : gmat.Spacecraft
         GMAT Spacecraft Object.
-    thrusters : {str: gmat_py.ElectricThruster}
+    thrusters : {str: gmat.ElectricThruster}
         Dict containing any and all of the thrusters assigned to this 
         spacecraft associated with the corresponding thruster axis.
     accelerations : {str: float}
@@ -122,9 +122,10 @@ class Satellite:
         Raises
         ------
         ValueError
-            If the provided list is not exactly 6 or 7 elements long.
+            The provided list is not exactly 6 or 7 elements long.
         SyntaxError
-            If the provided epoch string is not in the correct format.
+            The provided epoch string is not in the correct format. The
+            accepted values are `datetime.datetime` or `str`.
         """
 
         if len(coes) < 6 or len(coes) > 7:
@@ -141,7 +142,7 @@ class Satellite:
         self.sat.SetField("INC", i)
         self.sat.SetField("RAAN", raan)
         self.sat.SetField("AOP", aop)
-        self.sat.SetField("TA", f) 
+        self.sat.SetField("TA", f)
 
         # State vector epoch setting
         if len(coes) == 6:
@@ -150,7 +151,7 @@ class Satellite:
             epoch = coes[-1]
 
         if isinstance(epoch, dt.datetime):
-            self.epoch = epoch.strftime("%d %b %Y 00:00:00.000")
+            self.epoch = epoch.strftime("%d %b %Y %H:%M:%S.%f")
         elif isinstance(epoch, str):
             self.epoch = epoch
         else:
@@ -184,7 +185,8 @@ class Satellite:
         ValueError
             If the provided list is not exactly 6 or 7 elements long.
         SyntaxError
-            If the provided epoch string is not in the correct format.
+            The provided epoch string is not in the correct format. The
+            accepted values are `datetime.datetime` or `str`.
         """
 
         if len(xyz) < 6 or len(xyz) > 7:
@@ -210,7 +212,7 @@ class Satellite:
             epoch = xyz[-1]
 
         if isinstance(epoch, dt.datetime):
-            self.epoch = epoch.strftime("%d %b %Y 00:00:00.000")
+            self.epoch = epoch.strftime("%d %b %Y %H:%M:%S.%f")
         elif isinstance(epoch, str):
             self.epoch = epoch
         else:
@@ -339,7 +341,7 @@ class Satellite:
         """
 
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
-            raise ValueError(axis + " axis not found. Acceptable values are:"
+            raise ValueError(axis + " axis not found. Acceptable values are: "
                              + "R+, R-, I+, I-, C+, C-")
 
         # Create the thruster
