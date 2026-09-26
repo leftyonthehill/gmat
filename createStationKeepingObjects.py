@@ -78,9 +78,10 @@ class StationKeepingObjects:
         """ Create GMAT objects to model the thruster(s) in the physics
         model.
 
-        If a satellite is determined to be maneuverable, this function
-        calls `self.sat_wrap.set_maneuverable()` to create ForceModels
-        and Propagators for each thruster attached to the vehicle.
+        After establishing that the spacecraft is maneuverable, create
+        a `ForceModel` and `Propagator` for each thruster. Having
+        multiple `ForceModel` and `Propagator` objects allows the
+        controller to switch between thrusters as necessary.
         """
 
         self.sat_wrap.set_maneuverable()

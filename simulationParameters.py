@@ -80,7 +80,7 @@ PLOT_RIC_VELO_AMP = False
 PLOT_COE_DIFFS = {
     "del_a": True,
     "del_e": True,
-    "del_i": True  ,
+    "del_i": True,
     "del_raan": True,
     "del_aop": False,
     "del_f": False

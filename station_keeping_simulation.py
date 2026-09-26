@@ -53,15 +53,15 @@ Notes
 
 Outputs
 -------
-`output_plots()` renders any of the following versus time
-plots that are enabled in `simulationParameters.py`:
+`output_plots()` renders any of the following versus time plots that
+are enabled in `simulationParameters.py`:
 - RIC position / velocity
 - RIC position / velocity oscillation amplitude
 - Truth-reference Keplerian element differences
 
 Although not called by default, `output_terminal(...)` prints a
 terminal summary for both spacecraft (final state, elapsed time, epoch,
-Keplerian elements). `output_terminal(...)` is deisgned to support
+Keplerian elements). `output_terminal(...)` is designed to support
 segmented runs where you capture terminal COEs and epoch to use as the
 state for the next segment's initial conditions. If segmented runs are
 desired, paste the following at the end of the script:
@@ -101,7 +101,7 @@ from support_functions import (
 )
 
 # ----------------- Create Variables ------------------------------------------
-MU = 398600  # Earth’s gravitational parameter in km^3/s^2
+MU = 398600  # Earth's gravitational parameter in km^3/s^2
 
 if STATE_VECT_SOURCE == "new":
     MEAN_MOTION = np.sqrt(MU / ORBIT_STATE[0]**3)

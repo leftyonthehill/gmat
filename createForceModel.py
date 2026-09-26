@@ -62,7 +62,7 @@ class ForceModel:
             and not self.fm_type.startswith("truth")):
             raise ValueError(
                 "Incorrect force-model type was chosen (Provided: "
-                + self.fm_type + "). The force model type must contain "
+                + self.fm_type + "). The force model type must start with "
                 + "'reference' or 'truth'.")
 
         if self.fm_type.startswith("reference"):

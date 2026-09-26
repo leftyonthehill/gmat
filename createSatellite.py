@@ -122,9 +122,10 @@ class Satellite:
         Raises
         ------
         ValueError
-            The provided list is not exactly 6 or 7 elements long.
+            The provided state vector is not exactly 6 or 7 elements
+            long.
         SyntaxError
-            The provided epoch string is not in the correct format. The
+            The provided epoch string is not in the correct type. The
             accepted values are `datetime.datetime` or `str`.
         """
 
@@ -159,7 +160,7 @@ class Satellite:
                             "datetime.datetime object or a string")
 
         self.sat.SetField("DateFormat", "UTCGregorian")
-        self.sat.SetField("Epoch", self.epoch)
+        self.sat.SetField("Epoch", self.epoch[:-3])
 
     def set_cartesian_state(self, xyz: list):
         """ Set the spacecraft state vector using Cartesian elements.
@@ -183,9 +184,10 @@ class Satellite:
         Raises
         ------
         ValueError
-            If the provided list is not exactly 6 or 7 elements long.
+            The provided state vector is not exactly 6 or 7 elements
+            long.
         SyntaxError
-            The provided epoch string is not in the correct format. The
+            The provided epoch string is not in the correct type. The
             accepted values are `datetime.datetime` or `str`.
         """
 
@@ -220,7 +222,7 @@ class Satellite:
                             "datetime.datetime object or a string")
 
         self.sat.SetField("DateFormat", "UTCGregorian")
-        self.sat.SetField("Epoch", self.epoch)
+        self.sat.SetField("Epoch", self.epoch[:-3])
 
         self.sat.SetField("DisplayStateType", "Keplerian")
 
@@ -389,8 +391,8 @@ class Satellite:
         """
 
         if axis not in ("R+", "R-", "I+", "I-", "C+", "C-"):
-            raise ValueError(axis + " axis not found. Acceptable values are:"
-                             + " R+, R-, I+, I-, C+, C-")
+            raise ValueError(axis + " axis not found. Acceptable values are: "
+                             + "R+, R-, I+, I-, C+, C-")
 
 
         # The following map is used to correlate the RIC frame to the VNB

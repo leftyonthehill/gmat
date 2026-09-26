@@ -723,8 +723,8 @@ class StationKeepingController:
         if predicted_burn_duration in self.maneuver_attempts:
             self.estimated_steps -=1
 
-        # In case this leads to the 100th maneuver attempt, notify the user and
-        # exit the station keeping loop
+        # In case this leads to the 100th or greater maneuver attempt, notify
+        # the user and exit the station keeping loop.
         if len(self.maneuver_attempts) >= 100:
             raise RuntimeError("Max burns! "
                     + "Current burn duration = "
@@ -818,8 +818,8 @@ class StationKeepingController:
                     "Too many attempts to fix a negative burn time"
                 )
 
-        # In case this leads to the 100th maneuver attempt, notify the user and
-        # exit the station keeping loop.
+        # In case this leads to the 100th or greater maneuver attempt, notify
+        # the user and exit the station keeping loop.
         if len(self.maneuver_attempts) >= 100:
             raise RuntimeError("Max burns! current burn duration = "
                     + str(self.burn_duration) + " sec | Min I = "
@@ -1097,7 +1097,7 @@ class StationKeepingController:
     def _return_from_c(
             self,
             elapsed_time: float
-    ):
+    ) -> dict:
         """ Verifies the cross-track maneuver performed nominally.
         
         After a C-axis maneuver is complete, monitor the
