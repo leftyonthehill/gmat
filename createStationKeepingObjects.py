@@ -10,7 +10,7 @@ from load_gmat import gmat
 
 
 class StationKeepingObjects:
-    """ Creates GMAT objects for a station keeping scenario.
+    """Creates GMAT objects for a station keeping scenario.
 
     Rather than only storing the information for one state at a time
     (either coasting or thrusting along one of the spacecraft's
@@ -38,7 +38,7 @@ class StationKeepingObjects:
     """
 
     def __init__(self, object_type: str):
-        """ Create GMAT objects for the provided object type.
+        """Create GMAT objects for the provided object type.
 
         By default, a new satellite object is set to non-maneuverable.
 
@@ -77,7 +77,7 @@ class StationKeepingObjects:
         self.prop_wrap[self.thrust_axis].set_sat(self.sat_gmat)
 
     def set_maneuverable(self) -> None:
-        """ Create GMAT objects to model the thruster(s) in the physics
+        """Create GMAT objects to model the thruster(s) in the physics
         model.
 
         After establishing that the spacecraft is maneuverable, create
@@ -128,7 +128,7 @@ class StationKeepingObjects:
             prop.prop_gmat.PrepareInternals()
 
     def thruster_on(self, axis: str) -> gmat.RungeKutta89:
-        """ Turn on the thrusters for the given axis.
+        """Turn on the thrusters for the given axis.
 
         For the provided value of 'axis', update the corresponding
         Propagator with the latest Satellite state and the thruster's
@@ -177,7 +177,7 @@ class StationKeepingObjects:
         return integrator
 
     def thruster_off(self, axis: str) -> gmat.RungeKutta89:
-        """ Turn off any active thrusters on the Satellite.
+        """Turn off any active thrusters on the Satellite.
 
         Based on the provided axis, turn off the corresponding
         thrusters and reset `self.thrust_axis` to "coast".

@@ -1,4 +1,4 @@
-""" Support script to plot and visualize station keeping data. """
+"""Support script to plot and visualize station keeping data. """
 
 import datetime
 import matplotlib.pyplot as plt
@@ -70,7 +70,7 @@ def output_plots(
         coes: list[dict],
         ric: list[dict]
     ) -> None:
-    """ Generate plots to visualize the scenario.
+    """Generate plots to visualize the scenario.
 
     Measuring the differences as (Truth - Reference), there are 9
     graphs available to plot. Each plot can include a point for when
@@ -275,10 +275,10 @@ def output_plots(
         ----------
         ax : plt.Axes
             The plot to put the maneuver marker on.
-        data_to_plot_on : list
+        data_to_plot_on : list[str]
             A list of keys from 'data_to_screen' to define what data the
             maneuver markers will be plotted over.
-        data_to_screen : dict
+        data_to_screen : dict[str, dict[float, float]]
             A dict containing the information to be plotted.
         """
 

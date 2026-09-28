@@ -19,7 +19,7 @@ The simulation models a spacecraft's maneuver behavior by propagating two trajec
 ### Reference vs Truth
 Each trajectory in the simulation uses a **Runge-Kutta 89** numerical integrator. However, the forces modeled between trajectories will vary.
 
-| Trajectory | Forces Modeled | 
+| Trajectory | Forces Modeled |
 |------------|----------------|
 | *Reference* | Earth's gravity (JGM2, **16x16** harmonics) |
 | *Truth* | Earth's gravity (JGM2, **16x16** harmonics)<br> Solar/Lunar attraction<br> Jacchia-Roberts atmospheric drag<br> Solar radiation pressure<br> Electric thrusters (*Only while thrusting*)|
@@ -56,7 +56,7 @@ After an R/C axis maneuver, the controller enters another waiting period to veri
 After an I axis maneuver, on the other hand, the controller will propagate out the truth spacecraft's path for at least 4 revolutions and until `Δa_mean < 0`. This point represents when drag has overcome the maneuver and will send the spacecraft drifting in the velocity direction, relative to its reference trajectory. When the drift rate changes, one of three outcomes occurs: an undershoot, an overshoot, or the "goldilocks" arc. If the maneuver results in an undershoot or an overshoot arc, correct the maneuver duration and repeat until a goldilocks arc is achieved.
 - *Undershoot* (`-min_i_pos / I_BOUNDS < I_TRIGGER_RATIO`): Back propagate the simulation to the time the maneuver ended. Using `I_BURN_STEP_GAIN` and the miss distance, estimate the needed additional maneuver duration to achieve goldilocks arc.
 - *Overshoot* (`-min_i_pos > I_BOUNDS`): Back propagate the simulation to the time the maneuver ended. Using `I_BURN_STEP_GAIN` and the miss distance, estimate the duration the maneuver needs to be shortened by to achieve goldilocks arc.
-- *Goldilocks* (`I_TRIGGER_RATIO <= -min_i_pos / I_BOUNDS <= 1`): The apex of the trajectory falls between the targeted bounds. Rewind to the end of the maneuver and resume the simulation as normal.
+- *Goldilocks* (`I_TRIGGER_RATIO <= -min_i_pos / I_BOUNDS <= 1`): The apex of the trajectory falls between the targeted bounds. Rewind to the end of the maneuver and resume prior operations (coasting or an interrupted state).
 
 ## Configuration
 Edits to the default values can be made in `simulationParameters.py`. Default values of note:
@@ -78,17 +78,17 @@ Edits to the default values can be made in `simulationParameters.py`. Default va
 - `PRINT_MANEUVER_MESSAGE`
 - `PLOT_RIC_POS`
 - `PLOT_RIC_POS_AMP`
-- `PLOT_COE_DIFF["del_a"]`
-- `PLOT_COE_DIFF["del_e"]`
-- `PLOT_COE_DIFF["del_i"]`
-- `PLOT_COE_DIFF["del_raan"]`
+- `PLOT_COE_DIFFS["del_a"]`
+- `PLOT_COE_DIFFS["del_e"]`
+- `PLOT_COE_DIFFS["del_i"]`
+- `PLOT_COE_DIFFS["del_raan"]`
 - `PLOT_MANEUVER_MARKERS`
 #### Off
 - `PLOT_3D_RIC`
 - `PLOT_RIC_VELO`
 - `PLOT_RIC_VELO_AMP`
-- `PLOT_COE_DIFF["del_aop"]`
-- `PLOT_COE_DIFF["del_f"]`
+- `PLOT_COE_DIFFS["del_aop"]`
+- `PLOT_COE_DIFFS["del_f"]`
 - `PLOT_PHASE_DIFF`
 - `PRINT_I_AXIS_MANEUVER_ATTEMPTS`
 

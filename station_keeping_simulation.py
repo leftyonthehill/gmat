@@ -1,4 +1,4 @@
-""" Station keeping scenario starting point.
+"""Station keeping scenario starting point.
 
 This script drives a two-satellite (reference and truth) GMAT scenario
 and uses a state-machine controller to keep the truth spacecraft within
@@ -48,7 +48,7 @@ Notes
   tolerance. Small discontinuities at these seams are expected and
   acceptable.
 - Thruster, force model, and propagator setups are delegated to
-  `createStationKeepingObjects`. 
+  `createStationKeepingObjects`.
 - `leo_station_keeping_controller.py` owns the control logic and
   telemetry collection.
 
@@ -124,11 +124,11 @@ elapsed_time = 0.0
 
 # Stores the RIC history of the truth spacecraft about the reference spacecraft
 RIC_KEYS = ["R", "I", "C", "R_dot", "I_dot", "C_dot"]
-RIC_History = {key : {0.0:0.0}
+RIC_History = {key: {0.0:0.0}
                for key in RIC_KEYS}
-RIC_Amp_History = {key : {0.0:0.0}
+RIC_Amp_History = {key: {0.0:0.0}
                    for key in RIC_KEYS}
-RIC_Amp_Buffer = {key : deque([0.0], maxlen=int(1.5 * STEPS_PER_ORBIT))
+RIC_Amp_Buffer = {key: deque([0.0], maxlen=int(1.5 * STEPS_PER_ORBIT))
                   for key in RIC_History}
 
 # Storage of the differences in the orbital elements throughout the scenario

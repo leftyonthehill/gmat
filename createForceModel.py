@@ -1,4 +1,4 @@
-""" Support class that creates the dynamics and force model for the
+"""Support class that creates the dynamics and force model for the
 station keeping scenario. """
 
 from createSatellite import Satellite
@@ -24,17 +24,17 @@ class ForceModel:
     fm : gmat.ODEModel
         GMAT object holding the list of forces that contribute to the
         spacecraft's acceleration.
-    burn : {str: gmat.FiniteBurn}
+    burn : dict[str: gmat.FiniteBurn]
         dict of GMAT objects describing the configuration of the
         thrusters and their axes.
-    burn_force : {str: gmat.FiniteThrust}
+    burn_force : dict[str: gmat.FiniteThrust]
         dict of GMAT forces to be applied to the gmat.PhysicalModel to
         simulate continuous-thrust acceleration for each corresponding
         thruster axis.
     """
 
     def __init__(self, fm_type: str):
-        """ Initialize the ForceModel wrapper.
+        """Initialize the ForceModel wrapper.
 
         Parameters
         ----------
@@ -48,7 +48,7 @@ class ForceModel:
         self.burn_force = {}
 
     def set_forces_to_propagate(self):
-        """ Assign the corresponding forces for a given force model.
+        """Assign the corresponding forces for a given force model.
 
         Raises
         ------
@@ -79,7 +79,7 @@ class ForceModel:
             )
 
     def _set_forces(self, degree: int, order: int, **kwargs):
-        """ Assign the desired forces to the ForceModel.
+        """Assign the desired forces to the ForceModel.
 
         Parameters
         ----------

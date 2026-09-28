@@ -1,5 +1,5 @@
-""" Support class that creates the satellites for a station keeping
-scenario. """
+"""Support class that creates the satellites for a station keeping
+scenario."""
 
 import datetime as dt
 
@@ -7,7 +7,7 @@ from load_gmat import gmat
 
 
 class Satellite:
-    """ Wrapper for a Spacecraft object in GMAT.
+    """Wrapper for a Spacecraft object in GMAT.
 
     - If this is for the reference spacecraft, no other function calls
       are required.
@@ -28,16 +28,16 @@ class Satellite:
         Spacecraft mass in kg.
     sat : gmat.Spacecraft
         GMAT Spacecraft Object.
-    thrusters : {str: gmat.ElectricThruster}
+    thrusters : dict[str: gmat.ElectricThruster]
         Dict containing any and all of the thrusters assigned to this
         spacecraft associated with the corresponding thruster axis.
-    accelerations : {str: float}
+    accelerations : dict[str: float]
         Dict containing the acceleration of the spacecraft while
         thrusting with the corresponding thruster axis.
     """
 
     def __init__(self, sat_name: str):
-        """ Initialize the Satellite wrapper.
+        """Initialize the Satellite wrapper.
 
         Parameters
         ----------
@@ -71,7 +71,7 @@ class Satellite:
         self.sat.SetField("CoordinateSystem", "EarthMJ2000Eq")
 
     def set_sat_param(self, sat_physical_param: list[float]):
-        """ Customize the physical parameters of the spacecraft.
+        """Customize the physical parameters of the spacecraft.
 
         Parameters
         ----------
@@ -101,12 +101,12 @@ class Satellite:
         self.mass = m
 
     def set_keplerian_state(self, coes: list[float | str | dt.datetime]):
-        """ Set the spacecraft state vector using Keplerian elements.
+        """Set the spacecraft state vector using Keplerian elements.
 
         The provided list must contain an element for each classical
         orbital element and, optionally, the epoch associated with the
-        state vector. If an epoch is included, it must be in the form
-        of "dd mmm yyyy HH:MM:SS.SSS".
+        state vector. If an epoch is included, it must be a
+        `dt.datetime` or in the form of "dd mmm yyyy HH:MM:SS.SSS".
 
         Parameters
         ----------
@@ -117,7 +117,8 @@ class Satellite:
             - Right Ascension of the Ascending Node,
             - Argument of Periapsis,
             - True Anomaly,
-            - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
+            - State Vector Epoch
+                - dt.datetime or "dd mmm yyyy HH:MM:SS.SSS"
 
         Raises
         ------
@@ -126,7 +127,7 @@ class Satellite:
             long.
         TypeError
             The provided epoch is not of the correct type. The accepted
-            values are `datetime.datetime` or `str`.
+            values are `dt.datetime` or `str`.
         """
 
         if len(coes) < 6 or len(coes) > 7:
@@ -169,12 +170,13 @@ class Satellite:
         self.sat.SetField("Epoch", self.epoch)
 
     def set_cartesian_state(self, xyz: list[float | str | dt.datetime]):
-        """ Set the spacecraft state vector using Cartesian elements.
+        """Set the spacecraft state vector using Cartesian elements.
 
         The provided list must contain an element for each Cartesian
         element from the ECI frame and, optionally, the epoch
         associated with the state vector. If an epoch is included,
-        it must be in the form of "dd mmm yyyy HH:MM:SS.SSS".
+        it must be a `dt.datetime` or in the form of
+        "dd mmm yyyy HH:MM:SS.SSS".
 
         Parameters
         ----------
@@ -185,7 +187,8 @@ class Satellite:
             - V_X,
             - V_Y,
             - V_Z,
-            - State Vector Epoch ("dd mmm yyyy HH:MM:SS.SSS")
+            - State Vector Epoch 
+                - dt.datetime or "dd mmm yyyy HH:MM:SS.SSS"
 
         Raises
         ------
@@ -194,7 +197,7 @@ class Satellite:
             long.
         TypeError
             The provided epoch is not of the correct type. The accepted
-            values are `datetime.datetime` or `str`.
+            values are `dt.datetime` or `str`.
         """
 
         if len(xyz) < 6 or len(xyz) > 7:
@@ -239,7 +242,7 @@ class Satellite:
         self.sat.SetField("DisplayStateType", "Keplerian")
 
     def set_maneuverable(self):
-        """ Prepare the components needed to make the spacecraft
+        """Prepare the components needed to make the spacecraft
         maneuverable.
 
         If custom components have not been created for this spacecraft,
@@ -281,7 +284,7 @@ class Satellite:
             i.SetField("Tank", etank_name)
 
     def get_keplerian_state(self) -> list[float]:
-        """ Return the Keplerian state vector of the spacecraft.
+        """Return the Keplerian state vector of the spacecraft.
 
         Returns
         -------
@@ -297,7 +300,7 @@ class Satellite:
         return x
 
     def get_cartesian_state(self) -> list[float]:
-        """ Return the Cartesian state vector of the spacecraft.
+        """Return the Cartesian state vector of the spacecraft.
 
         Returns
         -------
@@ -324,8 +327,9 @@ class Satellite:
         """
 
         # create GMAT electric fuel tank
-        etank = gmat.Construct("ElectricTank",
-                                    f"{self.sat.GetName()}_tank")
+        etank = gmat.Construct(
+            "ElectricTank",
+            f"{self.sat.GetName()}_tank")
         etank.SetField("FuelMass", mass)
 
         # add the tank mass to the satellite's total mass
@@ -336,7 +340,7 @@ class Satellite:
 
     def _set_ethruster(self, axis: str = "I+",
                      engine_specs: tuple = (0.2, 3000)):
-        """ Create a thruster on the spacecraft.
+        """Create a thruster on the spacecraft.
 
         Parameters
         ----------
@@ -361,9 +365,10 @@ class Satellite:
         # Create the thruster
         thrust = engine_specs[0]
         isp = engine_specs[1]
-        ethruster = gmat.Construct("ElectricThruster",
-                                   self.sat.GetName() + "_electric_thruster_"
-                                    + axis)
+        ethruster = gmat.Construct(
+            "ElectricThruster",
+            self.sat.GetName() + "_electric_thruster_"
+            + axis)
         ethruster.SetField("Isp", isp)
         ethruster.SetField("ConstantThrust", thrust)
         ethruster.SetField("ThrustModel", "ConstantThrustAndIsp")
@@ -377,7 +382,7 @@ class Satellite:
         self._set_ethruster_direction(axis)
 
     def _set_ethruster_direction(self, axis: str):
-        """ Assign the thruster's direction.
+        """Assign the thruster's direction.
 
         The spacecraft's thrusters are created referencing the
         spacecraft's Velocity/Normal/Bi-Normal (VNB) reference frame.
@@ -435,7 +440,7 @@ class Satellite:
             power_system_type: str = "Nuclear",
             kw: float = 20
         ):
-        """ Create the power supply for the spacecraft.
+        """Create the power supply for the spacecraft.
 
         While the power system type of spacecraft is commonly "Solar"
         power, this function sets the default type to "Nuclear". This
@@ -463,12 +468,14 @@ class Satellite:
         """
 
         if power_system_type != "Nuclear" and power_system_type != "Solar":
-            raise ValueError(power_system_type + " is not a valid power "
-                             + "system type in GMAT. Please select from "
-                             + "either 'Nuclear' or 'Solar'.")
-        power_system = gmat.Construct(power_system_type + "PowerSystem",
-                                          self.sat.GetName() + "_"
-                                          + power_system_type + "Power")
+            raise ValueError(
+                power_system_type + " is not a valid power "
+                + "system type in GMAT. Please select from "
+                + "either 'Nuclear' or 'Solar'.")
+        power_system = gmat.Construct(
+            power_system_type + "PowerSystem",
+            self.sat.GetName() + "_"
+            + power_system_type + "Power")
 
         power_system.SetField("InitialMaxPower", kw)
         power_system.SetField("InitialEpoch", self.epoch)

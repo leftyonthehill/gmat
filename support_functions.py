@@ -117,7 +117,7 @@ def xyz2ric(
 
 # ----------------- Time instant conversions ----------------------------------
 def get_epoch_as_datetime(date_str: str) -> dt.datetime:
-    """ Parse a GMAT UTCGregorian epoch string into a datetime.
+    """Parse a GMAT UTCGregorian epoch string into a datetime.
 
     Parameters
     ----------
@@ -137,7 +137,7 @@ def get_epoch_as_datetime(date_str: str) -> dt.datetime:
 
 
 def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
-    """ Format a datetime as a GMAT UTCGregorian string.
+    """Format a datetime as a GMAT UTCGregorian string.
 
     Parameters
     ----------
@@ -180,7 +180,7 @@ def get_epoch_from_satellite(sat: gmat.Spacecraft) -> float:
 
 
 def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
-    """ Format a datetime as a Modified ITC Format string.
+    """Format a datetime as a Modified ITC Format string.
 
     Parameters
     ----------
@@ -206,7 +206,7 @@ def get_r_axis_print(
         delta_v: float,
         total_delta_v: float,
     ) -> None:
-    """ Print to terminal the results of an R-axis maneuver.
+    """Print to terminal the results of an R-axis maneuver.
 
     Parameters
     ----------
@@ -265,7 +265,7 @@ def get_i_axis_print(
         delta_v: float,
         total_delta_v: float,
 ) -> None:
-    """ Print to terminal the results of an I-axis maneuver.
+    """Print to terminal the results of an I-axis maneuver.
 
     Parameters
     ----------
@@ -326,7 +326,7 @@ def get_c_axis_print(
         delta_v: float,
         total_delta_v: float
 ) -> None:
-    """ Print to terminal the results of a C-axis maneuver.
+    """Print to terminal the results of a C-axis maneuver.
 
     Parameters
     ----------

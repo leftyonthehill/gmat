@@ -192,7 +192,7 @@ class StationKeepingController:
             elapsed_time: float,
             accel: dict[str, float]
     ) -> dict:
-        """ Determine the station keeping action to take.
+        """Determine the station keeping action to take.
 
         After updating the necessary attributes, determine what the
         necessary actions are to ensure station keeping within the
@@ -870,7 +870,7 @@ class StationKeepingController:
           for `MIN_DUTY_TIME`.
             - Corrects for atmospheric drag and sends the spacecraft
               drifting into I- direction.
-        - Coast for a minimum of 4 orbits and wait until the average 
+        - Coast for a minimum of 4 orbits and wait until the average
           "del_a" drops below 0.
             - Signifies that the truth spacecraft has begun to drift
               in I+ direction.
@@ -1067,7 +1067,7 @@ class StationKeepingController:
             self,
             elapsed_time: float,
     ) -> dict:
-        """ Verifies the radial maneuver performed nominally.
+        """Verifies the radial maneuver performed nominally.
 
         After an R-axis maneuver is complete, monitor the
         position's oscillation amplitude. If
@@ -1114,7 +1114,7 @@ class StationKeepingController:
             self,
             elapsed_time: float
     ) -> dict:
-        """ Verifies the cross-track maneuver performed nominally.
+        """Verifies the cross-track maneuver performed nominally.
 
         After a C-axis maneuver is complete, monitor the
         position's oscillation amplitude. If
