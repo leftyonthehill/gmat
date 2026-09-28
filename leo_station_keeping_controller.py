@@ -196,7 +196,7 @@ class StationKeepingController:
         # boundary violations.
         boundary_violations = {
             "R": self.amp_ric["R"] > R_BOUNDS,
-            "I": self.rv_ric[1] > DEADBAND_TRIGGER_RATIO * I_BOUNDS,
+            "I": self.rv_ric[1] > I_TRIGGER_RATIO * I_BOUNDS,
             "C": self.amp_ric["C"] > C_BOUNDS,
         }
 
@@ -455,7 +455,7 @@ class StationKeepingController:
         crit_angle = np.rad2deg(np.arctan2(
                 self.coes_avg_diff["del_raan"]
                 * np.sin(np.deg2rad(self.ref_coes[2])),
-                self.coes_avg_diff["del_i"] * 10
+                self.coes_avg_diff["del_i"] * 100
             )
         )
 
@@ -624,7 +624,7 @@ class StationKeepingController:
         found and to resume prior ops.
 
         The current return trajectory of the truth spacecraft has a
-        maximum displacement between `DEADBAND_TRIGGER_RATIO` and 1
+        maximum displacement between `I_TRIGGER_RATIO` and 1
         times the distance of the negative `I_BOUNDS` boundary.
         Alert the spacecraft of the successful maneuver and reset
         attributes.
@@ -709,7 +709,7 @@ class StationKeepingController:
         # (`I_BURN_STEP_GAIN * miss distance`, rounded to the next whole
         # number to get the number of `DT_THRUST` steps needed).
         self.estimated_steps = np.ceil(
-            (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS)
+            (self.min_i_pos + I_TRIGGER_RATIO * I_BOUNDS)
             * I_BURN_STEP_GAIN
         )
 
@@ -784,7 +784,7 @@ class StationKeepingController:
         # number to get the number of `DT_THRUST` steps needed)
         steps_back = abs(
             np.ceil(
-                (self.min_i_pos + DEADBAND_TRIGGER_RATIO * I_BOUNDS)
+                (self.min_i_pos + I_TRIGGER_RATIO * I_BOUNDS)
                 * I_BURN_STEP_GAIN
             )
         )
@@ -853,10 +853,10 @@ class StationKeepingController:
           "del_a" drops below 0.
             - Signifies that the truth spacecraft has begun to drift
               in I+ direction.
-        - If `DEADBAND_TRIGGER_RATIO <= -min_i_pos / I_BOUNDS <= 1`,
+        - If `I_TRIGGER_RATIO <= -min_i_pos / I_BOUNDS <= 1`,
           then a "goldilocks" trajectory has been found (within the
           allowed band for drag-loss recovery).
-        - If `-min_i_pos / I_BOUNDS < DEADBAND_TRIGGER_RATIO`
+        - If `-min_i_pos / I_BOUNDS < I_TRIGGER_RATIO`
           (undershoot), backwards propagate to the end of the maneuver
           and increase the burn duration.
             - Prefer `-min_i_pos` over abs so `min_i_pos` > 0 cannot
@@ -944,15 +944,15 @@ class StationKeepingController:
             pos_i_drift = self.coes_avg_diff["del_a"] < 0
             if min_time_passed and pos_i_drift:
                 # Termination conditions:
-                # - Achieves deadband target by the time SMA changes sign (no
+                # - Achieves I target by the time SMA changes sign (no
                 #   change).
-                # - Undershoots deadband target when SMA changes sign (more
+                # - Undershoots I target when SMA changes sign (more
                 #   thrusting required).
-                # - Overshoots deadband target (less thrusting required)
+                # - Overshoots I target (less thrusting required)
 
                 termination_conditions = [
-                    DEADBAND_TRIGGER_RATIO <= -self.min_i_pos / I_BOUNDS <= 1,
-                    -self.min_i_pos / I_BOUNDS < DEADBAND_TRIGGER_RATIO,
+                    I_TRIGGER_RATIO <= -self.min_i_pos / I_BOUNDS <= 1,
+                    -self.min_i_pos / I_BOUNDS < I_TRIGGER_RATIO,
                     -self.min_i_pos / I_BOUNDS > 1
                 ]
 

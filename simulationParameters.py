@@ -4,7 +4,7 @@ import datetime as dt
 
 # ----------------- Scenario Control ------------------------------------------
 # Duration of the scenario in days
-MAX_DAYS = 20
+MAX_DAYS = 365*4
 
 # Simulation step size while coasting
 DT_COAST = 120.0
@@ -62,22 +62,28 @@ R_BOUNDS = 10
 I_BOUNDS = 40
 C_BOUNDS = 15
 
-DEADBAND_TRIGGER_RATIO = 0.85
-I_BURN_STEP_GAIN = 0.5
 R_TARGET_RATIO = 0.5
+I_TRIGGER_RATIO = 0.85
+I_BURN_STEP_GAIN = 0.5
 C_TARGET_RATIO = 0.33
 
 # ----------------- Plotting --------------------------------------------------
+# 3D plot of the RIC position over time
 PLOT_3D_RIC = False
 
+# Plots each RIC axis position vs time
 PLOT_RIC_POS = True
 
+# Plots each RIC axis position oscillation amplitude vs time
 PLOT_RIC_POS_AMP = True
 
+# Plots each RIC axis position vs time
 PLOT_RIC_VELO = False
 
+# Plots each RIC axis position oscillation amplitude vs time
 PLOT_RIC_VELO_AMP = False
 
+# Plots the difference of each COE vs time
 PLOT_COE_DIFFS = {
     "del_a": True,
     "del_e": True,
@@ -87,11 +93,16 @@ PLOT_COE_DIFFS = {
     "del_f": False
 }
 
+# Plots the difference in orbital phase ("del_aop" + "del_f") vs time
 PLOT_PHASE_DIFF = False
 
+# Included colored markers for each maneuver type on every plot
 PLOT_MANEUVER_MARKERS = True
 
+# After each maneuver, print a message to the terminal
 PRINT_MANEUVER_MESSAGE = True
 
 # ----------------- Debugging -------------------------------------------------
+# If issues occur during I-axis maneuvers, enable this to see the intermediate
+# maneuver attempts before achieving "goldilocks"
 PRINT_I_AXIS_MANEUVER_ATTEMPTS = False

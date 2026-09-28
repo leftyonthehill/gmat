@@ -159,6 +159,12 @@ class Satellite:
             raise TypeError("Invalid date type. The epoch must be either a " \
                             "datetime.datetime object or a string")
 
+        # In case of the provided epoch providing sub-ms precision,
+        # truncate any additional decimal places. GMAT will only in-take ms and
+        # any higher precision will prevent the simulation from starting.
+        time_parts = self.epoch.split(".")
+        self.epoch = f"{time_parts[0]}.{time_parts[1][:3]}"
+
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
 
@@ -220,6 +226,12 @@ class Satellite:
         else:
             raise TypeError("Invalid date type. The epoch must be either a " \
                             "datetime.datetime object or a string")
+
+        # In case of the provided epoch providing sub-ms precision,
+        # truncate any additional decimal places. GMAT will only in-take ms and
+        # any higher precision will prevent the simulation from starting.
+        time_parts = self.epoch.split(".")
+        self.epoch = f"{time_parts[0]}.{time_parts[1][:3]}"
 
         self.sat.SetField("DateFormat", "UTCGregorian")
         self.sat.SetField("Epoch", self.epoch)
