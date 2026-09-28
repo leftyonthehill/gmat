@@ -1,3 +1,9 @@
+# =============================================================================
+# LEGACY — DO NOT RUN AS THE LIVE DRIVER
+# Superseded by station_keeping_maneuver_subs.py +
+# leo_station_keeping_controller.py.
+# =============================================================================
+
 """ Station keeping scenario starting point. 
 
 This script drives a two-satellite (reference and truth) GMAT scenario

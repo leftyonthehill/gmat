@@ -1,15 +1,10 @@
-""" Station keeping scenario config file. 
-
-In this file, the user can define the simulation parameters from
-the number of days to simulate, the orbital elements of the scenario
-spacecraft, the shape of the 
-"""
+"""Station keeping scenario config file."""
 
 import datetime as dt
 
 # ----------------- Scenario Control ------------------------------------------
 # Duration of the scenario in days
-MAX_DAYS = 380
+MAX_DAYS = 20
 
 # Simulation step size while coasting
 DT_COAST = 120.0
@@ -21,8 +16,8 @@ DT_THRUST = 5.0
 # orbital solutions
 REVOLUTIONS_TO_AVG = 3.0
 
-# ----------------- Satellite Characterisitcs ---------------------------------
-STATE_VECT_SOURCE = "new" # "existing"
+# ----------------- Satellite Characteristics ---------------------------------
+STATE_VECT_SOURCE = "new"  # "existing"
 # Orbital element set shared by the initial reference and truth satellites
 ORBIT_STATE = [
     6903,   # SMA, avg alt of 525 km
@@ -31,7 +26,7 @@ ORBIT_STATE = [
     0,      # RAAN
     0,      # AOP
     0,      # TA
-    dt.datetime.today() # Epoch
+    dt.datetime.today()  # Epoch
 ]
 
 REF_ORBIT_STATE = [
@@ -54,8 +49,9 @@ TRUTH_ORBIT_STATE = [
     "25 Jul 2027 15:05:29.068"
 ]
 
+# Minimum thruster duty time in seconds
+MIN_DUTY_TIME = 60
 # Maximum thruster duty time in seconds
-MIN_DUTY_TIME = 900
 MAX_DUTY_TIME = 3600
 
 MANEUVER_ARC_HALF_ANGLE = 20
@@ -66,32 +62,47 @@ R_BOUNDS = 10
 I_BOUNDS = 40
 C_BOUNDS = 15
 
-DEADBAND_TRIGGER_RATIO = 0.85
+R_TARGET_RATIO = 0.5
+I_TRIGGER_RATIO = 0.85
+I_BURN_STEP_GAIN = 0.5
+C_TARGET_RATIO = 0.33
+
 # ----------------- Plotting --------------------------------------------------
+# 3D plot of the RIC position over time
 PLOT_3D_RIC = False
 
+# Plots each RIC axis position vs time
 PLOT_RIC_POS = True
 
+# Plots each RIC axis position oscillation amplitude vs time
 PLOT_RIC_POS_AMP = True
 
+# Plots each RIC axis velocity vs time
 PLOT_RIC_VELO = False
 
+# Plots each RIC axis velocity oscillation amplitude vs time
 PLOT_RIC_VELO_AMP = False
 
+# Plots the difference of each COE vs time
 PLOT_COE_DIFFS = {
     "del_a": True,
     "del_e": True,
-    "del_i": False  ,
-    "del_raan": False,
+    "del_i": True,
+    "del_raan": True,
     "del_aop": False,
     "del_f": False
 }
 
+# Plots the difference in orbital phase ("del_aop" + "del_f") vs time
 PLOT_PHASE_DIFF = False
 
+# Include colored markers for each maneuver type on every plot
 PLOT_MANEUVER_MARKERS = True
 
+# After each maneuver, print a message to the terminal
 PRINT_MANEUVER_MESSAGE = True
 
 # ----------------- Debugging -------------------------------------------------
+# If issues occur during I-axis maneuvers, enable this to see the intermediate
+# maneuver attempts before achieving "goldilocks"
 PRINT_I_AXIS_MANEUVER_ATTEMPTS = False

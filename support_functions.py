@@ -9,8 +9,10 @@ import numpy as np
 from load_gmat import gmat
 from simulationParameters import DT_COAST
 
+
 def round_to_time_step(t: float) -> float:
-    """ Round down provided time to nearest multiple of `DT_COAST`.
+    """
+    Round down provided time to nearest multiple of `DT_COAST` <= t.
 
     The station keeping controller records the history of the truth
     spacecraft's RIC state vector, differences in the truth and
@@ -35,6 +37,7 @@ def round_to_time_step(t: float) -> float:
     # `t` to floor the time onto the time grid.
     return t - t % DT_COAST
 
+
 def xyz2ric(
         ref_state: list[float],
         true_state: list[float]
@@ -58,17 +61,22 @@ def xyz2ric(
     -------
     tuple
         - rv_ric : list[float]
-            Contains the rotated, RIC frame state vector of the
-            original 'true_state'.
+            - `rv_ric[:3]` = relative position in RIC frame
+            - `rv_ric[3:]` = relative velocity in rotating RIC frame
         - rot_matrix : np.ndarray
             Contains the 3x3 rotation matrix to rotate the ECI frame to
             RIC.
-    
+
     Raises
     ------
     RuntimeError
         If the length of `ref_state` or `true_state` is not exactly 6
         elements long, alert user and end simulation.
+
+    Notes
+    -----
+    `rv_ric[3:]` contains the relative velocity of the truth spacecraft
+    in the rotating RIC frame (`δv - ω x δr`).
     """
     # Verify 6 elements were provided (3 for position and 3 for velocity).
     if len(ref_state) != 6 or len(true_state) != 6:
@@ -93,45 +101,44 @@ def xyz2ric(
     delta_r = true_state[:3] - ref_state[:3]
     delta_v = true_state[3:] - ref_state[3:]
 
-    # Position delta in RIC frame
+    # Relative position delta in RIC frame
     r_ric = rot_matrix @ delta_r
-    v_ric = rot_matrix @ delta_v
+
+    # Relative velocity delta in RIC frame and the computed rotation rate of
+    # the frame.
+    r_mag = np.linalg.norm(ref_state[:3])
+    omega = h_vec / r_mag**2
+    v_ric = rot_matrix @ (delta_v - np.cross(omega, delta_r))
 
     # Combine the position and velocity vectors
     rv_ric = list(r_ric) + list(v_ric)
     return (rv_ric, rot_matrix)
 
+
 # ----------------- Time instant conversions ----------------------------------
 def get_epoch_as_datetime(date_str: str) -> dt.datetime:
-    """ Parse a GMAT UTCGregorian epoch string into a datetime.
-    
-    Expected Format
-    ---------------
-    ``"dd mmm yyyy HH:MM:SS.fff"``
-    Example: ``"26 Aug 2026 00:00:00.000"``
+    """Parse a GMAT UTCGregorian epoch string into a datetime.
 
     Parameters
     ----------
     date_str : str
-        Epoch written in GMAT's UTCGregorian format.
-    
+        Epoch written in GMAT's UTCGregorian format. The input is
+        expected to follow this format: "dd mmm yyyy HH:MM:SS.SSS"
+        (Example: "26 Aug 2026 00:00:00.000").
+
     Returns
     -------
     dt.datetime
         dt.datetime representing the same instant.
-    
-    Raises
-    ------
-    ValueError
-        If `date_str` is not in the expected format.
     """
 
     epoch = dt.datetime.strptime(date_str, "%d %b %Y %H:%M:%S.%f")
     return epoch
 
+
 def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
-    """ Format a datetime as a GMAT UTCGregorian string.
-    
+    """Format a datetime as a GMAT UTCGregorian string.
+
     Parameters
     ----------
     date : dt.datetime, default=dt.datetime.today()
@@ -140,13 +147,14 @@ def get_epoch_as_str(date: dt.datetime = dt.datetime.today()) -> str:
     Returns
     -------
     str
-        ``"dd mmm yyyy HH:MM:SS.fff"`` with millisecond precision.
-        ``strftime("%f")`` provides 6 millisecond digits, however the
+        "dd mmm yyyy HH:MM:SS.SSS" with millisecond precision.
+        `strftime("%f")` provides 6 microsecond digits, however the
         last three decimal places are stripped to match GMAT's
         millisecond field width.
     """
     epoch = date.strftime("%d %b %Y %H:%M:%S.%f")
     return epoch[:-3]
+
 
 def get_epoch_from_satellite(sat: gmat.Spacecraft) -> float:
     """
@@ -172,7 +180,7 @@ def get_epoch_from_satellite(sat: gmat.Spacecraft) -> float:
 
 
 def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
-    """ Format a datetime as a Modified ITC Format string.
+    """Format a datetime as a Modified ITC Format string.
 
     Parameters
     ----------
@@ -181,15 +189,13 @@ def get_epoch_as_mod_itc(date: dt.datetime = dt.datetime.today()) -> str:
 
     Returns
     -------
-    str 
-        ``"yyyyDOYHHMMSS.fff"`` with millisecond precision.
-        ``strftime("%f")`` provides 6 millisecond digits, however the
-        last three decimal places are stripped to match GMAT's
-        millisecond field width.
+    str
+        `yyyyDOYHHMMSS.SSS` with millisecond precision.
     """
 
     epoch = date.strftime("%Y%j%H%M%S.%f")
     return epoch[:-3]
+
 
 # ----------------- Maneuver logging ------------------------------------------
 def get_r_axis_print(
@@ -200,8 +206,8 @@ def get_r_axis_print(
         delta_v: float,
         total_delta_v: float,
     ) -> None:
-    """ Print to terminal the results of a R-axis maneuver. 
-    
+    """Print to terminal the results of an R-axis maneuver.
+
     Parameters
     ----------
     burn_start : float
@@ -250,6 +256,7 @@ def get_r_axis_print(
     terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
     print(terminal_output)
 
+
 def get_i_axis_print(
         burn_start: float,
         burn_duration: float,
@@ -258,8 +265,8 @@ def get_i_axis_print(
         delta_v: float,
         total_delta_v: float,
 ) -> None:
-    """ Print to terminal the results of a I-axis maneuver.
-    
+    """Print to terminal the results of an I-axis maneuver.
+
     Parameters
     ----------
     burn_start : float
@@ -310,6 +317,7 @@ def get_i_axis_print(
     terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
     print(terminal_output)
 
+
 def get_c_axis_print(
         burn_start: float,
         burn_duration: float,
@@ -318,8 +326,8 @@ def get_c_axis_print(
         delta_v: float,
         total_delta_v: float
 ) -> None:
-    """ Print to terminal the results of a C-axis maneuver. 
-    
+    """Print to terminal the results of a C-axis maneuver.
+
     Parameters
     ----------
     burn_start : float
@@ -367,20 +375,21 @@ def get_c_axis_print(
     terminal_output += f"total deltaV = {total_delta_v:1.3f} m/s"
     print(terminal_output)
 
+
 def i_axis_maneuver_attempt_debug_message(
-        maneuver_attempts : int,
-        min_i_pos : float,
-        burn_duration : float
+        maneuver_attempts: int,
+        min_i_pos: float,
+        burn_duration: float
 ) -> None:
     """
     Prints messages for each maneuver attempt during I-axis maneuver
     algorithm.
-    
+
     Parameters
     ----------
     maneuver_attempts : int
         The previous maneuver attempt number.
-    min_i_pos  : float
+    min_i_pos : float
         The minimum I-axis position achieved during previous maneuver
         attempt.
     burn_duration : float
