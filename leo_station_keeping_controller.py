@@ -156,7 +156,7 @@ class StationKeepingController:
     R_OVERRIDE = C_OVERRIDE | {"wait for R burn", "returning from R burn"}
 
     def __init__(self) -> None:
-        """ Initialize the controller. """
+        """Initialize the controller."""
 
         # State monitoring
         self.state = "nominal"

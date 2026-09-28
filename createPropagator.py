@@ -1,5 +1,5 @@
 """Support class that creates the propagators for the station keeping
-scenario. """
+scenario."""
 
 from load_gmat import gmat
 

@@ -93,7 +93,7 @@ Edits to the default values can be made in `simulationParameters.py`. Default va
 - `PRINT_I_AXIS_MANEUVER_ATTEMPTS`
 
 ## Example Results
-Over a 4 year run, the controller used 35.3 m/s total Δv: about 8.5 m/s across 75 in-track (`I+`) burns (~every 19 days) and about 26.8 m/s across 98 cross-track (`C-`) burns in two closeout campaigns near day 386 and day 608. No radial (`R`) burns fired in this case. Cross-track work dominates the budget; in-track burns keep the RIC envelope filled without large Δv.
+Over a 4 year run (`MAX_DAYS = 365 * 4`), the controller used 35.3 m/s total Δv: about 8.5 m/s across 75 in-track (`I+`) burns (~every 19 days) and about 26.8 m/s across 98 cross-track (`C-`) burns in two closeout campaigns near day 386 and day 608. No radial (`R`) burns fired in this case. Cross-track work dominates the budget; in-track burns keep the RIC envelope filled without large Δv.
 
 ### Keeping Within The RIC Box
 <!-- PLOT: ric_position_amplitude_vs_time -->

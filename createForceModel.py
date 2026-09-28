@@ -1,5 +1,5 @@
 """Support class that creates the dynamics and force model for the
-station keeping scenario. """
+station keeping scenario."""
 
 from createSatellite import Satellite
 from load_gmat import gmat
@@ -24,10 +24,10 @@ class ForceModel:
     fm : gmat.ODEModel
         GMAT object holding the list of forces that contribute to the
         spacecraft's acceleration.
-    burn : dict[str: gmat.FiniteBurn]
+    burn : dict[str, gmat.FiniteBurn]
         dict of GMAT objects describing the configuration of the
         thrusters and their axes.
-    burn_force : dict[str: gmat.FiniteThrust]
+    burn_force : dict[str, gmat.FiniteThrust]
         dict of GMAT forces to be applied to the gmat.PhysicalModel to
         simulate continuous-thrust acceleration for each corresponding
         thruster axis.

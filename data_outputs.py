@@ -1,4 +1,4 @@
-"""Support script to plot and visualize station keeping data. """
+"""Support script to plot and visualize station keeping data."""
 
 import datetime
 import matplotlib.pyplot as plt

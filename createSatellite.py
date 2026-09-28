@@ -28,10 +28,10 @@ class Satellite:
         Spacecraft mass in kg.
     sat : gmat.Spacecraft
         GMAT Spacecraft Object.
-    thrusters : dict[str: gmat.ElectricThruster]
+    thrusters : dict[str, gmat.ElectricThruster]
         Dict containing any and all of the thrusters assigned to this
         spacecraft associated with the corresponding thruster axis.
-    accelerations : dict[str: float]
+    accelerations : dict[str, float]
         Dict containing the acceleration of the spacecraft while
         thrusting with the corresponding thruster axis.
     """
@@ -187,7 +187,7 @@ class Satellite:
             - V_X,
             - V_Y,
             - V_Z,
-            - State Vector Epoch 
+            - State Vector Epoch
                 - dt.datetime or "dd mmm yyyy HH:MM:SS.SSS"
 
         Raises
