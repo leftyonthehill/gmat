@@ -29,10 +29,10 @@ class StationKeepingObjects:
         GMAT Spacecraft wrapper.
     sat_gmat : gmat.Spacecraft
         GMAT Spacecraft Object.
-    fm_wrap : dict
+    fm_wrap : dict[str, ForceModel]
         Dict containing the GMAT ForceModel wrappers for the coasting
         period and any axes with thrusters.
-    prop_wrap : dict
+    prop_wrap : dict[str, Propagator]
         Dict containing the GMAT Propagator wrapper for the coasting
         period and any axes with thrusters.
     """

@@ -265,8 +265,8 @@ def output_plots(
 
     def plot_maneuver_markers(
             ax: plt.Axes,
-            data_to_plot_on: list,
-            data_to_screen: dict) -> None:
+            data_to_plot_on: list[str],
+            data_to_screen: dict[str, dict[float, float]]) -> None:
         """
         Highlight where each maneuver begins on each of the enabled
         plots.

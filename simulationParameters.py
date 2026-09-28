@@ -77,10 +77,10 @@ PLOT_RIC_POS = True
 # Plots each RIC axis position oscillation amplitude vs time
 PLOT_RIC_POS_AMP = True
 
-# Plots each RIC axis position vs time
+# Plots each RIC axis velocity vs time
 PLOT_RIC_VELO = False
 
-# Plots each RIC axis position oscillation amplitude vs time
+# Plots each RIC axis velocity oscillation amplitude vs time
 PLOT_RIC_VELO_AMP = False
 
 # Plots the difference of each COE vs time
@@ -96,7 +96,7 @@ PLOT_COE_DIFFS = {
 # Plots the difference in orbital phase ("del_aop" + "del_f") vs time
 PLOT_PHASE_DIFF = False
 
-# Included colored markers for each maneuver type on every plot
+# Include colored markers for each maneuver type on every plot
 PLOT_MANEUVER_MARKERS = True
 
 # After each maneuver, print a message to the terminal

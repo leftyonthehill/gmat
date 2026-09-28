@@ -48,7 +48,8 @@ Notes
   tolerance. Small discontinuities at these seams are expected and
   acceptable.
 - Thruster, force model, and propagator setups are delegated to
-  `StationKeepingObjects`. This script only owns the control logic and
+  `createStationKeepingObjects`. 
+- `leo_station_keeping_controller.py` owns the control logic and
   telemetry collection.
 
 Outputs

@@ -2,8 +2,29 @@
 
 import numpy as np
 
-from simulationParameters import *
-from support_functions import *
+from simulationParameters import (
+    STATE_VECT_SOURCE,
+    ORBIT_STATE,
+    REF_ORBIT_STATE,
+    DT_COAST,
+    DT_THRUST,
+    MIN_DUTY_TIME,
+    MAX_DUTY_TIME,
+    MANEUVER_ARC_HALF_ANGLE,
+    R_BOUNDS,
+    R_TARGET_RATIO,
+    I_TRIGGER_RATIO,
+    I_BURN_STEP_GAIN,
+    I_BOUNDS,
+    C_BOUNDS,
+    C_TARGET_RATIO,
+    PRINT_I_AXIS_MANEUVER_ATTEMPTS,
+)
+
+from support_functions import (
+    i_axis_maneuver_attempt_debug_message,
+    round_to_time_step,
+)
 
 
 class StationKeepingController:
@@ -169,7 +190,7 @@ class StationKeepingController:
     def update(
             self,
             elapsed_time: float,
-            accel: dict
+            accel: dict[str, float]
     ) -> dict:
         """ Determine the station keeping action to take.
 
@@ -181,7 +202,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation started.
-        accel : {str: float}
+        accel : dict[str, float]
             Assuming constant thrust and mass, the acceleration map for
             each thruster axis.
 
@@ -441,7 +462,7 @@ class StationKeepingController:
         This computation uses a modified version of the heuristic by H.
         Schaub and J. Junkins in 'Analytical Mechanics of Space
         Systems', 4th Ed. This version multiplies the value of "del_i"
-        by 10 so that "del_i" and "del_raan" have comparable
+        by 100 so that "del_i" and "del_raan" have comparable
         magnitudes. Otherwise, the original computed the wrong critical
         angle.
 
@@ -547,7 +568,7 @@ class StationKeepingController:
     def _r_burn(
             self,
             elapsed_time: float,
-            accel: dict
+            accel: dict[str, float]
     ) -> dict:
         """
         Terminates the radial maneuver when the maneuver window closes
@@ -564,7 +585,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        accel : dict
+        accel : dict[str, float]
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
 
@@ -617,7 +638,7 @@ class StationKeepingController:
     def _i_burn_goldilocks(
             self,
             elapsed_time: float,
-            accel: dict
+            accel: dict[str, float]
     ) -> dict:
         """
         Alert the spacecraft that a viable I-axis maneuver has been
@@ -633,7 +654,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        accel : dict
+        accel : dict[str, float]
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
 
@@ -838,7 +859,7 @@ class StationKeepingController:
     def _i_burn(
             self,
             elapsed_time: float,
-            accel: dict
+            accel: dict[str, float]
         ) -> dict:
         """
         Contains the termination criteria for the in-track maneuvers.
@@ -873,7 +894,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        accel : dict
+        accel : dict[str, float]
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
 
@@ -973,7 +994,7 @@ class StationKeepingController:
     def _c_burn(
             self,
             elapsed_time: float,
-            accel: dict
+            accel: dict[str, float]
     ) -> dict:
         """
         Terminates the out of plane maneuver when the maneuver window
@@ -988,7 +1009,7 @@ class StationKeepingController:
         ----------
         elapsed_time : float
             Time in seconds since the simulation began.
-        accel : dict
+        accel : dict[str, float]
             dict of each thruster axis and its imparted acceleration on
             the spacecraft.
 

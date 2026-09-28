@@ -160,7 +160,7 @@ class Satellite:
                             "datetime.datetime object or a string")
 
         # In case of the provided epoch providing sub-ms precision,
-        # truncate any additional decimal places. GMAT will only in-take ms and
+        # truncate any additional decimal places. GMAT will only intake ms and
         # any higher precision will prevent the simulation from starting.
         time_parts = self.epoch.split(".")
         self.epoch = f"{time_parts[0]}.{time_parts[1][:3]}"
@@ -228,7 +228,7 @@ class Satellite:
                             "datetime.datetime object or a string")
 
         # In case of the provided epoch providing sub-ms precision,
-        # truncate any additional decimal places. GMAT will only in-take ms and
+        # truncate any additional decimal places. GMAT will only intake ms and
         # any higher precision will prevent the simulation from starting.
         time_parts = self.epoch.split(".")
         self.epoch = f"{time_parts[0]}.{time_parts[1][:3]}"
@@ -297,7 +297,7 @@ class Satellite:
         return x
 
     def get_cartesian_state(self) -> list[float]:
-        """ Returns the Cartesian state vector of the spacecraft.
+        """ Return the Cartesian state vector of the spacecraft.
 
         Returns
         -------
